@@ -22,8 +22,11 @@ if ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )
 endif( )
 
 # Additional modules path for cmake
-# set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Find EIGEN
+find_package(EIGEN REQUIRED)
+include_directories("${EIGEN_INCLUDE_DIRS}")
 
 add_subdirectory(mesher)
 add_subdirectory(fdtd)

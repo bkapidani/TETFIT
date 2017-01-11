@@ -31,11 +31,16 @@
 #ifndef MESHER_HPP
 #define MESHER_HPP
 
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+
 template<typename T>
 class mesher
 {
    public:
    mesher(void)
    {
+	   uint32_t nv,nf,ne,np;
+	   nv=nf=ne=np=0;
       //Numerical limits
 		 
