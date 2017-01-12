@@ -46,7 +46,9 @@ int main(int argc, char **argv)
     
     std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
 	
-	mesher<double> mymesher();
+	mesher<double> grid;
+	
+	// std::cout << "Number of elements: " << grid.Volumes_size() << std::endl;
 	
     return 0;
 }

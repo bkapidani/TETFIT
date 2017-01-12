@@ -40,7 +40,7 @@ class mesher
    public:
    mesher(void)
    {
-	   uint32_t nv,nf,ne,np;
+	   int32_t nv,nf,ne,np;
 	   nv=nf=ne=np=0;
       //Numerical limits
 		 
@@ -52,13 +52,20 @@ class mesher
       zmax= 1;
       L=0.1;
       //other instructions in constructor
+	  // std::cout << "Qui?" << std::endl;
 	  auto px = xmin;
 	  auto py = ymin;
 	  auto pz = zmin;  
 	  
-	  uint32_t Nx = (fabs(xmax-xmin)) / L;
-	  uint32_t Ny = (fabs(ymax-ymin)) / L;
-	  uint32_t Nz = (fabs(zmax-zmin)) / L;
+	  Lx = Ly = Lz = L;
+      double mu0 = 4*3.141592*1e-7;
+      double epsilon0 = 8.854187817e-12;
+      double c0 = 1 / sqrt( mu0 * epsilon0 );
+	  t_step = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0;
+	  
+	  uint32_t Nx = (fabs(xmax-xmin)) / Lx;
+	  uint32_t Ny = (fabs(ymax-ymin)) / Ly;
+	  uint32_t Nz = (fabs(zmax-zmin)) / Lz;
 	  
 	  typedef Eigen::Triplet<uint32_t> U;
       std::vector<U> tripletList;
@@ -68,10 +75,10 @@ class mesher
 	  
 	  // previous_layer.SetZero();
 	
-      Eigen::Vector3d inc_x(L,0,0);
-	  Eigen::Vector3d inc_y(0,L,0);
-	  Eigen::Vector3d inc_z(0,0,L);
-	  std::vector<std::vector<uint32_t>> vte,vtn;
+      Eigen::Vector3d inc_x(Lx,0,0);
+	  Eigen::Vector3d inc_y(0,Ly,0);
+	  Eigen::Vector3d inc_z(0,0,Lz);
+	  std::vector<std::vector<int32_t>> vte,vtn;
 	  
 	  for(uint32_t k=0;k<Nz;k++)
       {
@@ -113,36 +120,38 @@ class mesher
 				  {
                      case 0 :
 					 {
+                        // std::cout << i << " " << j << " " << k << std::endl; 
                         D.push_back(std::vector<int32_t>({-(nf+1),-(nf+2),-(nf+3),
 						                                      nf+4,nf+5,nf+6}));
 						nf+=6;
-						vte.push_back(std::vector<uint32_t>({ne+1,ne+2,ne+3,ne+4,ne+5,ne+6,
+						vte.push_back(std::vector<int32_t>({ne+1,ne+2,ne+3,ne+4,ne+5,ne+6,
 						                                    ne+7,ne+8,ne+9,ne+10,ne+11,ne+12}));
 						ne+=12;
-						vtn.push_back(std::vector<uint32_t>({np+1,np+2,np+3,np+4,
+						vtn.push_back(std::vector<int32_t>({np+1,np+2,np+3,np+4,
 						                                    np+5,np+6,np+7,np+8}));
 						np+=8;
 						
-                        pts.push_back(pp);						//nte.push_back(dummyf);
-						pts.push_back(pp+inc_x);				//nte.push_back(dummyf);
-						pts.push_back(pp+inc_y);				//nte.push_back(dummyf);
-						pts.push_back(pp+inc_x+inc_y);			//nte.push_back(dummyf);
-                        pts.push_back(pp+inc_z);				//nte.push_back(dummyf);
-						pts.push_back(pp+inc_z+inc_x);			//nte.push_back(dummyf);
-						pts.push_back(pp+inc_z+inc_y);			//nte.push_back(dummyf);
-						pts.push_back(pp+inc_z+inc_x+inc_y);	//nte.push_back(dummyf);
+                        pts.push_back(pp);
+						pts.push_back(pp+inc_x);
+						pts.push_back(pp+inc_y);
+						pts.push_back(pp+inc_x+inc_y);
+                        pts.push_back(pp+inc_z);
+						pts.push_back(pp+inc_z+inc_x);
+						pts.push_back(pp+inc_z+inc_y);
+						pts.push_back(pp+inc_z+inc_x+inc_y);
 						
 						break;
 					 }
 					 case 1 :
 					 {
+                        // std::cout << i << " " << j << " " << k << std::endl;
 						D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(nf+1),-(nf+2),
 						                                      nf+3,nf+4,nf+5}));
 						nf+=5;
-						vte.push_back(std::vector<uint32_t>({vte[bottom-1][8],vte[bottom-1][9],ne+1,vte[bottom-1][10],
+						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],ne+1,vte[bottom-1][10],
 						                                    ne+2,vte[bottom-1][11],ne+3,ne+4,ne+5,ne+6,ne+7,ne+8}));
 						ne+=8;
-						vtn.push_back(std::vector<uint32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
+						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
 						                                    np+1,np+2,np+3,np+4}));
 						np+=4;
  
@@ -155,13 +164,14 @@ class mesher
 					 }
 					 case 2 :
 					 {
-						D.push_back(std::vector<int32_t>({-(nf+1),-(D[left-1][5]),-(nf+2),
+                        // std::cout << i << " " << j << " " << k << std::endl;
+						D.push_back(std::vector<int32_t>({-(nf+1),-(D[left-1][4]),-(nf+2),
 						                                      nf+3,nf+4,nf+5}));
 						nf+=5;
-						vte.push_back(std::vector<uint32_t>({vte[left-1][5],ne+1,vte[left-1][6],ne+2,vte[left-1][7],ne+3,
+						vte.push_back(std::vector<int32_t>({vte[left-1][5],ne+1,vte[left-1][6],ne+2,vte[left-1][7],ne+3,
 						                                    ne+4,ne+5,vte[left-1][11],ne+6,ne+7,ne+8}));
 						ne+=8;
-						vtn.push_back(std::vector<uint32_t>({vtn[left-1][2],vtn[left-1][3],np+1,np+2,
+						vtn.push_back(std::vector<int32_t>({vtn[left-1][2],vtn[left-1][3],np+1,np+2,
 						                                    vtn[left-1][6],vtn[left-1][7],np+3,np+4}));
 						np+=4;
 						
@@ -174,13 +184,14 @@ class mesher
 					 }
 					 case 3 :
 					 {
+                        // std::cout << i << " " << j << " " << k << std::endl;
                         D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(D[left-1][4]),-(nf+1),
 						                                      nf+2,nf+3,nf+4}));
 						nf+=4;
-						vte.push_back(std::vector<uint32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
+						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
 						                                    ne+1,ne+2,vte[left-1][11],ne+3,ne+4,ne+5}));
 						ne+=5;
-						vtn.push_back(std::vector<uint32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
+						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
 						                                    vtn[left-1][6],vtn[left-1][7],np+1,np+2}));
 						np+=2;
 						 
@@ -191,13 +202,14 @@ class mesher
 					 }
 					 case 4 :
 					 {
+                        // std::cout << i << " " << j << " " << k << std::endl;
 						D.push_back(std::vector<int32_t>({-(nf+1),-(nf+2),-(D[back-1][3]),
 						                                      nf+3,nf+4,nf+5}));
 						nf+=5;
-						vte.push_back(std::vector<uint32_t>({ne+1,vte[back-1][3],vte[back-1][4],ne+2,ne+3,ne+4,
+						vte.push_back(std::vector<int32_t>({ne+1,vte[back-1][3],vte[back-1][4],ne+2,ne+3,ne+4,
 						                                    vte[back-1][7],ne+5,ne+6,vte[back-1][10],ne+7,ne+8}));
 						ne+=8;
-						vtn.push_back(std::vector<uint32_t>({vtn[back-1][1],np+1,vtn[back-1][3],np+2,
+						vtn.push_back(std::vector<int32_t>({vtn[back-1][1],np+1,vtn[back-1][3],np+2,
 						                                    vtn[back-1][5],np+3,vtn[back-1][7],np+4}));
 						np+=4;
 						
@@ -210,13 +222,14 @@ class mesher
 					 }
 					 case 5 :
 					 {
+                        // std::cout << i << " " << j << " " << k << std::endl;
 						D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(nf+1),-(D[back-1][3]),
 						                                      nf+2,nf+3,nf+4}));
 						nf+=4;
-						vte.push_back(std::vector<uint32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[back-1][4],vte[bottom-1][10],ne+1,vte[bottom-1][11],
+						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[back-1][4],vte[bottom-1][10],ne+1,vte[bottom-1][11],
 						                                    vte[back-1][7],ne+2,ne+3,vte[back-1][10],ne+4,ne+5}));
 						ne+=5;
-						vtn.push_back(std::vector<uint32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
+						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
 						                                    vtn[back-1][5],np+1,vtn[back-1][7],np+2}));
 						np+=2;
 						
@@ -227,13 +240,14 @@ class mesher
 					 }
 					 case 6 :
 					 {
-						D.push_back(std::vector<int32_t>({-(nf+1),-(D[left-1][5]),-(D[back-1][3]),
+                        // std::cout << i << " " << j << " " << k << std::endl;
+						D.push_back(std::vector<int32_t>({-(nf+1),-(D[left-1][4]),-(D[back-1][3]),
 						                                      nf+2,nf+3,nf+4}));
 						nf+=4;
-						vte.push_back(std::vector<uint32_t>({vte[left-1][5],vte[back-1][3],vte[left-1][6],ne+1,vte[left-1][7],ne+2,
+						vte.push_back(std::vector<int32_t>({vte[left-1][5],vte[back-1][3],vte[left-1][6],ne+1,vte[left-1][7],ne+2,
 						                                    vte[back-1][7],ne+3,vte[left-1][11],vte[back-1][10],ne+4,ne+5}));
 						ne+=5;
-						vtn.push_back(std::vector<uint32_t>({vtn[left-1][2],vtn[left-1][3],vtn[back-1][3],np+1,
+						vtn.push_back(std::vector<int32_t>({vtn[left-1][2],vtn[left-1][3],vtn[back-1][3],np+1,
 						                                    vtn[left-1][6],vtn[left-1][7],vtn[back-1][7],np+2}));
 						np+=2;
 						
@@ -244,13 +258,14 @@ class mesher
 					 }
 					 case 7 :
 					 {
+                        std::cout << i << " " << j << " " << k << std::endl;
                         D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(D[left-1][4]),-(D[back-1][3]),
 						                                      nf+1,nf+2,nf+3}));
 						nf+=3;
-						vte.push_back(std::vector<uint32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
+						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
 						                                    vte[back-1][7],ne+1,vte[left-1][11],vte[back-1][10],ne+2,ne+3}));
 						ne+=3;
-						vtn.push_back(std::vector<uint32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
+						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
 						                                    vtn[left-1][6],vtn[left-1][7],vtn[back-1][7],np+1}));
 						np+=1;
 						
@@ -264,16 +279,16 @@ class mesher
 				  this_col[i]=nv;
 			   }
 			   
-               px+=L;
+               px+=Lx;
 			}
 			
 			old_col=std::move(this_col);
-			py+=L;
+			py+=Ly;
 		 }
 
          this_layer.setFromTriplets(tripletList.begin(), tripletList.end());
 		 previous_layer=std::move(this_layer);
-		 pz+=L;
+		 pz+=Lz;
       }
 	  
 	  //Now we build the rest of incidence matrices
@@ -282,6 +297,8 @@ class mesher
 	  Ct.resize(ne);
 	  G.resize(ne);
 	  Gt.resize(np);
+	  M_h.resize(ne);
+	  M_ni.resize(nf);
 	  
 	  for (int32_t i=0; i<nv; i++)
       {
@@ -414,40 +431,92 @@ class mesher
 			Gt[vtn[i][7]].push_back( vte[i][11]);
 		 }
       }
-        
+	  
+	  std::cout << "ci arrivo qui?" << std::endl;
+	  for (uint32_t i=0; i<nf; i++)
+         M_ni[i]=avg_mu(i)/face_area(i);
+	  
+	  for (uint32_t i=0; i<ne; i++)
+         M_h[i]=edge_len(i)/avg_eps(i);
+   }
+   
+   T avg_mu(uint32_t index)
+   {
+      
    }
 
+   T avg_eps(uint32_t index)
+   {
+      
+   }
+   
+   bool Run(double simulation_time)
+   {
+      for (size_t i=0; i*t_step <= simulation_time; i++)
+	  {
+         for (size_t j=0; j<u.size(); j++)
+		 {
+			T i=0;
+			for(size_t k=0; k < Ct[j].size(); k++)
+				i+= Ct[j][k]/abs(Ct[j][k])*f[abs(Ct[j][k])-1];
+            u[j]=u[j] + t_step*M_h[j]*i;
+		 }
+		 
+         for (size_t j=0; j<f.size(); j++)
+		 {
+			T b = C[j][0]/abs(C[j][0])*u[abs(C[j][0])-1]+C[j][1]/abs(C[j][1])*u[abs(C[j][1])-1]+
+			      C[j][2]/abs(C[j][2])*u[abs(C[j][2])-1]+C[j][3]/abs(C[j][3])*u[abs(C[j][3])-1];
+            f[j]=f[j] - t_step*M_ni[j]*b;
+		 }
+	  }
+   }
+
+   uint32_t Volumes_size() { return D.size(); }
+   uint32_t Surfaces_size() { return C.size(); }
+   uint32_t Edges_size() { return G.size(); }
+   uint32_t Points_size() { return pts.size(); }
+   
    private:
-   T xmin,xmax,ymin,ymax,zmin,zmax,L;
+   T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L;
+   std::vector<T> M_ni, M_h, u, f;
+   double t_step;
    std::vector<std::vector<int32_t>> D,Dt,C,Ct,G,Gt;
    std::vector<Eigen::Vector3d> pts;
+   
+   double edge_len(uint32_t index)
+   {
+      return (pts[abs(G[index][0])]-pts[abs(G[index][1])]).norm();
+   }
+   
+   double face_area(uint32_t index)
+   {
+      return edge_len(C[index][0])*edge_len(C[index][1]);
+   }
    
    bool IsGridVol(T x, T y, T z)
    {
 	   if (!IsGridPoint(x,y,z))
 		   return false;
-	   if (!IsGridPoint(x+L,y,z))
+	   if (!IsGridPoint(x+Lx,y,z))
 		   return false;
-	   if (!IsGridPoint(x,y+L,z))
+	   if (!IsGridPoint(x,y+Ly,z))
 		   return false;
-	   if (!IsGridPoint(x,y,z+L))
+	   if (!IsGridPoint(x,y,z+Lz))
 		   return false;
-	   if (!IsGridPoint(x+L,y+L,z))
+	   if (!IsGridPoint(x+Lx,y+Ly,z))
 		   return false;
-	   if (!IsGridPoint(x+L,y,z+L))
+	   if (!IsGridPoint(x+Lx,y,z+Lz))
 		   return false;
-	   if (!IsGridPoint(x,y+L,z+L))
+	   if (!IsGridPoint(x,y+Ly,z+L))
 		   return false;
-	   if (!IsGridPoint(x+L,y+L,z+L))
+	   if (!IsGridPoint(x+Lx,y+Ly,z+Lz))
 		   return false;
 	   return true;
    }
    bool IsGridPoint(T x, T y, T z)
    {
       //check if it satisfies the set of inequalities
-      if (!( x^2+y^2+z^2 < 1 ))
-         return false;
-      if (!( x^2+y^2+z^2 > 0.25 ))
+      if (!( pow(x,2)+pow(y,2)+pow(z,2) < 0.25 ))
          return false;
       return true;
    }

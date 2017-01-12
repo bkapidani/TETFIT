@@ -40,7 +40,7 @@ class mesher
    public:
    mesher(void)
    {
-	   uint32_t nv,nf,ne,np;
+	   int32_t nv,nf,ne,np;
 	   nv=nf=ne=np=0;
       //Numerical limits
 		 
