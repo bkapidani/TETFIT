@@ -15,8 +15,6 @@
 	  uint32_t Nz = (fabs(zmax-zmin)) / Lz;
 	  
 	  typedef Eigen::Triplet<uint32_t> U;
-      std::vector<U> tripletList;
-      tripletList.reserve(Nx*Ny);
       
 	  Eigen::SparseMatrix<uint32_t> previous_layer(Nx,Ny);
 	  
@@ -32,7 +30,9 @@
          py=ymin;
 		 std::vector<uint32_t> old_col;
 		 Eigen::SparseMatrix<uint32_t> this_layer(Nx,Ny);
-		 
+         std::vector<U> tripletList;
+         tripletList.reserve(Nx*Ny);
+
          for (uint32_t j=0;j<Ny;j++)
 		 {
             std::vector<uint32_t> this_col(Nx,0);
@@ -67,160 +67,95 @@
 				  {
                      case 0 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl; 
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
                         D.push_back(std::vector<int32_t>({-(nf+1),-(nf+2),-(nf+3),
 						                                      nf+4,nf+5,nf+6}));
 						nf+=6;
-						vte.push_back(std::vector<int32_t>({ne+1,ne+2,ne+3,ne+4,ne+5,ne+6,
-						                                    ne+7,ne+8,ne+9,ne+10,ne+11,ne+12}));
-						ne+=12;
-						vtn.push_back(std::vector<int32_t>({np+1,np+2,np+3,np+4,
-						                                    np+5,np+6,np+7,np+8}));
-						np+=8;
 						
-                        pts.push_back(pp);
-						pts.push_back(pp+inc_x);
-						pts.push_back(pp+inc_y);
-						pts.push_back(pp+inc_x+inc_y);
-                        pts.push_back(pp+inc_z);
-						pts.push_back(pp+inc_z+inc_x);
-						pts.push_back(pp+inc_z+inc_y);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
+						for (uint32_t cnt=0; cnt<6; cnt++)
+							Dt.push_back(dummyf);
 						
 						break;
 					 }
 					 case 1 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
 						D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(nf+1),-(nf+2),
 						                                      nf+3,nf+4,nf+5}));
 						nf+=5;
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],ne+1,vte[bottom-1][10],
-						                                    ne+2,vte[bottom-1][11],ne+3,ne+4,ne+5,ne+6,ne+7,ne+8}));
-						ne+=8;
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    np+1,np+2,np+3,np+4}));
-						np+=4;
- 
-                        pts.push_back(pp+inc_z);
-						pts.push_back(pp+inc_z+inc_x);
-						pts.push_back(pp+inc_z+inc_y);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<5; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 					 case 2 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
 						D.push_back(std::vector<int32_t>({-(nf+1),-(D[left-1][4]),-(nf+2),
 						                                      nf+3,nf+4,nf+5}));
 						nf+=5;
-						vte.push_back(std::vector<int32_t>({vte[left-1][5],ne+1,vte[left-1][6],ne+2,vte[left-1][7],ne+3,
-						                                    ne+4,ne+5,vte[left-1][11],ne+6,ne+7,ne+8}));
-						ne+=8;
-						vtn.push_back(std::vector<int32_t>({vtn[left-1][2],vtn[left-1][3],np+1,np+2,
-						                                    vtn[left-1][6],vtn[left-1][7],np+3,np+4}));
-						np+=4;
-						
-						pts.push_back(pp+inc_y);
-						pts.push_back(pp+inc_x+inc_y);
-						pts.push_back(pp+inc_z+inc_y);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<5; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 					 case 3 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
                         D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(D[left-1][4]),-(nf+1),
 						                                      nf+2,nf+3,nf+4}));
 						nf+=4;
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
-						                                    ne+1,ne+2,vte[left-1][11],ne+3,ne+4,ne+5}));
-						ne+=5;
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    vtn[left-1][6],vtn[left-1][7],np+1,np+2}));
-						np+=2;
-						 
-						pts.push_back(pp+inc_z+inc_y);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<4; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 					 case 4 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
 						D.push_back(std::vector<int32_t>({-(nf+1),-(nf+2),-(D[back-1][3]),
 						                                      nf+3,nf+4,nf+5}));
 						nf+=5;
-						vte.push_back(std::vector<int32_t>({ne+1,vte[back-1][3],vte[back-1][4],ne+2,ne+3,ne+4,
-						                                    vte[back-1][7],ne+5,ne+6,vte[back-1][10],ne+7,ne+8}));
-						ne+=8;
-						vtn.push_back(std::vector<int32_t>({vtn[back-1][1],np+1,vtn[back-1][3],np+2,
-						                                    vtn[back-1][5],np+3,vtn[back-1][7],np+4}));
-						np+=4;
-						
-						pts.push_back(pp+inc_x);
-						pts.push_back(pp+inc_x+inc_y);
-						pts.push_back(pp+inc_z+inc_x);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<5; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 					 case 5 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
 						D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(nf+1),-(D[back-1][3]),
 						                                      nf+2,nf+3,nf+4}));
 						nf+=4;
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[back-1][4],vte[bottom-1][10],ne+1,vte[bottom-1][11],
-						                                    vte[back-1][7],ne+2,ne+3,vte[back-1][10],ne+4,ne+5}));
-						ne+=5;
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    vtn[back-1][5],np+1,vtn[back-1][7],np+2}));
-						np+=2;
-						
-						pts.push_back(pp+inc_z+inc_x);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<4; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 					 case 6 :
 					 {
-                        // std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
 						D.push_back(std::vector<int32_t>({-(nf+1),-(D[left-1][4]),-(D[back-1][3]),
 						                                      nf+2,nf+3,nf+4}));
 						nf+=4;
-						vte.push_back(std::vector<int32_t>({vte[left-1][5],vte[back-1][3],vte[left-1][6],ne+1,vte[left-1][7],ne+2,
-						                                    vte[back-1][7],ne+3,vte[left-1][11],vte[back-1][10],ne+4,ne+5}));
-						ne+=5;
-						vtn.push_back(std::vector<int32_t>({vtn[left-1][2],vtn[left-1][3],vtn[back-1][3],np+1,
-						                                    vtn[left-1][6],vtn[left-1][7],vtn[back-1][7],np+2}));
-						np+=2;
-						
-						pts.push_back(pp+inc_x+inc_y);
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<4; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 					 case 7 :
 					 {
-                        std::cout << i << " " << j << " " << k << std::endl;
+                        // std::cout << nv << " --> " << i << " " << j << " " << k << " --> " << bottom << " " << left << " " << back << std::endl;
                         D.push_back(std::vector<int32_t>({-(D[bottom-1][5]),-(D[left-1][4]),-(D[back-1][3]),
 						                                      nf+1,nf+2,nf+3}));
 						nf+=3;
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
-						                                    vte[back-1][7],ne+1,vte[left-1][11],vte[back-1][10],ne+2,ne+3}));
-						ne+=3;
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    vtn[left-1][6],vtn[left-1][7],vtn[back-1][7],np+1}));
-						np+=1;
-						
-						pts.push_back(pp+inc_z+inc_x+inc_y);
-						
+						for (uint32_t cnt=0; cnt<3; cnt++)
+							Dt.push_back(dummyf);
 						break;
 					 }
 				  }
+				  std::cout << Dt.size() << " --> " << abs(D[nv-1][0]) << " " << abs(D[nv-1][1]) << " " << abs(D[nv-1][2])
+				            << " " << abs(D[nv-1][3]) << " " << abs(D[nv-1][4]) << " " << abs(D[nv-1][5]) << std::endl;
+                  Dt[abs(D[nv-1][0])-1].push_back(-nv); 
+                  Dt[abs(D[nv-1][1])-1].push_back(-nv);
+				  Dt[abs(D[nv-1][2])-1].push_back(-nv);
+				  Dt[abs(D[nv-1][3])-1].push_back( nv);
+				  Dt[abs(D[nv-1][4])-1].push_back( nv);
+				  Dt[abs(D[nv-1][5])-1].push_back( nv);
 
 				  tripletList.push_back(U(i,j,nv));
 				  this_col[i]=nv;
@@ -238,8 +173,11 @@
 		 pz+=Lz;
       }
 	  
+	  std::vector<uint32_t> p_queue;
+	  p_queue.push_back(1);
+	  
 	  //Now we build the rest of incidence matrices
-	  Dt.resize(nf);
+	  // Dt.resize(nf);
 	  C.resize(nf);
 	  Ct.resize(ne);
 	  G.resize(ne);
