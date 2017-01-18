@@ -1,7 +1,7 @@
 /*
- * This source file is part of FDTD UNIUD.
+ * This source file is part of EMT, the ElectroMagneticTool.
  *
- * Copyright (C) 2017, Bernard Kapidani - kapidani.bernard@spes.uniud.it
+ * Copyright (C) 2013-2015, Matteo Cicuttin - matteo.cicuttin@uniud.it
  * Department of Electrical Engineering, University of Udine
  * All rights reserved.
  *
@@ -27,5 +27,65 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
- 
+
+#include "timecounter.h"
+
+using namespace std::chrono;
+
+timecounter::timecounter()
+    : _is_running(false)
+{}
+
+high_resolution_clock::time_point
+timecounter::tic()
+{
+    _start = high_resolution_clock::now();
+    _is_running = true;
+    return _start;
+}
+
+high_resolution_clock::time_point
+timecounter::toc()
+{
+    _stop = high_resolution_clock::now();
+    _is_running = false;
+    return _stop;
+}
+
+duration<double>
+timecounter::elapsed() const
+{
+    if (_is_running)
+    {
+        auto now = high_resolution_clock::now();
+        return now - _start;
+    }
+    
+    return _stop - _start;
+}
+
+bool
+timecounter::is_running() const
+{
+    return _is_running;
+}
+
+std::ostream&
+operator<<(std::ostream& os, const timecounter& tc)
+{
+    duration<double> time_span = duration_cast<duration<double>>(tc.elapsed());
+    if (tc.is_running())
+        os << time_span.count() << " and counting";
+    else
+        os << time_span.count();
+    
+    return os;
+}
+
+
+
+
+
+
+
+

@@ -11,7 +11,7 @@ if ( APPLE )
 endif ( APPLE )
 
 if ( CYGWIN )
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=gnu++14 -fdiagnostics-color=always \
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++14 -fdiagnostics-color=always \
 -DENABLE_CYGWIN_MATH_FIX -fpermissive")
 endif ( CYGWIN )
 
@@ -28,12 +28,13 @@ set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(EIGEN REQUIRED)
 include_directories("${EIGEN_INCLUDE_DIRS}")
 
-add_subdirectory(mesher)
-add_subdirectory(fdtd)
+# add_subdirectory(mesher)
+# add_subdirectory(fdtd)
 add_subdirectory(main)
+add_subdirectory(utils)
 
 include_directories(${INCLUDE_DIRS})
-include_directories(mesher fdtd)
+include_directories(mesher fdtd utils)
 
 add_executable(fdtd_uniud ${SOURCE})
 target_link_libraries(fdtd_uniud "${LINK_LIBS}" "-lncurses")

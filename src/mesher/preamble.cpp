@@ -33,6 +33,18 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include "timecounter.h"
+#include <thread>
+#include <set>
+#include <cassert>
+#include <fstream>
+
+/*general parameters*/
+double pi = 3.141592653589793;
+double mu0 = 4*pi*1e-7;
+double epsilon0 = 8.854187817e-12;
+double c0 = 1 / sqrt( mu0 * epsilon0 );
+Eigen::Vector3d probe_point(0.025,0.0125,0.05);
 
 template<typename T>
 class mesher
@@ -40,7 +52,13 @@ class mesher
    public:
    mesher(void)
    {
+	   timecounter t_mesh;
+	   t_mesh.tic();
 	   int32_t nv,nf,ne,np;
 	   nv=nf=ne=np=0;
+	   epsilon[1]=epsilon0;
+	   mu[1]=mu0;
+	   freq=5e9;
+	   
       //Numerical limits
 		 

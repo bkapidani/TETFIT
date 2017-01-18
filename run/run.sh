@@ -1,1 +1,1 @@
-gdb ../build_folder/fdtd_uniud
+../build_folder/fdtd_uniud

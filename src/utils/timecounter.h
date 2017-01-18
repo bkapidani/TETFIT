@@ -1,7 +1,7 @@
 /*
- * This source file is part of FDTD UNIUD.
+ * This source file is part of EMT, the ElectroMagneticTool.
  *
- * Copyright (C) 2017, Bernard Kapidani - kapidani.bernard@spes.uniud.it
+ * Copyright (C) 2013-2015, Matteo Cicuttin - matteo.cicuttin@uniud.it
  * Department of Electrical Engineering, University of Udine
  * All rights reserved.
  *
@@ -28,29 +28,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <iostream>
-#include "mesher.hpp"
-#include "fdtd.hpp"
+#pragma once
 
-int main(int argc, char **argv)
+#include <chrono>
+#include <iostream>
+
+using namespace std::chrono;
+
+class timecounter
 {
+    high_resolution_clock::time_point   _start, _stop;
+    bool                                _is_running;
+
+public:
+                                        timecounter();
     
-    const char *splash =
-"    ---------------------------------------------------------------------\n"
-"    |          *** FD-TD Uniud - an FD-TD implementation ***            |\n"
-"    |    Bernard Kapidani (C) 2017 - kapidani.bernard@spes.uniud.it     |\n"
-"    |        Dept. of Electrical Engineering, University of Udine       |\n"
-"    ---------------------------------------------------------------------\n";
-    
-    std::cout << splash << std::endl;
-    
-    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
-	
-	mesher<double> grid;
-	grid.Run(1e-9);
-	
-	// std::cout << "Number of elements: " << grid.Volumes_size() << std::endl;
-	
-    return 0;
-}
+    high_resolution_clock::time_point   tic();
+    high_resolution_clock::time_point   toc();
+    duration<double>                    elapsed() const;
+    bool                                is_running() const;
+};
+
+
+std::ostream& operator<<(std::ostream&, const timecounter&);
 
