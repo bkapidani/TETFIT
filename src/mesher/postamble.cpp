@@ -634,8 +634,8 @@
                // T Dpartial=0;
 			   // for(size_t k=0; k < 4; k++)
 			      // Dpartial+=   Ct[j][k]/abs(Ct[j][k])*F[abs(Ct[j][k])-1];
-			   T Dpartial = Ct[j][0]/abs(Ct[j][0])*F[abs(Ct[j][0])-1]+Ct[j][1]/abs(Ct[j][1])*F[abs(Ct[j][1])-1]+
-			                Ct[j][2]/abs(Ct[j][2])*F[abs(Ct[j][2])-1]+Ct[j][3]/abs(Ct[j][3])*F[abs(Ct[j][3])-1];
+			   T Dpartial = sgn(Ct[j][0])*F[abs(Ct[j][0])-1]+sgn(Ct[j][1])*F[abs(Ct[j][1])-1]+
+			                sgn(Ct[j][2])*F[abs(Ct[j][2])-1]+sgn(Ct[j][3])*F[abs(Ct[j][3])-1];
                U[j]=U[j] + t_step*M_h[j]*Dpartial;
 			   
 			}
@@ -648,8 +648,8 @@
 			// T Bpartial = 0;
 			// for(size_t k=0; k < 4; k++)
 			   // Bpartial += C[j][k]/abs(C[j][k])*U[abs(C[j][k])-1];
-			T Bpartial   = C[j][0]/abs(C[j][0])*U[abs(C[j][0])-1]+C[j][1]/abs(C[j][1])*U[abs(C[j][1])-1]+
-			               C[j][2]/abs(C[j][2])*U[abs(C[j][2])-1]+C[j][3]/abs(C[j][3])*U[abs(C[j][3])-1];
+			T Bpartial   = sgn(C[j][0])*U[abs(C[j][0])-1]+sgn(C[j][1])*U[abs(C[j][1])-1]+
+			               sgn(C[j][2])*U[abs(C[j][2])-1]+sgn(C[j][3])*U[abs(C[j][3])-1];
             F[j]= F[j] - t_step*M_ni[j]*Bpartial;
 		 }
 		 auto num_val = GetElectricfield(probe_elem);
@@ -664,6 +664,7 @@
 		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
 	  os.close();
 	  std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds" << std::endl;
+	  std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
    }
    
    uint32_t Volumes_size() { return D.size(); }
@@ -684,7 +685,7 @@
    std::vector<Eigen::Vector3d> pts, dual_pts, face_bars;
    std::vector<std::vector<int32_t>> vte,vtn;
    
-    int32_t sgn(int32_t val)
+   int32_t sgn(int32_t val)
    {
       return (0 < val) - (val < 0);
    }

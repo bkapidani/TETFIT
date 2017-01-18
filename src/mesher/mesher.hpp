@@ -68,7 +68,7 @@ class mesher
       ymax= 0.025;
       zmin= 0;
       zmax= 0.1;
-      L=0.0005;
+      L=0.00055555555555555556;
       //other instructions in constructor
 	  // std::cout << "Qui?" << std::endl;
 	  auto px = xmin;
@@ -694,21 +694,21 @@ class mesher
 		 T time_function=sin(2*pi*freq*i*t_step);
          for (size_t j=0; j<U.size(); j++)
 		 {
-			switch(is_boundary[j])
+			
+			if (is_boundary[j])
 			{
-				case true :
-				{
-                   U[j]=time_function*bc[j];
-				   break;
-				}
-				default   :
-				{
-			       T Dpartial = Ct[j][0]/abs(Ct[j][0])*F[abs(Ct[j][0])-1]+Ct[j][1]/abs(Ct[j][1])*F[abs(Ct[j][1])-1]+
-			                    Ct[j][2]/abs(Ct[j][2])*F[abs(Ct[j][2])-1]+Ct[j][3]/abs(Ct[j][3])*F[abs(Ct[j][3])-1];
-                   
-				   U[j]=U[j] + t_step*M_h[j]*Dpartial;
-				   break;
-				}
+				U[j]=time_function*bc[j];
+				// std::cout << "U[" << j << "] = " << U[j] << std::endl;
+			}
+			else
+			{
+               // T Dpartial=0;
+			   // for(size_t k=0; k < 4; k++)
+			      // Dpartial+=   Ct[j][k]/abs(Ct[j][k])*F[abs(Ct[j][k])-1];
+			   T Dpartial = sgn(Ct[j][0])*F[abs(Ct[j][0])-1]+sgn(Ct[j][1])*F[abs(Ct[j][1])-1]+
+			                sgn(Ct[j][2])*F[abs(Ct[j][2])-1]+sgn(Ct[j][3])*F[abs(Ct[j][3])-1];
+               U[j]=U[j] + t_step*M_h[j]*Dpartial;
+			   
 			}
 			// std::cout << "U[" << j << "] = " << U[j] << " ";
 		 }
@@ -716,12 +716,13 @@ class mesher
 		 // std::cout << std::endl;
          for (size_t j=0; j<F.size(); j++)
 		 {
-			T Bpartial   = C[j][0]/abs(C[j][0])*U[abs(C[j][0])-1]+C[j][1]/abs(C[j][1])*U[abs(C[j][1])-1]+
-			               C[j][2]/abs(C[j][2])*U[abs(C[j][2])-1]+C[j][3]/abs(C[j][3])*U[abs(C[j][3])-1];
-            
-			F[j]= F[j] - t_step*M_ni[j]*Bpartial;
+			// T Bpartial = 0;
+			// for(size_t k=0; k < 4; k++)
+			   // Bpartial += C[j][k]/abs(C[j][k])*U[abs(C[j][k])-1];
+			T Bpartial   = sgn(C[j][0])*U[abs(C[j][0])-1]+sgn(C[j][1])*U[abs(C[j][1])-1]+
+			               sgn(C[j][2])*U[abs(C[j][2])-1]+sgn(C[j][3])*U[abs(C[j][3])-1];
+            F[j]= F[j] - t_step*M_ni[j]*Bpartial;
 		 }
-		 
 		 auto num_val = GetElectricfield(probe_elem);
 		 numeric_values.push_back(num_val(1));
 		 numeric_times.push_back(i*t_step);
@@ -734,6 +735,7 @@ class mesher
 		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
 	  os.close();
 	  std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds" << std::endl;
+	  std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
    }
    
    uint32_t Volumes_size() { return D.size(); }
@@ -753,6 +755,11 @@ class mesher
    std::vector<std::vector<int32_t>> D,Dt,C,Ct,G,Gt;
    std::vector<Eigen::Vector3d> pts, dual_pts, face_bars;
    std::vector<std::vector<int32_t>> vte,vtn;
+   
+   int32_t sgn(int32_t val)
+   {
+      return (0 < val) - (val < 0);
+   }
    
    Eigen::Vector3d GetElectricfield(uint32_t cube)
    {
