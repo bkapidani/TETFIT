@@ -68,7 +68,7 @@ class mesher
       ymax= 0.025;
       zmin= 0;
       zmax= 0.1;
-      L=0.00055555555555555556;
+      L=0.0005555555555555555555555555555555555556;
       //other instructions in constructor
 	  // std::cout << "Qui?" << std::endl;
 	  auto px = xmin;
@@ -77,6 +77,7 @@ class mesher
 	  
 	  Lx = Ly = Lz = L;
 	  t_step = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
+	  volume = Lx*Ly*Lz;
 	  
 	  uint32_t Nx = (fabs(xmax-xmin)) / Lx;// + 1;
 	  uint32_t Ny = (fabs(ymax-ymin)) / Ly;// + 1;
@@ -744,7 +745,7 @@ class mesher
    uint32_t Points_size() { return pts.size(); }
    
    private:
-   T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L;
+   T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L, volume;
    uint32_t probe_elem;
    std::vector<T> bc;
    std::vector<bool> is_boundary;
@@ -763,7 +764,7 @@ class mesher
    
    Eigen::Vector3d GetElectricfield(uint32_t cube)
    {
-	  auto volume = edge_len(vtn[cube][0]-1)*edge_len(vtn[cube][1]-1)*edge_len(vtn[cube][2]-1);
+	  // auto volume = edge_len(vtn[cube][0]-1)*edge_len(vtn[cube][1]-1)*edge_len(vtn[cube][2]-1);
 	  std::vector<Eigen::Vector3d> edge_mp,face_mp;
 	  std::vector<T> u;
 	  
