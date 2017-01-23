@@ -71,7 +71,7 @@
 					 {
                         not_found = false;
 						probe_elem = nv;
-						std::cout << "# of element to be probed: " << nv+1 << std::endl;
+						// std::cout << "# of element to be probed: " << nv+1 << std::endl;
 					 }
                   }
 			      nv++;
@@ -106,7 +106,7 @@
 						
 						for (uint32_t cnt=0; cnt<6; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -126,8 +126,8 @@
 						                                    np+5,np+6,np+7,np+8}));
 						np+=8;
 						
-						for (uint32_t cnt=0; cnt<8; cnt++)
-                           Gt.push_back(dummyf);
+						// for (uint32_t cnt=0; cnt<8; cnt++)
+                           //Gt.push_back(dummyf);
 						
                         pts.push_back(pp);
 						pts.push_back(pp+inc_x);
@@ -147,7 +147,7 @@
 						nf+=5;
 						for (uint32_t cnt=0; cnt<5; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -165,8 +165,9 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
 						                                    np+1,np+2,np+3,np+4}));
 						np+=4;
- 						for (uint32_t cnt=0; cnt<4; cnt++)
-							Gt.push_back(dummyf);
+						
+ 						// for (uint32_t cnt=0; cnt<4; cnt++)
+							//Gt.push_back(dummyf);
 						
                         pts.push_back(pp+inc_z);
 						pts.push_back(pp+inc_z+inc_x);
@@ -182,7 +183,7 @@
 						nf+=5;
 						for (uint32_t cnt=0; cnt<5; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -198,8 +199,9 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[left-1][2],P_cluster[left-1][3],np+1,np+2,
 						                                    P_cluster[left-1][6],P_cluster[left-1][7],np+3,np+4}));
 						np+=4;
-						for (uint32_t cnt=0; cnt<4; cnt++)
-							Gt.push_back(dummyf);
+						
+						// for (uint32_t cnt=0; cnt<4; cnt++)
+							//Gt.push_back(dummyf);
 						
 						pts.push_back(pp+inc_y);
 						pts.push_back(pp+inc_x+inc_y);
@@ -215,7 +217,7 @@
 						nf+=4;
 						for (uint32_t cnt=0; cnt<4; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -231,8 +233,9 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
 						                                    P_cluster[left-1][6],P_cluster[left-1][7],np+1,np+2}));
 						np+=2;
-						for (uint32_t cnt=0; cnt<2; cnt++)
-							Gt.push_back(dummyf);
+						
+						// for (uint32_t cnt=0; cnt<2; cnt++)
+							//Gt.push_back(dummyf);
 						
 						pts.push_back(pp+inc_z+inc_y);
 						pts.push_back(pp+inc_z+inc_x+inc_y);
@@ -246,7 +249,7 @@
 						nf+=5;
 						for (uint32_t cnt=0; cnt<5; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -262,8 +265,10 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[back-1][1],np+1,P_cluster[back-1][3],np+2,
 						                                    P_cluster[back-1][5],np+3,P_cluster[back-1][7],np+4}));
 						np+=4;
-						for (uint32_t cnt=0; cnt<4; cnt++)
-							Gt.push_back(dummyf);
+						
+						// for (uint32_t cnt=0; cnt<4; cnt++)
+							//Gt.push_back(dummyf);
+						
 						pts.push_back(pp+inc_x);
 						pts.push_back(pp+inc_x+inc_y);
 						pts.push_back(pp+inc_z+inc_x);
@@ -278,7 +283,7 @@
 						nf+=4;
 						for (uint32_t cnt=0; cnt<4; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -294,8 +299,10 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
 						                                    P_cluster[back-1][5],np+1,P_cluster[back-1][7],np+2}));
 						np+=2;
-						for (uint32_t cnt=0; cnt<2; cnt++)
-							Gt.push_back(dummyf);
+						
+						// for (uint32_t cnt=0; cnt<2; cnt++)
+							//Gt.push_back(dummyf);
+						
 						pts.push_back(pp+inc_z+inc_x);
 						pts.push_back(pp+inc_z+inc_x+inc_y);
 						break;
@@ -308,7 +315,7 @@
 						nf+=4;
 						for (uint32_t cnt=0; cnt<4; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -324,8 +331,10 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[left-1][2],P_cluster[left-1][3],P_cluster[back-1][3],np+1,
 						                                    P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np+2}));
 						np+=2;
-						for (uint32_t cnt=0; cnt<2; cnt++)
-							Gt.push_back(dummyf);
+						
+						// for (uint32_t cnt=0; cnt<2; cnt++)
+							//Gt.push_back(dummyf);
+						
 						pts.push_back(pp+inc_x+inc_y);
 						pts.push_back(pp+inc_z+inc_x+inc_y);
 						break;
@@ -338,7 +347,7 @@
 						nf+=3;
 						for (uint32_t cnt=0; cnt<3; cnt++)
 						{
-							Dt.push_back(dummyf);
+							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
 							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
@@ -354,20 +363,20 @@
 						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
 						                                    P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np+1}));
 						np+=1;
-						Gt.push_back(dummyf);
+						
+						//Gt.push_back(dummyf);
 						
 						pts.push_back(pp+inc_z+inc_x+inc_y);
 						break;
 					 }
 				  }
-				  // std::cout << Dt.size() << " --> " << abs(D[nv-1][0]) << " " << abs(D[nv-1][1]) << " " << abs(D[nv-1][2])
-				            // << " " << abs(D[nv-1][3]) << " " << abs(D[nv-1][4]) << " " << abs(D[nv-1][5]) << std::endl;
-                  Dt[abs(D[nv-1][0])-1].push_back(-nv); 
-                  Dt[abs(D[nv-1][1])-1].push_back(-nv);
-				  Dt[abs(D[nv-1][2])-1].push_back(-nv);
-				  Dt[abs(D[nv-1][3])-1].push_back( nv);
-				  Dt[abs(D[nv-1][4])-1].push_back( nv);
-				  Dt[abs(D[nv-1][5])-1].push_back( nv);
+				  
+                  //Dt[abs(D[nv-1][0])-1].push_back(-nv); 
+                  //Dt[abs(D[nv-1][1])-1].push_back(-nv);
+				  //Dt[abs(D[nv-1][2])-1].push_back(-nv);
+				  //Dt[abs(D[nv-1][3])-1].push_back( nv);
+				  //Dt[abs(D[nv-1][4])-1].push_back( nv);
+				  //Dt[abs(D[nv-1][5])-1].push_back( nv);
 
 				  material.push_back(1);
 				
@@ -375,8 +384,8 @@
 				 {
 					G[E_cluster[nv-1][0]-1]  = std::vector<int32_t>({-P_cluster[nv-1][0],P_cluster[nv-1][1]});
 					edge_len[E_cluster[nv-1][0]-1] = Lx;
-					Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][0]);
-					Gt[P_cluster[nv-1][1]-1].push_back( E_cluster[nv-1][0]);
+					//Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][0]);
+					//Gt[P_cluster[nv-1][1]-1].push_back( E_cluster[nv-1][0]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -385,8 +394,8 @@
 				 {
 					G[E_cluster[nv-1][1]-1]  = std::vector<int32_t>({-P_cluster[nv-1][0],P_cluster[nv-1][2]});
 					edge_len[E_cluster[nv-1][1]-1] = Ly;
-					Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][1]);
-					Gt[P_cluster[nv-1][2]-1].push_back( E_cluster[nv-1][1]);
+					//Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][1]);
+					//Gt[P_cluster[nv-1][2]-1].push_back( E_cluster[nv-1][1]);
 					
 					dual_curl.push_back(-1);
 					U.push_back(0);
@@ -395,8 +404,8 @@
 				 {
 					G[E_cluster[nv-1][2]-1]  = std::vector<int32_t>({-P_cluster[nv-1][0],P_cluster[nv-1][4]});
 					edge_len[E_cluster[nv-1][2]-1] = Lz;
-					Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][2]);
-					Gt[P_cluster[nv-1][4]-1].push_back( E_cluster[nv-1][2]);
+					//Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][2]);
+					//Gt[P_cluster[nv-1][4]-1].push_back( E_cluster[nv-1][2]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -405,8 +414,8 @@
 				 {
 					G[E_cluster[nv-1][3]-1]  = std::vector<int32_t>({-P_cluster[nv-1][1],P_cluster[nv-1][3]});
 					edge_len[E_cluster[nv-1][3]-1] = Ly;
-					Gt[P_cluster[nv-1][1]-1].push_back(-E_cluster[nv-1][3]);
-					Gt[P_cluster[nv-1][3]-1].push_back( E_cluster[nv-1][3]);
+					//Gt[P_cluster[nv-1][1]-1].push_back(-E_cluster[nv-1][3]);
+					//Gt[P_cluster[nv-1][3]-1].push_back( E_cluster[nv-1][3]);
 					
 					dual_curl.push_back(-1);
 					U.push_back(0);
@@ -415,8 +424,8 @@
 				 {
 					G[E_cluster[nv-1][4]-1]  = std::vector<int32_t>({-P_cluster[nv-1][1],P_cluster[nv-1][5]});
 					edge_len[E_cluster[nv-1][4]-1] = Lz;
-					Gt[P_cluster[nv-1][1]-1].push_back(-E_cluster[nv-1][4]);
-					Gt[P_cluster[nv-1][5]-1].push_back( E_cluster[nv-1][4]);
+					//Gt[P_cluster[nv-1][1]-1].push_back(-E_cluster[nv-1][4]);
+					//Gt[P_cluster[nv-1][5]-1].push_back( E_cluster[nv-1][4]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -425,8 +434,8 @@
 				 {
 					G[E_cluster[nv-1][5]-1]  = std::vector<int32_t>({-P_cluster[nv-1][2],P_cluster[nv-1][3]});
 					edge_len[E_cluster[nv-1][5]-1] = Lx;
-					Gt[P_cluster[nv-1][2]-1].push_back(-E_cluster[nv-1][5]);
-					Gt[P_cluster[nv-1][3]-1].push_back( E_cluster[nv-1][5]);
+					//Gt[P_cluster[nv-1][2]-1].push_back(-E_cluster[nv-1][5]);
+					//Gt[P_cluster[nv-1][3]-1].push_back( E_cluster[nv-1][5]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -435,8 +444,8 @@
 				 {
 					G[E_cluster[nv-1][6]-1]  = std::vector<int32_t>({-P_cluster[nv-1][2],P_cluster[nv-1][6]});
 					edge_len[E_cluster[nv-1][6]-1] = Lz;
-					Gt[P_cluster[nv-1][2]-1].push_back(-E_cluster[nv-1][6]);
-					Gt[P_cluster[nv-1][6]-1].push_back( E_cluster[nv-1][6]);
+					//Gt[P_cluster[nv-1][2]-1].push_back(-E_cluster[nv-1][6]);
+					//Gt[P_cluster[nv-1][6]-1].push_back( E_cluster[nv-1][6]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -445,8 +454,8 @@
 				 {
 					G[E_cluster[nv-1][7]-1]  = std::vector<int32_t>({-P_cluster[nv-1][3],P_cluster[nv-1][7]});
 					edge_len[E_cluster[nv-1][7]-1] = Lz;
-					Gt[P_cluster[nv-1][3]-1].push_back(-E_cluster[nv-1][7]);
-					Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][7]);
+					//Gt[P_cluster[nv-1][3]-1].push_back(-E_cluster[nv-1][7]);
+					//Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][7]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -455,8 +464,8 @@
 				 {
 					G[E_cluster[nv-1][8]-1]  = std::vector<int32_t>({-P_cluster[nv-1][4],P_cluster[nv-1][5]});
 					edge_len[E_cluster[nv-1][8]-1] = Lx;
-					Gt[P_cluster[nv-1][4]-1].push_back(-E_cluster[nv-1][8]);
-					Gt[P_cluster[nv-1][5]-1].push_back( E_cluster[nv-1][8]);
+					//Gt[P_cluster[nv-1][4]-1].push_back(-E_cluster[nv-1][8]);
+					//Gt[P_cluster[nv-1][5]-1].push_back( E_cluster[nv-1][8]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
@@ -465,8 +474,8 @@
 				 {
 					G[E_cluster[nv-1][9]-1]  = std::vector<int32_t>({-P_cluster[nv-1][4],P_cluster[nv-1][6]});
 					edge_len[E_cluster[nv-1][9]-1] = Ly;
-					Gt[P_cluster[nv-1][4]-1].push_back(-E_cluster[nv-1][9]);
-					Gt[P_cluster[nv-1][6]-1].push_back( E_cluster[nv-1][9]);
+					//Gt[P_cluster[nv-1][4]-1].push_back(-E_cluster[nv-1][9]);
+					//Gt[P_cluster[nv-1][6]-1].push_back( E_cluster[nv-1][9]);
 					
 					dual_curl.push_back(-1);
 					U.push_back(0);
@@ -475,8 +484,8 @@
 				 {
 					G[E_cluster[nv-1][10]-1]  = std::vector<int32_t>({-P_cluster[nv-1][5],P_cluster[nv-1][7]});
 					edge_len[E_cluster[nv-1][10]-1] = Ly;
-					Gt[P_cluster[nv-1][5]-1].push_back(-E_cluster[nv-1][10]);
-					Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][10]);
+					//Gt[P_cluster[nv-1][5]-1].push_back(-E_cluster[nv-1][10]);
+					//Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][10]);
 					
 					dual_curl.push_back(-1);
 					U.push_back(0);
@@ -485,14 +494,13 @@
 				 {
 					G[E_cluster[nv-1][11]-1]  = std::vector<int32_t>({-P_cluster[nv-1][6],P_cluster[nv-1][7]});
 					edge_len[E_cluster[nv-1][11]-1] = Lx;
-					Gt[P_cluster[nv-1][6]-1].push_back(-E_cluster[nv-1][11]);
-					Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][11]);
+					//Gt[P_cluster[nv-1][6]-1].push_back(-E_cluster[nv-1][11]);
+					//Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][11]);
 					
 					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
-				 // });		 
-				 // std::thread C_thread([&] {
+				 
 				 if (!C[abs(D[nv-1][0])-1].size())
 				 {
 					C[abs(D[nv-1][0])-1] = std::vector<int32_t>({E_cluster[nv-1][0],-E_cluster[nv-1][1],E_cluster[nv-1][3],-E_cluster[nv-1][5]});
@@ -513,14 +521,15 @@
 				 if (!C[abs(D[nv-1][1])-1].size())
 				 {
 					C[abs(D[nv-1][1])-1] = std::vector<int32_t>({-E_cluster[nv-1][0],E_cluster[nv-1][2],-E_cluster[nv-1][4],E_cluster[nv-1][8]});
-					curl[abs(D[nv-1][1])-1] = -1;
-					face_area[abs(D[nv-1][1])-1] = area_y;
+
 					// face_bars[abs(D[nv-1][1])-1] = face_barycenter(abs(D[nv-1][1])-1);
 					Ct[E_cluster[nv-1][0]-1].push_back(-abs(D[nv-1][1]));
 					Ct[E_cluster[nv-1][2]-1].push_back( abs(D[nv-1][1]));
 					Ct[E_cluster[nv-1][4]-1].push_back(-abs(D[nv-1][1]));
 					Ct[E_cluster[nv-1][8]-1].push_back( abs(D[nv-1][1]));
 
+					curl[abs(D[nv-1][1])-1] = -1;
+					face_area[abs(D[nv-1][1])-1] = area_y;
 					F.push_back(0);
 				 }
 				 else
@@ -530,13 +539,13 @@
 				 {
 					C[abs(D[nv-1][2])-1] = std::vector<int32_t>({E_cluster[nv-1][1],-E_cluster[nv-1][2],E_cluster[nv-1][6],-E_cluster[nv-1][9]});
 
-					face_area[abs(D[nv-1][2])-1] = area_x;
 					// face_bars[abs(D[nv-1][2])-1] = face_barycenter(abs(D[nv-1][2])-1);
 					Ct[E_cluster[nv-1][1]-1].push_back( abs(D[nv-1][2]));
 					Ct[E_cluster[nv-1][2]-1].push_back(-abs(D[nv-1][2]));
 					Ct[E_cluster[nv-1][6]-1].push_back( abs(D[nv-1][2]));
 					Ct[E_cluster[nv-1][9]-1].push_back(-abs(D[nv-1][2]));
-					
+
+					face_area[abs(D[nv-1][2])-1] = area_x;					
 					F.push_back(0);
 				 }
 				 else
@@ -546,13 +555,13 @@
 				 {
 					C[abs(D[nv-1][3])-1] = std::vector<int32_t>({E_cluster[nv-1][3],-E_cluster[nv-1][4],E_cluster[nv-1][7],-E_cluster[nv-1][10]});
 
-					face_area[abs(D[nv-1][3])-1] = area_x;
 					// face_bars[abs(D[nv-1][3])-1] = face_barycenter(abs(D[nv-1][3])-1);
 					Ct[E_cluster[nv-1][3]-1].push_back( abs(D[nv-1][3]));
 					Ct[E_cluster[nv-1][4]-1].push_back(-abs(D[nv-1][3]));
 					Ct[E_cluster[nv-1][7]-1].push_back( abs(D[nv-1][3]));
 					Ct[E_cluster[nv-1][10]-1].push_back(-abs(D[nv-1][3]));
-					
+
+					face_area[abs(D[nv-1][3])-1] = area_x;					
 					F.push_back(0);
 				 }
 				 else
@@ -561,14 +570,15 @@
 				 if (!C[abs(D[nv-1][4])-1].size())
 				 {
 					C[abs(D[nv-1][4])-1] = std::vector<int32_t>({-E_cluster[nv-1][5],E_cluster[nv-1][6],-E_cluster[nv-1][7],E_cluster[nv-1][11]});
-					curl[abs(D[nv-1][4])-1] = -1;
-					face_area[abs(D[nv-1][4])-1] = area_y;
+
 					// face_bars[abs(D[nv-1][4])-1] = face_barycenter(abs(D[nv-1][4])-1);
 					Ct[E_cluster[nv-1][5]-1].push_back(-abs(D[nv-1][4]));
 					Ct[E_cluster[nv-1][6]-1].push_back( abs(D[nv-1][4]));
 					Ct[E_cluster[nv-1][7]-1].push_back(-abs(D[nv-1][4]));
 					Ct[E_cluster[nv-1][11]-1].push_back(abs(D[nv-1][4]));
-					
+
+					curl[abs(D[nv-1][4])-1] = -1;
+					face_area[abs(D[nv-1][4])-1] = area_y;					
 					F.push_back(0);
 				 }
 				 else
@@ -578,13 +588,13 @@
 				 {
 					C[abs(D[nv-1][5])-1] = std::vector<int32_t>({E_cluster[nv-1][8],-E_cluster[nv-1][9],E_cluster[nv-1][10],-E_cluster[nv-1][11]});
 
-					face_area[abs(D[nv-1][5])-1] = area_z;
 					// face_bars[abs(D[nv-1][5])-1] = face_barycenter(abs(D[nv-1][5])-1);
 					Ct[E_cluster[nv-1][8]-1].push_back( abs(D[nv-1][5])); 
 					Ct[E_cluster[nv-1][9]-1].push_back(-abs(D[nv-1][5]));
 					Ct[E_cluster[nv-1][10]-1].push_back( abs(D[nv-1][5]));
 					Ct[E_cluster[nv-1][11]-1].push_back(-abs(D[nv-1][5]));
-					
+
+					face_area[abs(D[nv-1][5])-1] = area_z;					
 					F.push_back(0);
 				 }
 				 else
@@ -627,13 +637,6 @@
 		 previous_layer=std::move(this_layer);
 		 pz+=Lz;
       }
-	  
-      t_mesh.toc();
-	  std::cout << "elements: " << nv << " surfaces: " << nf << " edges: " << ne << " nodes: " << np << " dofs: " << nf+ne << std::endl;
-	  std::cout << "Meshing takes " << t_mesh << " seconds!" << std::endl;
-	  // std::cout << pts[pts.size()-1] << std::endl;
-	  
-	  t_mesh.tic();
 
 	  M_ni = average_ni;
 	  
@@ -680,12 +683,21 @@
 			}
 		 }
 	  }
+	  
       t_mesh.toc();
-	  std::cout << "Constructing material relations takes " << t_mesh << " seconds!" << std::endl;
+	  std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
+	  std::cout << "Mesh statistics: " << std::endl;
+	  std::cout << std::setw(20) << "volumes: "           << std::setw(10) << nv << std::endl; 
+	  std::cout << std::setw(20) << "surfaces: "          << std::setw(10) << nf << std::endl;
+	  std::cout << std::setw(20) << "edges: "             << std::setw(10) << ne << std::endl; 
+	  std::cout << std::setw(20) << "vertices: "          << std::setw(10) << np << std::endl;
+	  std::cout << std::setw(20) << "materials: "         << std::setw(10) << mu.size() << std::endl; 
+	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl;
    }
    
    bool Run(double simulation_time)
    {
+	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl;
 	  double step_time_average=0;
 	  uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;
@@ -716,8 +728,8 @@
 		 step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 		 
 		 if ((i+1) % 140 == 0)
-			std::cout << "Progress: " << 100*i/N_of_steps << "% done in " << step_time_average << "s, " 
-		              << step_time_average/i << setw(7) << " s/step" << std::endl;
+			std::cout << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
+		              << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << std::endl;
 	  }
 	  
 	  /* Output stats and fields*/
@@ -744,7 +756,7 @@
    std::map<uint32_t,double> epsilon,mu;
    double t_step, freq;
    std::vector<uint32_t> material;
-   std::vector<std::vector<int32_t>> D,Dt,C,Ct,G,Gt;
+   std::vector<std::vector<int32_t>> D/*,Dt*/,C,Ct,G/*,Gt*/;
    std::vector<int32_t> curl, dual_curl;
    Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
    std::vector<Eigen::Vector3d> pts, dual_pts, face_bars;
