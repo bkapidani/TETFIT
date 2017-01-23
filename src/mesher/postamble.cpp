@@ -7,19 +7,41 @@
 	  Lx = Ly = Lz = L;
 	  t_step = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
 	  volume = Lx*Ly*Lz;
+
+	  T area_z = Lx*Ly;
+	  T area_x = Ly*Lz;
+	  T area_y = Lx*Lz;
+	  
+	  T da_z = area_z/4;
+	  T da_x = area_x/4;
+	  T da_y = area_y/4;
+	  
+	  Eigen::Vector3d dual_area_z(0,0,Lx*Ly/4);
+	  Eigen::Vector3d dual_area_y(0,Lx*Lz/4,0);
+	  Eigen::Vector3d dual_area_x(Ly*Lz/4,0,0);
+	  
+	  this->dual_area_x=dual_area_x;
+	  this->dual_area_y=dual_area_y;
+	  this->dual_area_z=dual_area_z;
 	  
 	  uint32_t Nx = (fabs(xmax-xmin)) / Lx;// + 1;
 	  uint32_t Ny = (fabs(ymax-ymin)) / Ly;// + 1;
 	  uint32_t Nz = (fabs(zmax-zmin)) / Lz;// + 1;
 	  
+	  tot_E= Nx*(Ny+1)*(Nz+1)+(Nx+1)*Ny*(Nz+1)+(Nx+1)*(Ny+1)*Nz;
+	  tot_F= Nx*Ny*(Nz+1)+Nz*Nx*(Ny+1)+Ny*Nz*(Nx+1);
+	  
 	  typedef Eigen::Triplet<uint32_t> Q;
       
 	  Eigen::SparseMatrix<uint32_t> previous_layer(Nx,Ny);
-	  
+	  std::vector<T> average_eps(tot_E,0), average_ni(tot_F,0), face_area(tot_F), edge_len(tot_E);
+	  std::vector<uint8_t> boundary_face(tot_F,1); 
 	  // previous_layer.SetZero();
 	
       Eigen::Vector3d inc_x(Lx,0,0), inc_y(0,Ly,0), inc_z(0,0,Lz), dummy_vec;
 	  bool not_found = true;
+	  std::vector<int32_t> cplus=std::vector<int32_t>({1,-1,1,-1});
+	  std::vector<int32_t> cminus=std::vector<int32_t>({-1,1,-1,1});
 	  
 	  for(uint32_t k=0;k<Nz;k++)
       {
@@ -54,6 +76,7 @@
                   }
 			      nv++;
 				  std::vector<int32_t> dummy(6), dummyf;
+				  std::vector<int32_t> dummycurl;
 				  uint8_t boxtype=0;
 				  uint32_t bottom,left,back;
 				  bottom = left = back = 0;
@@ -85,10 +108,11 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
 						
-						vte.push_back(std::vector<int32_t>({ne+1,ne+2,ne+3,ne+4,ne+5,ne+6,
+						E_cluster.push_back(std::vector<int32_t>({ne+1,ne+2,ne+3,ne+4,ne+5,ne+6,
 						                                    ne+7,ne+8,ne+9,ne+10,ne+11,ne+12}));
 						ne+=12;
 						
@@ -98,7 +122,7 @@
 							G.push_back(dummyf);
 						}
 						
-						vtn.push_back(std::vector<int32_t>({np+1,np+2,np+3,np+4,
+						P_cluster.push_back(std::vector<int32_t>({np+1,np+2,np+3,np+4,
 						                                    np+5,np+6,np+7,np+8}));
 						np+=8;
 						
@@ -125,10 +149,11 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],ne+1,vte[bottom-1][10],
-						                                    ne+2,vte[bottom-1][11],ne+3,ne+4,ne+5,ne+6,ne+7,ne+8}));
+						E_cluster.push_back(std::vector<int32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],ne+1,E_cluster[bottom-1][10],
+						                                    ne+2,E_cluster[bottom-1][11],ne+3,ne+4,ne+5,ne+6,ne+7,ne+8}));
 						ne+=8;
 						
 						for (uint32_t cnt=0; cnt<8; cnt++)
@@ -137,7 +162,7 @@
 							G.push_back(dummyf);
 						}
 
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
 						                                    np+1,np+2,np+3,np+4}));
 						np+=4;
  						for (uint32_t cnt=0; cnt<4; cnt++)
@@ -159,18 +184,19 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({vte[left-1][5],ne+1,vte[left-1][6],ne+2,vte[left-1][7],ne+3,
-						                                    ne+4,ne+5,vte[left-1][11],ne+6,ne+7,ne+8}));
+						E_cluster.push_back(std::vector<int32_t>({E_cluster[left-1][5],ne+1,E_cluster[left-1][6],ne+2,E_cluster[left-1][7],ne+3,
+						                                    ne+4,ne+5,E_cluster[left-1][11],ne+6,ne+7,ne+8}));
 						ne+=8;
 						for (uint32_t cnt=0; cnt<8; cnt++)
 						{
 							Ct.push_back(dummyf);
 							G.push_back(dummyf);
 						}
-						vtn.push_back(std::vector<int32_t>({vtn[left-1][2],vtn[left-1][3],np+1,np+2,
-						                                    vtn[left-1][6],vtn[left-1][7],np+3,np+4}));
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[left-1][2],P_cluster[left-1][3],np+1,np+2,
+						                                    P_cluster[left-1][6],P_cluster[left-1][7],np+3,np+4}));
 						np+=4;
 						for (uint32_t cnt=0; cnt<4; cnt++)
 							Gt.push_back(dummyf);
@@ -191,18 +217,19 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
-						                                    ne+1,ne+2,vte[left-1][11],ne+3,ne+4,ne+5}));
+						E_cluster.push_back(std::vector<int32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],E_cluster[left-1][7],E_cluster[bottom-1][11],
+						                                    ne+1,ne+2,E_cluster[left-1][11],ne+3,ne+4,ne+5}));
 						ne+=5;
 						for (uint32_t cnt=0; cnt<5; cnt++)
 						{
 							Ct.push_back(dummyf);
 							G.push_back(dummyf);
 						}
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    vtn[left-1][6],vtn[left-1][7],np+1,np+2}));
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+						                                    P_cluster[left-1][6],P_cluster[left-1][7],np+1,np+2}));
 						np+=2;
 						for (uint32_t cnt=0; cnt<2; cnt++)
 							Gt.push_back(dummyf);
@@ -221,18 +248,19 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({ne+1,vte[back-1][3],vte[back-1][4],ne+2,ne+3,ne+4,
-						                                    vte[back-1][7],ne+5,ne+6,vte[back-1][10],ne+7,ne+8}));
+						E_cluster.push_back(std::vector<int32_t>({ne+1,E_cluster[back-1][3],E_cluster[back-1][4],ne+2,ne+3,ne+4,
+						                                    E_cluster[back-1][7],ne+5,ne+6,E_cluster[back-1][10],ne+7,ne+8}));
 						ne+=8;
 						for (uint32_t cnt=0; cnt<8; cnt++)
 						{
 							Ct.push_back(dummyf);
 							G.push_back(dummyf);
 						}
-						vtn.push_back(std::vector<int32_t>({vtn[back-1][1],np+1,vtn[back-1][3],np+2,
-						                                    vtn[back-1][5],np+3,vtn[back-1][7],np+4}));
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[back-1][1],np+1,P_cluster[back-1][3],np+2,
+						                                    P_cluster[back-1][5],np+3,P_cluster[back-1][7],np+4}));
 						np+=4;
 						for (uint32_t cnt=0; cnt<4; cnt++)
 							Gt.push_back(dummyf);
@@ -252,18 +280,19 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[back-1][4],vte[bottom-1][10],ne+1,vte[bottom-1][11],
-						                                    vte[back-1][7],ne+2,ne+3,vte[back-1][10],ne+4,ne+5}));
+						E_cluster.push_back(std::vector<int32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[back-1][4],E_cluster[bottom-1][10],ne+1,E_cluster[bottom-1][11],
+						                                    E_cluster[back-1][7],ne+2,ne+3,E_cluster[back-1][10],ne+4,ne+5}));
 						ne+=5;
 						for (uint32_t cnt=0; cnt<5; cnt++)
 						{
 							Ct.push_back(dummyf);
 							G.push_back(dummyf);
 						}
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    vtn[back-1][5],np+1,vtn[back-1][7],np+2}));
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+						                                    P_cluster[back-1][5],np+1,P_cluster[back-1][7],np+2}));
 						np+=2;
 						for (uint32_t cnt=0; cnt<2; cnt++)
 							Gt.push_back(dummyf);
@@ -281,18 +310,19 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({vte[left-1][5],vte[back-1][3],vte[left-1][6],ne+1,vte[left-1][7],ne+2,
-						                                    vte[back-1][7],ne+3,vte[left-1][11],vte[back-1][10],ne+4,ne+5}));
+						E_cluster.push_back(std::vector<int32_t>({E_cluster[left-1][5],E_cluster[back-1][3],E_cluster[left-1][6],ne+1,E_cluster[left-1][7],ne+2,
+						                                    E_cluster[back-1][7],ne+3,E_cluster[left-1][11],E_cluster[back-1][10],ne+4,ne+5}));
 						ne+=5;
 						for (uint32_t cnt=0; cnt<5; cnt++)
 						{
 							Ct.push_back(dummyf);
 							G.push_back(dummyf);
 						}
-						vtn.push_back(std::vector<int32_t>({vtn[left-1][2],vtn[left-1][3],vtn[back-1][3],np+1,
-						                                    vtn[left-1][6],vtn[left-1][7],vtn[back-1][7],np+2}));
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[left-1][2],P_cluster[left-1][3],P_cluster[back-1][3],np+1,
+						                                    P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np+2}));
 						np+=2;
 						for (uint32_t cnt=0; cnt<2; cnt++)
 							Gt.push_back(dummyf);
@@ -310,18 +340,19 @@
 						{
 							Dt.push_back(dummyf);
 							C.push_back(dummyf);
+							curl.push_back(1);
 							face_bars.push_back(dummy_vec);
 						}
-						vte.push_back(std::vector<int32_t>({vte[bottom-1][8],vte[bottom-1][9],vte[left-1][6],vte[bottom-1][10],vte[left-1][7],vte[bottom-1][11],
-						                                    vte[back-1][7],ne+1,vte[left-1][11],vte[back-1][10],ne+2,ne+3}));
+						E_cluster.push_back(std::vector<int32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],E_cluster[left-1][7],E_cluster[bottom-1][11],
+						                                    E_cluster[back-1][7],ne+1,E_cluster[left-1][11],E_cluster[back-1][10],ne+2,ne+3}));
 						ne+=3;
 						for (uint32_t cnt=0; cnt<3; cnt++)
 						{
 							Ct.push_back(dummyf);
 							G.push_back(dummyf);
 						}
-						vtn.push_back(std::vector<int32_t>({vtn[bottom-1][4],vtn[bottom-1][5],vtn[bottom-1][6],vtn[bottom-1][7],
-						                                    vtn[left-1][6],vtn[left-1][7],vtn[back-1][7],np+1}));
+						P_cluster.push_back(std::vector<int32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+						                                    P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np+1}));
 						np+=1;
 						Gt.push_back(dummyf);
 						
@@ -337,14 +368,252 @@
 				  Dt[abs(D[nv-1][3])-1].push_back( nv);
 				  Dt[abs(D[nv-1][4])-1].push_back( nv);
 				  Dt[abs(D[nv-1][5])-1].push_back( nv);
-				  
-                  material.push_back(1);
-				  std::vector<Eigen::Vector3d> to_be_averaged;
-				  for (auto nn : vtn[nv-1])
-                     to_be_averaged.push_back(pts[abs(nn)-1]);
-				  dual_pts.push_back(VectorAverage(to_be_averaged));
-				  tripletList.push_back(Q(i,j,nv));
-				  this_col[i]=nv;
+
+				  material.push_back(1);
+				
+				 if (!G[E_cluster[nv-1][0]-1].size())
+				 {
+					G[E_cluster[nv-1][0]-1]  = std::vector<int32_t>({-P_cluster[nv-1][0],P_cluster[nv-1][1]});
+					edge_len[E_cluster[nv-1][0]-1] = Lx;
+					Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][0]);
+					Gt[P_cluster[nv-1][1]-1].push_back( E_cluster[nv-1][0]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][1]-1].size())
+				 {
+					G[E_cluster[nv-1][1]-1]  = std::vector<int32_t>({-P_cluster[nv-1][0],P_cluster[nv-1][2]});
+					edge_len[E_cluster[nv-1][1]-1] = Ly;
+					Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][1]);
+					Gt[P_cluster[nv-1][2]-1].push_back( E_cluster[nv-1][1]);
+					
+					dual_curl.push_back(-1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][2]-1].size())
+				 {
+					G[E_cluster[nv-1][2]-1]  = std::vector<int32_t>({-P_cluster[nv-1][0],P_cluster[nv-1][4]});
+					edge_len[E_cluster[nv-1][2]-1] = Lz;
+					Gt[P_cluster[nv-1][0]-1].push_back(-E_cluster[nv-1][2]);
+					Gt[P_cluster[nv-1][4]-1].push_back( E_cluster[nv-1][2]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][3]-1].size())
+				 {
+					G[E_cluster[nv-1][3]-1]  = std::vector<int32_t>({-P_cluster[nv-1][1],P_cluster[nv-1][3]});
+					edge_len[E_cluster[nv-1][3]-1] = Ly;
+					Gt[P_cluster[nv-1][1]-1].push_back(-E_cluster[nv-1][3]);
+					Gt[P_cluster[nv-1][3]-1].push_back( E_cluster[nv-1][3]);
+					
+					dual_curl.push_back(-1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][4]-1].size())
+				 {
+					G[E_cluster[nv-1][4]-1]  = std::vector<int32_t>({-P_cluster[nv-1][1],P_cluster[nv-1][5]});
+					edge_len[E_cluster[nv-1][4]-1] = Lz;
+					Gt[P_cluster[nv-1][1]-1].push_back(-E_cluster[nv-1][4]);
+					Gt[P_cluster[nv-1][5]-1].push_back( E_cluster[nv-1][4]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][5]-1].size())
+				 {
+					G[E_cluster[nv-1][5]-1]  = std::vector<int32_t>({-P_cluster[nv-1][2],P_cluster[nv-1][3]});
+					edge_len[E_cluster[nv-1][5]-1] = Lx;
+					Gt[P_cluster[nv-1][2]-1].push_back(-E_cluster[nv-1][5]);
+					Gt[P_cluster[nv-1][3]-1].push_back( E_cluster[nv-1][5]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][6]-1].size())
+				 {
+					G[E_cluster[nv-1][6]-1]  = std::vector<int32_t>({-P_cluster[nv-1][2],P_cluster[nv-1][6]});
+					edge_len[E_cluster[nv-1][6]-1] = Lz;
+					Gt[P_cluster[nv-1][2]-1].push_back(-E_cluster[nv-1][6]);
+					Gt[P_cluster[nv-1][6]-1].push_back( E_cluster[nv-1][6]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][7]-1].size())
+				 {
+					G[E_cluster[nv-1][7]-1]  = std::vector<int32_t>({-P_cluster[nv-1][3],P_cluster[nv-1][7]});
+					edge_len[E_cluster[nv-1][7]-1] = Lz;
+					Gt[P_cluster[nv-1][3]-1].push_back(-E_cluster[nv-1][7]);
+					Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][7]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][8]-1].size())
+				 {
+					G[E_cluster[nv-1][8]-1]  = std::vector<int32_t>({-P_cluster[nv-1][4],P_cluster[nv-1][5]});
+					edge_len[E_cluster[nv-1][8]-1] = Lx;
+					Gt[P_cluster[nv-1][4]-1].push_back(-E_cluster[nv-1][8]);
+					Gt[P_cluster[nv-1][5]-1].push_back( E_cluster[nv-1][8]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][9]-1].size())
+				 {
+					G[E_cluster[nv-1][9]-1]  = std::vector<int32_t>({-P_cluster[nv-1][4],P_cluster[nv-1][6]});
+					edge_len[E_cluster[nv-1][9]-1] = Ly;
+					Gt[P_cluster[nv-1][4]-1].push_back(-E_cluster[nv-1][9]);
+					Gt[P_cluster[nv-1][6]-1].push_back( E_cluster[nv-1][9]);
+					
+					dual_curl.push_back(-1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][10]-1].size())
+				 {
+					G[E_cluster[nv-1][10]-1]  = std::vector<int32_t>({-P_cluster[nv-1][5],P_cluster[nv-1][7]});
+					edge_len[E_cluster[nv-1][10]-1] = Ly;
+					Gt[P_cluster[nv-1][5]-1].push_back(-E_cluster[nv-1][10]);
+					Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][10]);
+					
+					dual_curl.push_back(-1);
+					U.push_back(0);
+				 }
+				 if (!G[E_cluster[nv-1][11]-1].size())
+				 {
+					G[E_cluster[nv-1][11]-1]  = std::vector<int32_t>({-P_cluster[nv-1][6],P_cluster[nv-1][7]});
+					edge_len[E_cluster[nv-1][11]-1] = Lx;
+					Gt[P_cluster[nv-1][6]-1].push_back(-E_cluster[nv-1][11]);
+					Gt[P_cluster[nv-1][7]-1].push_back( E_cluster[nv-1][11]);
+					
+					dual_curl.push_back(1);
+					U.push_back(0);
+				 }
+				 // });		 
+				 // std::thread C_thread([&] {
+				 if (!C[abs(D[nv-1][0])-1].size())
+				 {
+					C[abs(D[nv-1][0])-1] = std::vector<int32_t>({E_cluster[nv-1][0],-E_cluster[nv-1][1],E_cluster[nv-1][3],-E_cluster[nv-1][5]});
+					
+					face_area[abs(D[nv-1][0])-1] = area_z;
+					// face_bars[abs(D[nv-1][0])-1] = face_barycenter(abs(D[nv-1][0])-1);
+					Ct[E_cluster[nv-1][0]-1].push_back( abs(D[nv-1][0]));
+					Ct[E_cluster[nv-1][1]-1].push_back(-abs(D[nv-1][0]));
+					Ct[E_cluster[nv-1][3]-1].push_back( abs(D[nv-1][0]));
+					Ct[E_cluster[nv-1][5]-1].push_back(-abs(D[nv-1][0]));
+
+					F.push_back(0);
+				 }
+				 else
+					 boundary_face[abs(D[nv-1][0])-1]=0;
+					
+				 
+				 if (!C[abs(D[nv-1][1])-1].size())
+				 {
+					C[abs(D[nv-1][1])-1] = std::vector<int32_t>({-E_cluster[nv-1][0],E_cluster[nv-1][2],-E_cluster[nv-1][4],E_cluster[nv-1][8]});
+					curl[abs(D[nv-1][1])-1] = -1;
+					face_area[abs(D[nv-1][1])-1] = area_y;
+					// face_bars[abs(D[nv-1][1])-1] = face_barycenter(abs(D[nv-1][1])-1);
+					Ct[E_cluster[nv-1][0]-1].push_back(-abs(D[nv-1][1]));
+					Ct[E_cluster[nv-1][2]-1].push_back( abs(D[nv-1][1]));
+					Ct[E_cluster[nv-1][4]-1].push_back(-abs(D[nv-1][1]));
+					Ct[E_cluster[nv-1][8]-1].push_back( abs(D[nv-1][1]));
+
+					F.push_back(0);
+				 }
+				 else
+					 boundary_face[abs(D[nv-1][1])-1]=0;
+				 
+				 if (!C[abs(D[nv-1][2])-1].size())
+				 {
+					C[abs(D[nv-1][2])-1] = std::vector<int32_t>({E_cluster[nv-1][1],-E_cluster[nv-1][2],E_cluster[nv-1][6],-E_cluster[nv-1][9]});
+
+					face_area[abs(D[nv-1][2])-1] = area_x;
+					// face_bars[abs(D[nv-1][2])-1] = face_barycenter(abs(D[nv-1][2])-1);
+					Ct[E_cluster[nv-1][1]-1].push_back( abs(D[nv-1][2]));
+					Ct[E_cluster[nv-1][2]-1].push_back(-abs(D[nv-1][2]));
+					Ct[E_cluster[nv-1][6]-1].push_back( abs(D[nv-1][2]));
+					Ct[E_cluster[nv-1][9]-1].push_back(-abs(D[nv-1][2]));
+					
+					F.push_back(0);
+				 }
+				 else
+					 boundary_face[abs(D[nv-1][2])-1]=0;
+				 
+				 if (!C[abs(D[nv-1][3])-1].size())
+				 {
+					C[abs(D[nv-1][3])-1] = std::vector<int32_t>({E_cluster[nv-1][3],-E_cluster[nv-1][4],E_cluster[nv-1][7],-E_cluster[nv-1][10]});
+
+					face_area[abs(D[nv-1][3])-1] = area_x;
+					// face_bars[abs(D[nv-1][3])-1] = face_barycenter(abs(D[nv-1][3])-1);
+					Ct[E_cluster[nv-1][3]-1].push_back( abs(D[nv-1][3]));
+					Ct[E_cluster[nv-1][4]-1].push_back(-abs(D[nv-1][3]));
+					Ct[E_cluster[nv-1][7]-1].push_back( abs(D[nv-1][3]));
+					Ct[E_cluster[nv-1][10]-1].push_back(-abs(D[nv-1][3]));
+					
+					F.push_back(0);
+				 }
+				 else
+					 boundary_face[abs(D[nv-1][3])-1]=0;
+				 
+				 if (!C[abs(D[nv-1][4])-1].size())
+				 {
+					C[abs(D[nv-1][4])-1] = std::vector<int32_t>({-E_cluster[nv-1][5],E_cluster[nv-1][6],-E_cluster[nv-1][7],E_cluster[nv-1][11]});
+					curl[abs(D[nv-1][4])-1] = -1;
+					face_area[abs(D[nv-1][4])-1] = area_y;
+					// face_bars[abs(D[nv-1][4])-1] = face_barycenter(abs(D[nv-1][4])-1);
+					Ct[E_cluster[nv-1][5]-1].push_back(-abs(D[nv-1][4]));
+					Ct[E_cluster[nv-1][6]-1].push_back( abs(D[nv-1][4]));
+					Ct[E_cluster[nv-1][7]-1].push_back(-abs(D[nv-1][4]));
+					Ct[E_cluster[nv-1][11]-1].push_back(abs(D[nv-1][4]));
+					
+					F.push_back(0);
+				 }
+				 else
+					 boundary_face[abs(D[nv-1][4])-1]=0;
+				 
+				 if (!C[abs(D[nv-1][5])-1].size())
+				 {
+					C[abs(D[nv-1][5])-1] = std::vector<int32_t>({E_cluster[nv-1][8],-E_cluster[nv-1][9],E_cluster[nv-1][10],-E_cluster[nv-1][11]});
+
+					face_area[abs(D[nv-1][5])-1] = area_z;
+					// face_bars[abs(D[nv-1][5])-1] = face_barycenter(abs(D[nv-1][5])-1);
+					Ct[E_cluster[nv-1][8]-1].push_back( abs(D[nv-1][5])); 
+					Ct[E_cluster[nv-1][9]-1].push_back(-abs(D[nv-1][5]));
+					Ct[E_cluster[nv-1][10]-1].push_back( abs(D[nv-1][5]));
+					Ct[E_cluster[nv-1][11]-1].push_back(-abs(D[nv-1][5]));
+					
+					F.push_back(0);
+				 }
+				 else
+					 boundary_face[abs(D[nv-1][5])-1]=0;
+				 
+				 
+					average_ni[abs(D[nv-1][0])-1] += Lz/2/mu[material[nv-1]]/face_area[abs(D[nv-1][0])-1];
+					average_ni[abs(D[nv-1][1])-1] += Ly/2/mu[material[nv-1]]/face_area[abs(D[nv-1][1])-1];
+					average_ni[abs(D[nv-1][2])-1] += Lx/2/mu[material[nv-1]]/face_area[abs(D[nv-1][2])-1];
+					average_ni[abs(D[nv-1][3])-1] += Lx/2/mu[material[nv-1]]/face_area[abs(D[nv-1][3])-1];
+					average_ni[abs(D[nv-1][4])-1] += Ly/2/mu[material[nv-1]]/face_area[abs(D[nv-1][4])-1];
+					average_ni[abs(D[nv-1][5])-1] += Lz/2/mu[material[nv-1]]/face_area[abs(D[nv-1][5])-1];
+					
+					average_eps[E_cluster[nv-1][ 0]-1] += da_x*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 0]-1];
+					average_eps[E_cluster[nv-1][ 1]-1] += da_y*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 1]-1];
+					average_eps[E_cluster[nv-1][ 2]-1] += da_z*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 2]-1];
+					average_eps[E_cluster[nv-1][ 3]-1] += da_y*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 3]-1];
+					average_eps[E_cluster[nv-1][ 4]-1] += da_z*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 4]-1];
+					average_eps[E_cluster[nv-1][ 5]-1] += da_x*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 5]-1];
+					average_eps[E_cluster[nv-1][ 6]-1] += da_z*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 6]-1];
+					average_eps[E_cluster[nv-1][ 7]-1] += da_z*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 7]-1];
+					average_eps[E_cluster[nv-1][ 8]-1] += da_x*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 8]-1];
+					average_eps[E_cluster[nv-1][ 9]-1] += da_y*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][ 9]-1];
+					average_eps[E_cluster[nv-1][10]-1] += da_y*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][10]-1];
+					average_eps[E_cluster[nv-1][11]-1] += da_x*epsilon[material[nv-1]]/edge_len[E_cluster[nv-1][11]-1];
+					
+					dual_pts.push_back(pp+0.5*inc_x+0.5*inc_y+0.5*inc_z);
+					tripletList.push_back(Q(i,j,nv));
+					this_col[i]=nv;
 			   }
 			   
                px+=Lx;
@@ -359,202 +628,36 @@
 		 pz+=Lz;
       }
 	  
-	  std::vector<uint32_t> p_queue;
-	  p_queue.push_back(1);
-	  
-	  //Now we build the rest of incidence matrices
-	  // Dt.resize(nf);
-	  // C.resize(nf);
-	  // Ct.resize(ne);
-	  // G.resize(ne);
-	  // Gt.resize(np);
-	  // M_h.resize(ne);
-	  // M_ni.resize(nf);
-	  // face_bars.resize(nf);
-	  
-
-	  for (int32_t i=0; i<nv; i++)
-      {
-	     // std::thread G_thread([&] {
-		 if (!G[vte[i][0]-1].size())
-		 {
-            G[vte[i][0]-1]  = std::vector<int32_t>({-vtn[i][0],vtn[i][1]});
-			Gt[vtn[i][0]-1].push_back(-vte[i][0]);
-			Gt[vtn[i][1]-1].push_back( vte[i][0]);
-		 }
-		 if (!G[vte[i][1]-1].size())
-		 {
-            G[vte[i][1]-1]  = std::vector<int32_t>({-vtn[i][0],vtn[i][2]});
-			Gt[vtn[i][0]-1].push_back(-vte[i][1]);
-			Gt[vtn[i][2]-1].push_back( vte[i][1]);
-		 }
-		 if (!G[vte[i][2]-1].size())
-		 {
-            G[vte[i][2]-1]  = std::vector<int32_t>({-vtn[i][0],vtn[i][4]});
-			Gt[vtn[i][0]-1].push_back(-vte[i][2]);
-			Gt[vtn[i][4]-1].push_back( vte[i][2]);
-		 }
-		 if (!G[vte[i][3]-1].size())
-		 {
-            G[vte[i][3]-1]  = std::vector<int32_t>({-vtn[i][1],vtn[i][3]});
-			Gt[vtn[i][1]-1].push_back(-vte[i][3]);
-			Gt[vtn[i][3]-1].push_back( vte[i][3]);
-		 }
-		 if (!G[vte[i][4]-1].size())
-		 {
-            G[vte[i][4]-1]  = std::vector<int32_t>({-vtn[i][1],vtn[i][5]});
-			Gt[vtn[i][1]-1].push_back(-vte[i][4]);
-			Gt[vtn[i][5]-1].push_back( vte[i][4]);
-		 }
-		 if (!G[vte[i][5]-1].size())
-		 {
-            G[vte[i][5]-1]  = std::vector<int32_t>({-vtn[i][2],vtn[i][3]});
-			Gt[vtn[i][2]-1].push_back(-vte[i][5]);
-			Gt[vtn[i][3]-1].push_back( vte[i][5]);
-		 }
-		 if (!G[vte[i][6]-1].size())
-		 {
-            G[vte[i][6]-1]  = std::vector<int32_t>({-vtn[i][2],vtn[i][6]});
-			Gt[vtn[i][2]-1].push_back(-vte[i][6]);
-			Gt[vtn[i][6]-1].push_back( vte[i][6]);
-		 }
-		 if (!G[vte[i][7]-1].size())
-		 {
-            G[vte[i][7]-1]  = std::vector<int32_t>({-vtn[i][3],vtn[i][7]});
-			Gt[vtn[i][3]-1].push_back(-vte[i][7]);
-			Gt[vtn[i][7]-1].push_back( vte[i][7]);
-		 }
-		 if (!G[vte[i][8]-1].size())
-		 {
-            G[vte[i][8]-1]  = std::vector<int32_t>({-vtn[i][4],vtn[i][5]});
-			Gt[vtn[i][4]-1].push_back(-vte[i][8]);
-			Gt[vtn[i][5]-1].push_back( vte[i][8]);
-		 }
-		 if (!G[vte[i][9]-1].size())
-		 {
-            G[vte[i][9]-1]  = std::vector<int32_t>({-vtn[i][4],vtn[i][6]});
-			Gt[vtn[i][4]-1].push_back(-vte[i][9]);
-			Gt[vtn[i][6]-1].push_back( vte[i][9]);
-		 }
-		 if (!G[vte[i][10]-1].size())
-		 {
-            G[vte[i][10]-1]  = std::vector<int32_t>({-vtn[i][5],vtn[i][7]});
-			Gt[vtn[i][5]-1].push_back(-vte[i][10]);
-			Gt[vtn[i][7]-1].push_back( vte[i][10]);
-		 }
-		 if (!G[vte[i][11]-1].size())
-		 {
-            G[vte[i][11]-1]  = std::vector<int32_t>({-vtn[i][6],vtn[i][7]});
-			Gt[vtn[i][6]-1].push_back(-vte[i][11]);
-			Gt[vtn[i][7]-1].push_back( vte[i][11]);
-		 }
-         // });		 
-         // std::thread C_thread([&] {
-		 if (!C[abs(D[i][0])-1].size())
-		 {
-            C[abs(D[i][0])-1] = std::vector<int32_t>({vte[i][0],-vte[i][1],vte[i][3],-vte[i][5]});
-			face_bars[abs(D[i][0])-1] = face_barycenter(abs(D[i][0])-1);
-			Ct[vte[i][0]-1].push_back( abs(D[i][0]));
-			Ct[vte[i][1]-1].push_back(-abs(D[i][0]));
-			Ct[vte[i][3]-1].push_back( abs(D[i][0]));
-			Ct[vte[i][5]-1].push_back(-abs(D[i][0]));
-		 }
-		 if (!C[abs(D[i][1])-1].size())
-		 {
-            C[abs(D[i][1])-1] = std::vector<int32_t>({-vte[i][0],vte[i][2],-vte[i][4],vte[i][8]});
-			face_bars[abs(D[i][1])-1] = face_barycenter(abs(D[i][1])-1);
-			Ct[vte[i][0]-1].push_back(-abs(D[i][1]));
-			Ct[vte[i][2]-1].push_back( abs(D[i][1]));
-			Ct[vte[i][4]-1].push_back(-abs(D[i][1]));
-			Ct[vte[i][8]-1].push_back( abs(D[i][1]));
-		 }
-		 if (!C[abs(D[i][2])-1].size())
-		 {
-            C[abs(D[i][2])-1] = std::vector<int32_t>({vte[i][1],-vte[i][2],vte[i][6],-vte[i][9]});
-			face_bars[abs(D[i][2])-1] = face_barycenter(abs(D[i][2])-1);
-			Ct[vte[i][1]-1].push_back( abs(D[i][2]));
-			Ct[vte[i][2]-1].push_back(-abs(D[i][2]));
-			Ct[vte[i][6]-1].push_back( abs(D[i][2]));
-			Ct[vte[i][9]-1].push_back(-abs(D[i][2]));
-		 }
-		 if (!C[abs(D[i][3])-1].size())
-		 {
-            C[abs(D[i][3])-1] = std::vector<int32_t>({vte[i][3],-vte[i][4],vte[i][7],-vte[i][10]});
-			face_bars[abs(D[i][3])-1] = face_barycenter(abs(D[i][3])-1);
-			Ct[vte[i][3]-1].push_back( abs(D[i][3]));
-			Ct[vte[i][4]-1].push_back(-abs(D[i][3]));
-			Ct[vte[i][7]-1].push_back( abs(D[i][3]));
-			Ct[vte[i][10]-1].push_back(-abs(D[i][3]));
-		 }
-		 if (!C[abs(D[i][4])-1].size())
-		 {
-            C[abs(D[i][4])-1] = std::vector<int32_t>({-vte[i][5],vte[i][6],-vte[i][7],vte[i][11]});
-			face_bars[abs(D[i][4])-1] = face_barycenter(abs(D[i][4])-1);
-			Ct[vte[i][5]-1].push_back(-abs(D[i][4]));
-			Ct[vte[i][6]-1].push_back( abs(D[i][4]));
-			Ct[vte[i][7]-1].push_back(-abs(D[i][4]));
-			Ct[vte[i][11]-1].push_back(abs(D[i][4]));
-		 }
-		 if (!C[abs(D[i][5])-1].size())
-		 {
-            C[abs(D[i][5])-1] = std::vector<int32_t>({vte[i][8],-vte[i][9],vte[i][10],-vte[i][11]});
-			face_bars[abs(D[i][5])-1] = face_barycenter(abs(D[i][5])-1);
-			Ct[vte[i][8]-1].push_back( abs(D[i][5]));
-			Ct[vte[i][9]-1].push_back(-abs(D[i][5]));
-			Ct[vte[i][10]-1].push_back( abs(D[i][5]));
-			Ct[vte[i][11]-1].push_back(-abs(D[i][5]));
-		 }
-		 // });
-	  
-
-	     // G_thread.join();
-	     // C_thread.join();
-		 
-		 
-      }
-	  
-	  // for (size_t k=0; k<nf; k++)
-	  // {
-         // assert(Dt[k].size()>=1 && Dt[k].size()<=2);
-		 // assert(C[k].size() == 4);
-      // }
-	  // for (size_t k=0; k<ne; k++)
-	  // {
-         // assert(Ct[k].size()>=2 && Ct[k].size()<=4);
-		 // assert(G[k].size() == 2);
-      // }
-	  // for (size_t k=0; k<np; k++)
-	  // {
-         // assert(Gt[k].size()>=3 && Gt[k].size()<=6);
-      // }
-	  
       t_mesh.toc();
 	  std::cout << "elements: " << nv << " surfaces: " << nf << " edges: " << ne << " nodes: " << np << " dofs: " << nf+ne << std::endl;
 	  std::cout << "Meshing takes " << t_mesh << " seconds!" << std::endl;
 	  // std::cout << pts[pts.size()-1] << std::endl;
 	  
 	  t_mesh.tic();
-	  for (uint32_t i=0; i<nf; i++)
-	  {
-         M_ni.push_back(avg_ni(i)/face_area(i));
-		 F.push_back(0);
-	  }
+
+	  M_ni = average_ni;
+	  
 	  for (uint32_t i=0; i<ne; i++)
 	  {
-         M_h.push_back(edge_len(i)/avg_eps(i));
-		 
-		 U.push_back(0);
-		 switch (Ct[i].size())
+         M_h.push_back(1/average_eps[i]);
+		 uint8_t in_b=0;
+		 for (auto ff : Ct[i])
 		 {
-			case 2 :
+			auto abs_ff = abs(ff)-1;
+			if (boundary_face[abs_ff])
 			{
-				bc.push_back(0);
-				is_boundary.push_back(true);
+				in_b = 1;
+				this->is_boundary.push_back(true);
 				break;
 			}
-			case 3 :
+		 }
+		 
+		 switch (in_b)
+		 {
+			case  1 :
 			{
-				is_boundary.push_back(true);
+				// this->is_boundary.push_back(true);
+
 				auto bar = edge_barycenter(i);
 				if (bar(2) <= zmin)
 					bc.push_back(sin( bar(0)*pi/0.05 )*edge_vector(i)(1));
@@ -563,10 +666,11 @@
 
 				break;
 			}
-			case 4 :
+			case 0 :
 			{
 				bc.push_back(1);
-				is_boundary.push_back(false);
+				this->is_boundary.push_back(false);
+
 				break;
 			}
 			default  :
@@ -580,91 +684,49 @@
 	  std::cout << "Constructing material relations takes " << t_mesh << " seconds!" << std::endl;
    }
    
-   T avg_ni(uint32_t index)
-   {
-	  T ret=0;
-	  for (auto v : Dt[index])
-	  {
-         auto label = abs(v) - 1;
-		 ret += (dual_pts[label]-face_bars[index]).norm()/mu[material[label]];
-	  }
-      return ret;
-   }
-
-   T avg_eps(uint32_t index)
-   {
-	  T ret=0;
-	  std::map<uint32_t,std::vector<uint32_t>> dual_faces;
-	  for (auto f : Ct[index])
-	  {
-		 auto abs_f = abs(f)-1;
-		 for (auto v : Dt[abs_f])
-            dual_faces[abs(v)-1].push_back(abs_f);
-	  }
-	  for (auto v : dual_faces)
-	  {
-         auto label = v.first;
-		 ret += (dual_pts[label]-face_bars[v.second[0]]).norm()*
-		        (dual_pts[label]-face_bars[v.second[1]]).norm()*
-				 epsilon[material[label]];
-	  }
-	  
-      return ret;
-   }
-   
    bool Run(double simulation_time)
    {
 	  double step_time_average=0;
-	  timecounter step_cost;
+	  uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;
+	  
+	  T time_function;
+	  timecounter step_cost;
 	  std::vector<T> numeric_values,numeric_times;
+
       for (i=0; i*t_step <= simulation_time; i++)
 	  {
 		 step_cost.tic();
-		 T time_function=sin(2*pi*freq*i*t_step);
+		 time_function=sin(2*pi*freq*i*t_step);
          for (size_t j=0; j<U.size(); j++)
 		 {
-			
 			if (is_boundary[j])
-			{
 				U[j]=time_function*bc[j];
-				// std::cout << "U[" << j << "] = " << U[j] << std::endl;
-			}
 			else
-			{
-               // T Dpartial=0;
-			   // for(size_t k=0; k < 4; k++)
-			      // Dpartial+=   Ct[j][k]/abs(Ct[j][k])*F[abs(Ct[j][k])-1];
-			   T Dpartial = sgn(Ct[j][0])*F[abs(Ct[j][0])-1]+sgn(Ct[j][1])*F[abs(Ct[j][1])-1]+
-			                sgn(Ct[j][2])*F[abs(Ct[j][2])-1]+sgn(Ct[j][3])*F[abs(Ct[j][3])-1];
-               U[j]=U[j] + t_step*M_h[j]*Dpartial;
-			   
-			}
-			// std::cout << "U[" << j << "] = " << U[j] << " ";
+				U[j] = U[j] + t_step*M_h[j]*dual_curl[j]*(F[abs(Ct[j][0])-1]-F[abs(Ct[j][1])-1]+F[abs(Ct[j][2])-1]-F[abs(Ct[j][3])-1]);
 		 }
-		 
-		 // std::cout << std::endl;
+
          for (size_t j=0; j<F.size(); j++)
-		 {
-			// T Bpartial = 0;
-			// for(size_t k=0; k < 4; k++)
-			   // Bpartial += C[j][k]/abs(C[j][k])*U[abs(C[j][k])-1];
-			T Bpartial   = sgn(C[j][0])*U[abs(C[j][0])-1]+sgn(C[j][1])*U[abs(C[j][1])-1]+
-			               sgn(C[j][2])*U[abs(C[j][2])-1]+sgn(C[j][3])*U[abs(C[j][3])-1];
-            F[j]= F[j] - t_step*M_ni[j]*Bpartial;
-		 }
+			F[j] = F[j] - t_step*M_ni[j]*curl[j]*(U[abs(C[j][0])-1]-U[abs(C[j][1])-1]+U[abs(C[j][2])-1]-U[abs(C[j][3])-1]);
+		
 		 auto num_val = GetElectricfield(probe_elem);
 		 numeric_values.push_back(num_val(1));
 		 numeric_times.push_back(i*t_step);
 		 step_cost.toc();
 		 step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
+		 
+		 if ((i+1) % 140 == 0)
+			std::cout << "Progress: " << 100*i/N_of_steps << "% done in " << step_time_average << "s, " 
+		              << step_time_average/i << setw(7) << " s/step" << std::endl;
 	  }
+	  
+	  /* Output stats and fields*/
 	  std::ofstream os;
 	  os.open("numeric_FIT.dat");
 	  for (size_t k=0; k < numeric_values.size(); k++)
 		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
 	  os.close();
-	  std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds" << std::endl;
+	  std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
 	  std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
    }
    
@@ -675,7 +737,7 @@
    
    private:
    T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L, volume;
-   uint32_t probe_elem;
+   uint32_t probe_elem, tot_E, tot_F;
    std::vector<T> bc;
    std::vector<bool> is_boundary;
    std::vector<T> M_ni, M_h, U, F;
@@ -683,8 +745,10 @@
    double t_step, freq;
    std::vector<uint32_t> material;
    std::vector<std::vector<int32_t>> D,Dt,C,Ct,G,Gt;
+   std::vector<int32_t> curl, dual_curl;
+   Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
    std::vector<Eigen::Vector3d> pts, dual_pts, face_bars;
-   std::vector<std::vector<int32_t>> vte,vtn;
+   std::vector<std::vector<int32_t>> E_cluster,P_cluster;
    
    int32_t sgn(int32_t val)
    {
@@ -693,30 +757,15 @@
    
    Eigen::Vector3d GetElectricfield(uint32_t cube)
    {
-	  // auto volume = edge_len(vtn[cube][0]-1)*edge_len(vtn[cube][1]-1)*edge_len(vtn[cube][2]-1);
-	  std::vector<Eigen::Vector3d> edge_mp,face_mp;
 	  std::vector<T> u;
 	  
 	  for (uint32_t i=0; i<12; i++)
-	  {
-		  edge_mp.push_back(edge_barycenter(vte[cube][i]-1));
-		  u.push_back(U[vte[cube][i]-1]);
-	  }
-	  for (uint32_t i=0; i<6; i++)
-		  face_mp.push_back(face_bars[abs(D[cube][i])-1]);
+		  u.push_back(U[E_cluster[cube][i]-1]);
 	  
-      Eigen::Vector3d ret = (u[0]*(face_mp[0]-edge_mp[0]).cross(face_mp[1]-edge_mp[0])    +
-	                         u[1]*(face_mp[2]-edge_mp[1]).cross(face_mp[0]-edge_mp[1])    +
-	                         u[2]*(face_mp[1]-edge_mp[2]).cross(face_mp[2]-edge_mp[2])    +
-	                         u[3]*(face_mp[0]-edge_mp[3]).cross(face_mp[3]-edge_mp[3])    +
-	                         u[4]*(face_mp[3]-edge_mp[4]).cross(face_mp[1]-edge_mp[4])    +
-	                         u[5]*(face_mp[4]-edge_mp[5]).cross(face_mp[0]-edge_mp[5])    +
-	                         u[6]*(face_mp[2]-edge_mp[6]).cross(face_mp[4]-edge_mp[6])    +
-	                         u[7]*(face_mp[4]-edge_mp[7]).cross(face_mp[3]-edge_mp[7])    +
-	                         u[8]*(face_mp[1]-edge_mp[8]).cross(face_mp[5]-edge_mp[8])    +
-	                         u[9]*(face_mp[5]-edge_mp[9]).cross(face_mp[2]-edge_mp[9])    +
-	                         u[10]*(face_mp[3]-edge_mp[10]).cross(face_mp[5]-edge_mp[10]) +
-	                         u[11]*(face_mp[5]-edge_mp[11]).cross(face_mp[4]-edge_mp[11]))/volume;
+      Eigen::Vector3d ret = (u[0]*dual_area_x +	u[ 1]*dual_area_y + u[ 2]*dual_area_z +
+	                         u[3]*dual_area_y + u[ 4]*dual_area_z + u[ 5]*dual_area_x +
+	                         u[6]*dual_area_z +	u[ 7]*dual_area_z + u[ 8]*dual_area_x +
+	                         u[9]*dual_area_y +	u[10]*dual_area_y + u[11]*dual_area_x)/volume;
       return ret;
    }
    
@@ -750,19 +799,15 @@
 	  return (1/double(vec.size()))*ret;
    }
    
-   double edge_len(uint32_t index)
-   {
-	  // std::cout << "index: " << index << std::endl;
-	  // std::cout << abs(G[index][0])-1 << " " << abs(G[index][1])-1 << std::endl;
-      return (pts[abs(G[index][0])-1]-pts[abs(G[index][1])-1]).norm();
-	  
-   }
+   // double edge_len(uint32_t index)
+   // {
+      // return (pts[abs(G[index][0])-1]-pts[abs(G[index][1])-1]).norm();
+   // }
    
-   double face_area(uint32_t index)
-   {
-	  // std::cout << abs(C[index][0])-1 << " " << abs(C[index][1])-1 << " " << abs(C[index][2])-1 << " " << abs(C[index][3])-1 << std::endl;
-      return edge_len(abs(C[index][0])-1)*edge_len(abs(C[index][1])-1);
-   }
+   // double face_area(uint32_t index)
+   // {
+      // return edge_len(abs(C[index][0])-1)*edge_len(abs(C[index][1])-1);
+   // }
    
    bool IsGridVol(T x, T y, T z)
    {
