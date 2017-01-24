@@ -34,6 +34,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include "timecounter.h"
+#include "Efield.hpp"
+#include "Hfield.hpp"
 #include <thread>
 #include <set>
 #include <cassert>
@@ -55,7 +57,7 @@ class mesher
    {
 	   timecounter t_mesh;
 	   t_mesh.tic();
-	   int32_t nv,nf,ne,np;
+	   uint32_t nv,nf,ne,np;
 	   nv=nf=ne=np=0;
 	   epsilon[1]=epsilon0;
 	   mu[1]=mu0;
