@@ -109,7 +109,6 @@ class mesher
       
 	  Eigen::SparseMatrix<uint32_t> previous_layer(Nx,Ny);
 	  std::vector<T> average_eps(tot_E,0), average_ni(tot_F,0), face_area(tot_F), edge_len(tot_E);
-	  std::vector<uint8_t> boundary_face(tot_F,1); 
 	  // previous_layer.SetZero();
 	
       Eigen::Vector3d inc_x(Lx,0,0), inc_y(0,Ly,0), inc_z(0,0,Lz), dummy_vec;
@@ -590,6 +589,7 @@ class mesher
 
 					face_area[D[nv][0]] = area_z;
 					F.push_back(0);
+					boundary_face.push_back(1);
 				 }
 				 else
 					 boundary_face[D[nv][0]]=0;
@@ -607,6 +607,7 @@ class mesher
 					curl[D[nv][1]] = -1;
 					face_area[D[nv][1]] = area_y;
 					F.push_back(0);
+					boundary_face.push_back(1);
 				 }
 				 else
 					 boundary_face[D[nv][1]]=0;
@@ -622,6 +623,7 @@ class mesher
 
 					face_area[D[nv][2]] = area_x;					
 					F.push_back(0);
+					boundary_face.push_back(1);
 				 }
 				 else
 					 boundary_face[D[nv][2]]=0;
@@ -637,6 +639,7 @@ class mesher
 
 					face_area[D[nv][3]] = area_x;					
 					F.push_back(0);
+					boundary_face.push_back(1);
 				 }
 				 else
 					 boundary_face[D[nv][3]]=0;
@@ -653,6 +656,7 @@ class mesher
 					curl[D[nv][4]] = -1;
 					face_area[D[nv][4]] = area_y;					
 					F.push_back(0);
+					boundary_face.push_back(1);
 				 }
 				 else
 					 boundary_face[D[nv][4]]=0;
@@ -668,6 +672,7 @@ class mesher
 
 					face_area[D[nv][5]] = area_z;					
 					F.push_back(0);
+					boundary_face.push_back(1);
 				 }
 				 else
 					 boundary_face[D[nv][5]]=0;
@@ -733,7 +738,7 @@ class mesher
 				// this->is_boundary.push_back(true);
 
 				auto bar = edge_barycenter(i);
-				if (bar(2) <= zmin)
+				if (bar(2) <= zmin && Ct[i].size() > 2)
 					bc.push_back(sin( bar(0)*pi/0.05 )*edge_vector(i)(1));
 				else
 					bc.push_back(0);
@@ -782,10 +787,19 @@ class mesher
 		 step_cost.tic();
 		 time_function=sin(2*pi*freq*i*t_step);
          for (size_t j=0; j<U.size(); j++)
-			U[j] = is_boundary[j] ? time_function*bc[j] : U[j] + t_step*M_h[j]*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
-
+		 {
+			if (bc[j]!=0)
+			{
+				if (!is_boundary[j])
+					U[j] += t_step*M_h[j]*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
+				else
+					U[j] = time_function*bc[j];
+			}
+		 }
+		 
          for (size_t j=0; j<F.size(); j++)
-			F[j] -= t_step*M_ni[j]*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
+			 if (!boundary_face[j])
+				F[j] -= t_step*M_ni[j]*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
 		
 		 auto num_val = GetElectricfield(probe_elem);
 		 numeric_values.push_back(num_val(1));
@@ -821,6 +835,7 @@ class mesher
    std::map<uint32_t,double> epsilon,mu;
    double t_step, freq;
    std::vector<uint32_t> material;
+   std::vector<uint8_t> boundary_face;
    std::vector<std::vector<uint32_t>> D/*,Dt*/,C,Ct,G/*,Gt*/;
    std::vector<int32_t> curl, dual_curl;
    Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
