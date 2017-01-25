@@ -716,11 +716,11 @@ class mesher
       }
 	  
 	  for (uint32_t i=0; i<nf; i++)
-		M_ni.push_back(average_ni[i]/face_area[i]);
+		M_ni.push_back(t_step*average_ni[i]/face_area[i]);
 	  
 	  for (uint32_t i=0; i<ne; i++)
 	  {
-         M_h.push_back(edge_len[i]/average_eps[i]);
+         M_h.push_back(t_step*edge_len[i]/average_eps[i]);
 		 uint8_t in_b=0;
 		 for (auto ff : Ct[i])
 		 {
@@ -792,7 +792,7 @@ class mesher
 			if (bc[j]!=0)
 			{
 				if (!is_boundary[j])
-					U[j] += t_step*M_h[j]*/*dual_curl[j]**/(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
+					U[j] += M_h[j]*/*t_step*dual_curl[j]**/(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
 				else
 					U[j] = time_function*bc[j];
 			}
@@ -800,7 +800,7 @@ class mesher
 		 
          for (size_t j=0; j<F.size(); j++)
 			 if (!boundary_face[j])
-				F[j] -= t_step*M_ni[j]*/*curl[j]**/(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
+				F[j] -= M_ni[j]*/*t_step*curl[j]**/(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
 		
 		 auto num_val = GetElectricfield(probe_elem);
 		 numeric_values.push_back(num_val(1));
