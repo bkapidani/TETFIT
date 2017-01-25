@@ -181,7 +181,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						
@@ -222,7 +222,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],ne,E_cluster[bottom-1][10],
@@ -258,7 +258,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[left-1][5],ne,E_cluster[left-1][6],ne+1,E_cluster[left-1][7],ne+2,
@@ -292,7 +292,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
@@ -325,7 +325,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({ne,E_cluster[back-1][3],E_cluster[back-1][4],ne+1,ne+2,ne+3,
@@ -359,7 +359,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[back-1][4],E_cluster[bottom-1][10],
@@ -392,7 +392,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[left-1][5],E_cluster[back-1][3],E_cluster[left-1][6],ne,
@@ -425,7 +425,7 @@ class mesher
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							curl.push_back(1);
+							//curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
@@ -464,17 +464,17 @@ class mesher
 					//Gt[P_cluster[nv][0]].push_back(E_cluster[nv][0]);
 					//Gt[P_cluster[nv][1]].push_back( E_cluster[nv][0]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][1]].size())
 				 {
 					G[E_cluster[nv][1]]  = std::vector<uint32_t>({P_cluster[nv][0],P_cluster[nv][2]});
-					edge_len[E_cluster[nv][1]] = Ly;
+					edge_len[E_cluster[nv][1]] = -Ly;
 					//Gt[P_cluster[nv][0]].push_back(E_cluster[nv][1]);
 					//Gt[P_cluster[nv][2]].push_back( E_cluster[nv][1]);
 					
-					dual_curl.push_back(-1);
+					//dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][2]].size())
@@ -484,17 +484,17 @@ class mesher
 					//Gt[P_cluster[nv][0]].push_back(E_cluster[nv][2]);
 					//Gt[P_cluster[nv][4]].push_back( E_cluster[nv][2]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][3]].size())
 				 {
 					G[E_cluster[nv][3]]  = std::vector<uint32_t>({P_cluster[nv][1],P_cluster[nv][3]});
-					edge_len[E_cluster[nv][3]] = Ly;
+					edge_len[E_cluster[nv][3]] = -Ly;
 					//Gt[P_cluster[nv][1]].push_back(E_cluster[nv][3]);
 					//Gt[P_cluster[nv][3]].push_back( E_cluster[nv][3]);
 					
-					dual_curl.push_back(-1);
+					//dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][4]].size())
@@ -504,7 +504,7 @@ class mesher
 					//Gt[P_cluster[nv][1]].push_back(E_cluster[nv][4]);
 					//Gt[P_cluster[nv][5]].push_back( E_cluster[nv][4]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][5]].size())
@@ -514,7 +514,7 @@ class mesher
 					//Gt[P_cluster[nv][2]].push_back(E_cluster[nv][5]);
 					//Gt[P_cluster[nv][3]].push_back( E_cluster[nv][5]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][6]].size())
@@ -524,7 +524,7 @@ class mesher
 					//Gt[P_cluster[nv][2]].push_back(E_cluster[nv][6]);
 					//Gt[P_cluster[nv][6]].push_back( E_cluster[nv][6]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][7]].size())
@@ -534,7 +534,7 @@ class mesher
 					//Gt[P_cluster[nv][3]].push_back(E_cluster[nv][7]);
 					//Gt[P_cluster[nv][7]].push_back( E_cluster[nv][7]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][8]].size())
@@ -544,27 +544,27 @@ class mesher
 					//Gt[P_cluster[nv][4]].push_back(E_cluster[nv][8]);
 					//Gt[P_cluster[nv][5]].push_back( E_cluster[nv][8]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][9]].size())
 				 {
 					G[E_cluster[nv][9]]  = std::vector<uint32_t>({P_cluster[nv][4],P_cluster[nv][6]});
-					edge_len[E_cluster[nv][9]] = Ly;
+					edge_len[E_cluster[nv][9]] = -Ly;
 					//Gt[P_cluster[nv][4]].push_back(E_cluster[nv][9]);
 					//Gt[P_cluster[nv][6]].push_back( E_cluster[nv][9]);
 					
-					dual_curl.push_back(-1);
+					//dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][10]].size())
 				 {
 					G[E_cluster[nv][10]]  = std::vector<uint32_t>({P_cluster[nv][5],P_cluster[nv][7]});
-					edge_len[E_cluster[nv][10]] = Ly;
+					edge_len[E_cluster[nv][10]] = -Ly;
 					//Gt[P_cluster[nv][5]].push_back(E_cluster[nv][10]);
 					//Gt[P_cluster[nv][7]].push_back( E_cluster[nv][10]);
 					
-					dual_curl.push_back(-1);
+					//dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][11]].size())
@@ -574,7 +574,7 @@ class mesher
 					//Gt[P_cluster[nv][6]].push_back(E_cluster[nv][11]);
 					//Gt[P_cluster[nv][7]].push_back( E_cluster[nv][11]);
 					
-					dual_curl.push_back(1);
+					//dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 
@@ -604,8 +604,8 @@ class mesher
 					Ct[E_cluster[nv][4]].push_back(D[nv][1]);
 					Ct[E_cluster[nv][8]].push_back(D[nv][1]);
 
-					curl[D[nv][1]] = -1;
-					face_area[D[nv][1]] = area_y;
+					// curl[D[nv][1]] = -1;
+					face_area[D[nv][1]] = -area_y;
 					F.push_back(0);
 					boundary_face.push_back(1);
 				 }
@@ -653,8 +653,8 @@ class mesher
 					Ct[E_cluster[nv][ 7]].push_back(D[nv][4]);
 					Ct[E_cluster[nv][11]].push_back(D[nv][4]);
 
-					curl[D[nv][4]] = -1;
-					face_area[D[nv][4]] = area_y;					
+					// curl[D[nv][4]] = -1;
+					face_area[D[nv][4]] = -area_y;					
 					F.push_back(0);
 					boundary_face.push_back(1);
 				 }
@@ -677,25 +677,25 @@ class mesher
 				 else
 					 boundary_face[D[nv][5]]=0;
 
-					average_ni[D[nv][0]] += Lz/2/mu[material[nv]]/face_area[D[nv][0]];
-					average_ni[D[nv][1]] += Ly/2/mu[material[nv]]/face_area[D[nv][1]];
-					average_ni[D[nv][2]] += Lx/2/mu[material[nv]]/face_area[D[nv][2]];
-					average_ni[D[nv][3]] += Lx/2/mu[material[nv]]/face_area[D[nv][3]];
-					average_ni[D[nv][4]] += Ly/2/mu[material[nv]]/face_area[D[nv][4]];
-					average_ni[D[nv][5]] += Lz/2/mu[material[nv]]/face_area[D[nv][5]];
+					average_ni[D[nv][0]] += Lz/2/mu[material[nv]];///face_area[D[nv][0]];
+					average_ni[D[nv][1]] += Ly/2/mu[material[nv]];///face_area[D[nv][1]];
+					average_ni[D[nv][2]] += Lx/2/mu[material[nv]];///face_area[D[nv][2]];
+					average_ni[D[nv][3]] += Lx/2/mu[material[nv]];///face_area[D[nv][3]];
+					average_ni[D[nv][4]] += Ly/2/mu[material[nv]];///face_area[D[nv][4]];
+					average_ni[D[nv][5]] += Lz/2/mu[material[nv]];///face_area[D[nv][5]];
 					
-					average_eps[E_cluster[nv][ 0]] += da_x*epsilon[material[nv]]/edge_len[E_cluster[nv][ 0]];
-					average_eps[E_cluster[nv][ 1]] += da_y*epsilon[material[nv]]/edge_len[E_cluster[nv][ 1]];
-					average_eps[E_cluster[nv][ 2]] += da_z*epsilon[material[nv]]/edge_len[E_cluster[nv][ 2]];
-					average_eps[E_cluster[nv][ 3]] += da_y*epsilon[material[nv]]/edge_len[E_cluster[nv][ 3]];
-					average_eps[E_cluster[nv][ 4]] += da_z*epsilon[material[nv]]/edge_len[E_cluster[nv][ 4]];
-					average_eps[E_cluster[nv][ 5]] += da_x*epsilon[material[nv]]/edge_len[E_cluster[nv][ 5]];
-					average_eps[E_cluster[nv][ 6]] += da_z*epsilon[material[nv]]/edge_len[E_cluster[nv][ 6]];
-					average_eps[E_cluster[nv][ 7]] += da_z*epsilon[material[nv]]/edge_len[E_cluster[nv][ 7]];
-					average_eps[E_cluster[nv][ 8]] += da_x*epsilon[material[nv]]/edge_len[E_cluster[nv][ 8]];
-					average_eps[E_cluster[nv][ 9]] += da_y*epsilon[material[nv]]/edge_len[E_cluster[nv][ 9]];
-					average_eps[E_cluster[nv][10]] += da_y*epsilon[material[nv]]/edge_len[E_cluster[nv][10]];
-					average_eps[E_cluster[nv][11]] += da_x*epsilon[material[nv]]/edge_len[E_cluster[nv][11]];
+					average_eps[E_cluster[nv][ 0]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][ 0]];
+					average_eps[E_cluster[nv][ 1]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][ 1]];
+					average_eps[E_cluster[nv][ 2]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 2]];
+					average_eps[E_cluster[nv][ 3]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][ 3]];
+					average_eps[E_cluster[nv][ 4]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 4]];
+					average_eps[E_cluster[nv][ 5]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][ 5]];
+					average_eps[E_cluster[nv][ 6]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 6]];
+					average_eps[E_cluster[nv][ 7]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 7]];
+					average_eps[E_cluster[nv][ 8]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][ 8]];
+					average_eps[E_cluster[nv][ 9]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][ 9]];
+					average_eps[E_cluster[nv][10]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][10]];
+					average_eps[E_cluster[nv][11]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][11]];
 					
 					// dual_pts.push_back(pp+0.5*inc_x+0.5*inc_y+0.5*inc_z);
 					nv++;
@@ -714,12 +714,13 @@ class mesher
 		 previous_layer=std::move(this_layer);
 		 pz+=Lz;
       }
-
-	  M_ni = average_ni;
+	  
+	  for (uint32_t i=0; i<nf; i++)
+		M_ni.push_back(average_ni[i]/face_area[i]);
 	  
 	  for (uint32_t i=0; i<ne; i++)
 	  {
-         M_h.push_back(1/average_eps[i]);
+         M_h.push_back(edge_len[i]/average_eps[i]);
 		 uint8_t in_b=0;
 		 for (auto ff : Ct[i])
 		 {
@@ -791,7 +792,7 @@ class mesher
 			if (bc[j]!=0)
 			{
 				if (!is_boundary[j])
-					U[j] += t_step*M_h[j]*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
+					U[j] += t_step*M_h[j]*/*dual_curl[j]**/(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
 				else
 					U[j] = time_function*bc[j];
 			}
@@ -799,7 +800,7 @@ class mesher
 		 
          for (size_t j=0; j<F.size(); j++)
 			 if (!boundary_face[j])
-				F[j] -= t_step*M_ni[j]*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
+				F[j] -= t_step*M_ni[j]*/*curl[j]**/(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
 		
 		 auto num_val = GetElectricfield(probe_elem);
 		 numeric_values.push_back(num_val(1));
