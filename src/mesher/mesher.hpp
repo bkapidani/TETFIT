@@ -793,7 +793,7 @@ class mesher
 	  const uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;
 	  
-	  std::cout << Nx << " " << Ny << " " << Nz << std::endl;
+	  // std::cout << Nx << " " << Ny << " " << Nz << std::endl;
 	  
 	  T time_function;
 	  timecounter step_cost;
@@ -806,9 +806,8 @@ class mesher
 			/* Handle boundary field excitations */
 			time_function=sin(2*pi*freq*i*t_step);
 			for (auto ee : bc_edges)
-				if (bc[ee])
+				if (bc[ee] != 0)
 					U[ee] = time_function*bc[ee];
-			
 			
 			/* Handle fields voxel per voxel */
 			for (uint32_t j = 0; j<D.size()-1; j++)
@@ -834,8 +833,8 @@ class mesher
 			step_cost.toc();
 			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 			
-			if (i % 20 == 0)
-				ExportFields(i);
+			// if (i % 20 == 0)
+				// ExportFields(i);
 			
 			if ((i+1) % 140 == 0)
 				std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
