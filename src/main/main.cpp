@@ -47,9 +47,9 @@ int main(int argc, char **argv)
     std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
 	
 	mesher<double> grid;
-	grid.Run(1e-9);
 	
-	// std::cout << "Number of elements: " << grid.Volumes_size() << std::endl;
+	// grid.Run(1e-9);
+	grid.Run_VoxBased(1e-9);
 	
     return 0;
 }

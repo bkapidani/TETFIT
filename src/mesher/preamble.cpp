@@ -36,7 +36,8 @@
 #include "timecounter.h"
 #include "Efield.hpp"
 #include "Hfield.hpp"
-#include <thread>
+#include <silo.h>
+#include <string.h>
 #include <set>
 #include <cassert>
 #include <fstream>

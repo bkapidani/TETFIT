@@ -28,6 +28,11 @@ set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(EIGEN REQUIRED)
 include_directories("${EIGEN_INCLUDE_DIRS}")
 
+# Find SILO
+find_package(SILO REQUIRED)
+include_directories("${SILO_INCLUDE_DIRS}")
+set(LINK_LIBS "${LINK_LIBS}" "${SILO_LIBRARIES}")
+
 # add_subdirectory(mesher)
 # add_subdirectory(fdtd)
 add_subdirectory(main)

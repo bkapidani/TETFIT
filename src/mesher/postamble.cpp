@@ -12,9 +12,15 @@
 	  T area_x = Ly*Lz;
 	  T area_y = Lx*Lz;
 	  
+	  
+	  
 	  T da_z = area_z/4;
 	  T da_x = area_x/4;
 	  T da_y = area_y/4;
+
+	  Eigen::Vector3d area_z_vec(0,0,Lx*Ly);
+	  Eigen::Vector3d area_y_vec(0,Lx*Lz,0);
+	  Eigen::Vector3d area_x_vec(Ly*Lz,0,0);
 	  
 	  Eigen::Vector3d dual_area_z(0,0,Lx*Ly/4);
 	  Eigen::Vector3d dual_area_y(0,Lx*Lz/4,0);
@@ -23,10 +29,14 @@
 	  this->dual_area_x=dual_area_x;
 	  this->dual_area_y=dual_area_y;
 	  this->dual_area_z=dual_area_z;
+
+	  this->area_x_vec=area_x_vec;
+	  this->area_y_vec=area_y_vec;
+	  this->area_z_vec=area_z_vec;
 	  
-	  uint32_t Nx = (fabs(xmax-xmin)) / Lx;// + 1;
-	  uint32_t Ny = (fabs(ymax-ymin)) / Ly;// + 1;
-	  uint32_t Nz = (fabs(zmax-zmin)) / Lz;// + 1;
+	  Nx = (fabs(xmax-xmin)) / Lx;// + 1;
+	  Ny = (fabs(ymax-ymin)) / Ly;// + 1;
+	  Nz = (fabs(zmax-zmin)) / Lz;// + 1;
 	  
 	  tot_E= Nx*(Ny+1)*(Nz+1)+(Nx+1)*Ny*(Nz+1)+(Nx+1)*(Ny+1)*Nz;
 	  tot_F= Nx*Ny*(Nz+1)+Nz*Nx*(Ny+1)+Ny*Nz*(Nx+1);
@@ -107,7 +117,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						
@@ -148,7 +158,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],ne,E_cluster[bottom-1][10],
@@ -184,7 +194,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[left-1][5],ne,E_cluster[left-1][6],ne+1,E_cluster[left-1][7],ne+2,
@@ -218,7 +228,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
@@ -251,7 +261,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({ne,E_cluster[back-1][3],E_cluster[back-1][4],ne+1,ne+2,ne+3,
@@ -285,7 +295,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[back-1][4],E_cluster[bottom-1][10],
@@ -318,7 +328,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[left-1][5],E_cluster[back-1][3],E_cluster[left-1][6],ne,
@@ -351,7 +361,7 @@
 						{
 							//Dt.push_back(dummyf);
 							C.push_back(dummyf);
-							//curl.push_back(1);
+							curl.push_back(1);
 							
 						}
 						E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
@@ -374,6 +384,8 @@
 					 }
 				  }
 				  
+				  
+				  
                   //Dt[D[nv][0]].push_back( nv); 
                   //Dt[D[nv][1]].push_back( nv);
 				  //Dt[D[nv][2]].push_back( nv);
@@ -390,17 +402,17 @@
 					//Gt[P_cluster[nv][0]].push_back(E_cluster[nv][0]);
 					//Gt[P_cluster[nv][1]].push_back( E_cluster[nv][0]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][1]].size())
 				 {
 					G[E_cluster[nv][1]]  = std::vector<uint32_t>({P_cluster[nv][0],P_cluster[nv][2]});
-					edge_len[E_cluster[nv][1]] = -Ly;
+					edge_len[E_cluster[nv][1]] = Ly;
 					//Gt[P_cluster[nv][0]].push_back(E_cluster[nv][1]);
 					//Gt[P_cluster[nv][2]].push_back( E_cluster[nv][1]);
 					
-					//dual_curl.push_back(-1);
+					dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][2]].size())
@@ -410,17 +422,17 @@
 					//Gt[P_cluster[nv][0]].push_back(E_cluster[nv][2]);
 					//Gt[P_cluster[nv][4]].push_back( E_cluster[nv][2]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][3]].size())
 				 {
 					G[E_cluster[nv][3]]  = std::vector<uint32_t>({P_cluster[nv][1],P_cluster[nv][3]});
-					edge_len[E_cluster[nv][3]] = -Ly;
+					edge_len[E_cluster[nv][3]] = Ly;
 					//Gt[P_cluster[nv][1]].push_back(E_cluster[nv][3]);
 					//Gt[P_cluster[nv][3]].push_back( E_cluster[nv][3]);
 					
-					//dual_curl.push_back(-1);
+					dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][4]].size())
@@ -430,7 +442,7 @@
 					//Gt[P_cluster[nv][1]].push_back(E_cluster[nv][4]);
 					//Gt[P_cluster[nv][5]].push_back( E_cluster[nv][4]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][5]].size())
@@ -440,7 +452,7 @@
 					//Gt[P_cluster[nv][2]].push_back(E_cluster[nv][5]);
 					//Gt[P_cluster[nv][3]].push_back( E_cluster[nv][5]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][6]].size())
@@ -450,7 +462,7 @@
 					//Gt[P_cluster[nv][2]].push_back(E_cluster[nv][6]);
 					//Gt[P_cluster[nv][6]].push_back( E_cluster[nv][6]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][7]].size())
@@ -460,7 +472,7 @@
 					//Gt[P_cluster[nv][3]].push_back(E_cluster[nv][7]);
 					//Gt[P_cluster[nv][7]].push_back( E_cluster[nv][7]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][8]].size())
@@ -470,27 +482,27 @@
 					//Gt[P_cluster[nv][4]].push_back(E_cluster[nv][8]);
 					//Gt[P_cluster[nv][5]].push_back( E_cluster[nv][8]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][9]].size())
 				 {
 					G[E_cluster[nv][9]]  = std::vector<uint32_t>({P_cluster[nv][4],P_cluster[nv][6]});
-					edge_len[E_cluster[nv][9]] = -Ly;
+					edge_len[E_cluster[nv][9]] = Ly;
 					//Gt[P_cluster[nv][4]].push_back(E_cluster[nv][9]);
 					//Gt[P_cluster[nv][6]].push_back( E_cluster[nv][9]);
 					
-					//dual_curl.push_back(-1);
+					dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][10]].size())
 				 {
 					G[E_cluster[nv][10]]  = std::vector<uint32_t>({P_cluster[nv][5],P_cluster[nv][7]});
-					edge_len[E_cluster[nv][10]] = -Ly;
+					edge_len[E_cluster[nv][10]] = Ly;
 					//Gt[P_cluster[nv][5]].push_back(E_cluster[nv][10]);
 					//Gt[P_cluster[nv][7]].push_back( E_cluster[nv][10]);
 					
-					//dual_curl.push_back(-1);
+					dual_curl.push_back(-1);
 					U.push_back(0);
 				 }
 				 if (!G[E_cluster[nv][11]].size())
@@ -500,7 +512,7 @@
 					//Gt[P_cluster[nv][6]].push_back(E_cluster[nv][11]);
 					//Gt[P_cluster[nv][7]].push_back( E_cluster[nv][11]);
 					
-					//dual_curl.push_back(1);
+					dual_curl.push_back(1);
 					U.push_back(0);
 				 }
 				 
@@ -530,8 +542,8 @@
 					Ct[E_cluster[nv][4]].push_back(D[nv][1]);
 					Ct[E_cluster[nv][8]].push_back(D[nv][1]);
 
-					// curl[D[nv][1]] = -1;
-					face_area[D[nv][1]] = -area_y;
+					curl[D[nv][1]] = -1;
+					face_area[D[nv][1]] = area_y;
 					F.push_back(0);
 					boundary_face.push_back(1);
 				 }
@@ -579,8 +591,8 @@
 					Ct[E_cluster[nv][ 7]].push_back(D[nv][4]);
 					Ct[E_cluster[nv][11]].push_back(D[nv][4]);
 
-					// curl[D[nv][4]] = -1;
-					face_area[D[nv][4]] = -area_y;					
+					curl[D[nv][4]] = -1;
+					face_area[D[nv][4]] = area_y;					
 					F.push_back(0);
 					boundary_face.push_back(1);
 				 }
@@ -642,11 +654,11 @@
       }
 	  
 	  for (uint32_t i=0; i<nf; i++)
-		M_ni.push_back(t_step*average_ni[i]/face_area[i]);
+		M_ni.push_back(average_ni[i]/face_area[i]);
 	  
 	  for (uint32_t i=0; i<ne; i++)
 	  {
-         M_h.push_back(t_step*edge_len[i]/average_eps[i]);
+		 M_h.push_back(edge_len[i]/average_eps[i]);
 		 uint8_t in_b=0;
 		 for (auto ff : Ct[i])
 		 {
@@ -654,6 +666,7 @@
 			{
 				in_b = 1;
 				this->is_boundary.push_back(true);
+				bc_edges.push_back(i);
 				break;
 			}
 		 }
@@ -698,9 +711,75 @@
 	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl;
    }
    
-   bool Run(const double simulation_time)
+   void Run_VoxBased(const double simulation_time)
    {
-	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl;
+	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
+	  double step_time_average=0;
+	  const uint32_t N_of_steps=simulation_time/t_step;
+	  size_t i;
+	  
+	  std::cout << Nx << " " << Ny << " " << Nz << std::endl;
+	  
+	  T time_function;
+	  timecounter step_cost;
+	  std::vector<T> numeric_values,numeric_times;
+	  
+		for (i=0; i*t_step <= simulation_time; i++)
+		{
+			step_cost.tic();
+			
+			/* Handle boundary field excitations */
+			time_function=sin(2*pi*freq*i*t_step);
+			for (auto ee : bc_edges)
+				if (bc[ee])
+					U[ee] = time_function*bc[ee];
+			
+			
+			/* Handle fields voxel per voxel */
+			for (uint32_t j = 0; j<D.size()-1; j++)
+			{
+				if (!is_boundary[E_cluster[j][ 7]])
+					U[E_cluster[j][ 7]] += t_step*M_h[E_cluster[j][ 7]]*(F[D[j][3]]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[D[j][4]]);
+				if (!is_boundary[E_cluster[j][10]])
+					U[E_cluster[j][10]] += t_step*M_h[E_cluster[j][10]]*(F[D[j][5]]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[D[j][3]]);
+				if (!is_boundary[E_cluster[j][11]])
+					U[E_cluster[j][11]] += t_step*M_h[E_cluster[j][11]]*(F[D[j][4]]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[D[j][5]]);
+
+				if (!boundary_face[D[j][3]])
+					F[D[j][3]] -= t_step*M_ni[D[j][3]]*(U[E_cluster[j][7]]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[E_cluster[j][10]]);
+				if (!boundary_face[D[j][4]])
+					F[D[j][4]] -= t_step*M_ni[D[j][4]]*(U[E_cluster[j][6]]-U[E_cluster[j][7]]+U[E_cluster[j][11]]-U[E_cluster[j][5]]);
+				if (!boundary_face[D[j][5]])
+					F[D[j][5]] -= t_step*M_ni[D[j][5]]*(U[E_cluster[j][8]]-U[E_cluster[j][11]]+U[E_cluster[j][10]]-U[E_cluster[j][9]]);
+			}
+			
+			auto num_val = GetElectricField(probe_elem);
+			numeric_values.push_back(num_val(1));
+			numeric_times.push_back(i*t_step);
+			step_cost.toc();
+			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
+			
+			if (i % 20 == 0)
+				ExportFields(i);
+			
+			if ((i+1) % 140 == 0)
+				std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
+			              << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+		}
+		
+		/* Output stats and fields*/
+		std::ofstream os;
+		os.open("numeric_FIT.dat");
+		for (size_t k=0; k < numeric_values.size(); k++)
+		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
+		os.close();
+		std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
+		std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
+   }
+   
+   void Run(const double simulation_time)
+   {
+	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
 	  double step_time_average=0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;
@@ -718,7 +797,7 @@
 			if (bc[j]!=0)
 			{
 				if (!is_boundary[j])
-					U[j] += M_h[j]*/*t_step*dual_curl[j]**/(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
+					U[j] += t_step*M_h[j]*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
 				else
 					U[j] = time_function*bc[j];
 			}
@@ -726,17 +805,20 @@
 		 
          for (size_t j=0; j<F.size(); j++)
 			 if (!boundary_face[j])
-				F[j] -= M_ni[j]*/*t_step*curl[j]**/(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
+				F[j] -= t_step*M_ni[j]*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
 		
-		 auto num_val = GetElectricfield(probe_elem);
+		 auto num_val = GetElectricField(probe_elem);
 		 numeric_values.push_back(num_val(1));
 		 numeric_times.push_back(i*t_step);
 		 step_cost.toc();
 		 step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 		 
-		 if ((i+1) % 140 == 0)
-			std::cout << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
-		              << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << std::endl;
+		if (i % 20 == 0)
+			ExportFields(i);
+		
+		if ((i+1) % 140 == 0)
+			std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
+					  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 	  }
 	  
 	  /* Output stats and fields*/
@@ -753,19 +835,112 @@
    uint32_t Surfaces_size() { return C.size(); }
    uint32_t Edges_size() { return G.size(); }
    uint32_t Points_size() { return pts.size(); }
+
+	void ExportFields (uint32_t time)
+	{
+		timecounter t_export;
+		t_export.tic();
+		std::stringstream namedummy;
+		namedummy << "./output/fit" << time << ".silo";
+		auto filename = namedummy.str();
+		_siloDb = DBCreate(filename.c_str(), DB_CLOBBER, DB_LOCAL, NULL, DB_PDB);
+		
+		auto Meshname = ExportMesh(filename);
+		
+		std::vector<double> Ex_vals, Ey_vals, Ez_vals, Hx_vals, Hy_vals, Hz_vals;
+		Ex_vals.reserve( Volumes_size() );
+		Ey_vals.reserve( Volumes_size() );
+		Ez_vals.reserve( Volumes_size() );
+		Hx_vals.reserve( Volumes_size() );
+		Hy_vals.reserve( Volumes_size() );
+		Hz_vals.reserve( Volumes_size() );
+		
+		for (auto itor = 0; itor < Volumes_size(); itor++)
+		{
+			auto Efield = GetElectricField(itor);
+			auto Hfield = GetMagneticField(itor);
+			Ex_vals.push_back(Efield(0));
+			Ey_vals.push_back(Efield(1));
+			Ez_vals.push_back(Efield(2));
+			Hx_vals.push_back(Efield(0));
+			Hy_vals.push_back(Efield(1));
+			Hz_vals.push_back(Efield(2));
+		}
+		
+		int dims[3] = { static_cast<int>(Nx), static_cast<int>(Ny), static_cast<int>(Nz) };
+		
+		std::vector<std::string> varnames({"Ex","Ey","Ez","Hx","Hy","Hz"});
+		DBPutQuadvar1(_siloDb, varnames[0].c_str(), Meshname.c_str(), Ex_vals.data(),dims,3,NULL,0,DB_DOUBLE, DB_ZONECENT, NULL);
+		DBPutQuadvar1(_siloDb, varnames[1].c_str(), Meshname.c_str(), Ey_vals.data(),dims,3,NULL,0,DB_DOUBLE, DB_ZONECENT, NULL);
+		DBPutQuadvar1(_siloDb, varnames[2].c_str(), Meshname.c_str(), Ez_vals.data(),dims,3,NULL,0,DB_DOUBLE, DB_ZONECENT, NULL);
+		DBPutQuadvar1(_siloDb, varnames[3].c_str(), Meshname.c_str(), Hx_vals.data(),dims,3,NULL,0,DB_DOUBLE, DB_ZONECENT, NULL);
+		DBPutQuadvar1(_siloDb, varnames[4].c_str(), Meshname.c_str(), Hy_vals.data(),dims,3,NULL,0,DB_DOUBLE, DB_ZONECENT, NULL);
+		DBPutQuadvar1(_siloDb, varnames[5].c_str(), Meshname.c_str(), Hz_vals.data(),dims,3,NULL,0,DB_DOUBLE, DB_ZONECENT, NULL);
+		
+		DBClose(_siloDb);
+		
+		t_export.toc();
+		std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
+	}
+
+	std::string ExportMesh(std::string filename)
+	{
+		// DBfile *file = NULL; /* The Silo file pointer */
+		int32_t tot_pt = Points_size();
+		
+		std::stringstream meshname;
+		
+		meshname << "fit_grid_" << tot_pt << "nodes";
+		
+		char *coordnames[3]; /* Names of the coordinates */
+		std::vector<double> nodex, nodey, nodez;
+		nodex.reserve(tot_pt);
+		nodey.reserve(tot_pt);
+		nodez.reserve(tot_pt);
+		
+		/* Name the coordinate axes ‘X’ and ‘Y’ */
+		coordnames[0] = strdup("X");
+		coordnames[1] = strdup("Y");
+		coordnames[2] = strdup("Z");
+		/* Give the x coordinates of the mesh */
+		// uint32_t pt_iter=0;
+		for (size_t i=0; i<=Nx; i++)
+			nodex.push_back(i*Lx);
+		for (size_t i=0; i<=Ny; i++)
+			nodey.push_back(i*Ly);
+		for (size_t i=0; i<=Nz; i++)
+			nodez.push_back(i*Lz);
+		
+		/* How many nodes in each direction? */
+		int dimensions[3]={static_cast<int>(Nx+1),static_cast<int>(Ny+1),static_cast<int>(Nz+1)};
+		/* Assign coordinates to coordinates array */
+		double *coordinates[3];
+		coordinates[0] = nodex.data();
+		coordinates[1] = nodey.data();
+		coordinates[2] = nodez.data();
+		
+        std::vector<int> nodelist;
+        nodelist.reserve( Volumes_size() );
+        
+		DBPutQuadmesh(_siloDb,meshname.str().c_str(), coordnames,coordinates,dimensions,3,DB_DOUBLE, DB_COLLINEAR, NULL);
+
+		return meshname.str();
+	}
    
    private:
    T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L,volume;
-   uint32_t probe_elem, tot_E, tot_F;
+   uint32_t probe_elem, tot_E, tot_F, Nx, Ny, Nz;
    std::vector<bool> is_boundary;
    std::vector<T> M_ni, M_h, U, F, bc;
    std::map<uint32_t,double> epsilon,mu;
    double t_step, freq;
-   std::vector<uint32_t> material;
+   DBfile *_siloDb=NULL;
+   std::vector<uint32_t> material, bc_edges;
    std::vector<uint8_t> boundary_face;
    std::vector<std::vector<uint32_t>> D/*,Dt*/,C,Ct,G/*,Gt*/;
    std::vector<int32_t> curl, dual_curl;
    Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
+   Eigen::Vector3d area_z_vec, area_y_vec, area_x_vec;
    std::vector<Eigen::Vector3d> pts/*, dual_pts, face_bars*/;
    std::vector<std::vector<uint32_t>> E_cluster,P_cluster;
    
@@ -774,7 +949,7 @@
       return (0 < val) - (val < 0);
    }
    
-   Eigen::Vector3d GetElectricfield(uint32_t cube)
+   Eigen::Vector3d GetElectricField(uint32_t cube)
    {
 	  std::vector<T> u;
 	  
@@ -785,6 +960,19 @@
 	                         u[3]*dual_area_y + u[ 4]*dual_area_z + u[ 5]*dual_area_x +
 	                         u[6]*dual_area_z +	u[ 7]*dual_area_z + u[ 8]*dual_area_x +
 	                         u[9]*dual_area_y +	u[10]*dual_area_y + u[11]*dual_area_x)/volume;
+      return ret;
+   }
+
+   Eigen::Vector3d GetMagneticField(uint32_t cube)
+   {
+	  std::vector<T> u;
+	  
+	  for (uint32_t i=0; i<6; i++)
+		  u.push_back(F[D[cube][i]]);
+	  
+      Eigen::Vector3d ret = (u[0]*area_z_vec + u[1]*area_y_vec + u[2]*area_x_vec +
+	                         u[3]*area_x_vec + u[4]*area_y_vec + u[5]*area_z_vec)
+							 /mu[material[cube]]/volume;
       return ret;
    }
    
