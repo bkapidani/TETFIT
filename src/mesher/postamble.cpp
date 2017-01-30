@@ -44,7 +44,9 @@
 	  typedef Eigen::Triplet<uint32_t> Q;
       
 	  Eigen::SparseMatrix<uint32_t> previous_layer(Nx,Ny);
-	  std::vector<T> average_eps(tot_E,0), average_ni(tot_F,0), face_area(tot_F), edge_len(tot_E);
+	  std::vector<T> average_eps(tot_E,0), average_sigma(tot_E,0), edge_len(tot_E); 
+	  std::vector<T> average_ni(tot_F,0), average_mag_sigma(tot_F,0), face_area(tot_F);
+	  std::vector<uint8_t> is_ele_lossy(tot_E,0), is_mag_lossy(tot_F,0);
 	  // previous_layer.SetZero();
 	
       Eigen::Vector3d inc_x(Lx,0,0), inc_y(0,Ly,0), inc_z(0,0,Lz), dummy_vec;
@@ -613,27 +615,53 @@
 					boundary_face.push_back(1);
 				 }
 				 else
-					 boundary_face[D[nv][5]]=0;
+					boundary_face[D[nv][5]]=0;
 
-					average_ni[D[nv][0]] += Lz/2/mu[material[nv]];///face_area[D[nv][0]];
-					average_ni[D[nv][1]] += Ly/2/mu[material[nv]];///face_area[D[nv][1]];
-					average_ni[D[nv][2]] += Lx/2/mu[material[nv]];///face_area[D[nv][2]];
-					average_ni[D[nv][3]] += Lx/2/mu[material[nv]];///face_area[D[nv][3]];
-					average_ni[D[nv][4]] += Ly/2/mu[material[nv]];///face_area[D[nv][4]];
-					average_ni[D[nv][5]] += Lz/2/mu[material[nv]];///face_area[D[nv][5]];
+					average_ni[D[nv][0]] += Lz/2/mu[material[nv]];
+					average_ni[D[nv][1]] += Ly/2/mu[material[nv]];
+					average_ni[D[nv][2]] += Lx/2/mu[material[nv]];
+					average_ni[D[nv][3]] += Lx/2/mu[material[nv]];
+					average_ni[D[nv][4]] += Ly/2/mu[material[nv]];
+					average_ni[D[nv][5]] += Lz/2/mu[material[nv]];
 					
-					average_eps[E_cluster[nv][ 0]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][ 0]];
-					average_eps[E_cluster[nv][ 1]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][ 1]];
-					average_eps[E_cluster[nv][ 2]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 2]];
-					average_eps[E_cluster[nv][ 3]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][ 3]];
-					average_eps[E_cluster[nv][ 4]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 4]];
-					average_eps[E_cluster[nv][ 5]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][ 5]];
-					average_eps[E_cluster[nv][ 6]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 6]];
-					average_eps[E_cluster[nv][ 7]] += da_z*epsilon[material[nv]];///edge_len[E_cluster[nv][ 7]];
-					average_eps[E_cluster[nv][ 8]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][ 8]];
-					average_eps[E_cluster[nv][ 9]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][ 9]];
-					average_eps[E_cluster[nv][10]] += da_y*epsilon[material[nv]];///edge_len[E_cluster[nv][10]];
-					average_eps[E_cluster[nv][11]] += da_x*epsilon[material[nv]];///edge_len[E_cluster[nv][11]];
+					if (mag_sigma[material[nv]] != 0)
+					{
+						average_mag_sigma[D[nv][0]] += Lz/2/mag_sigma[material[nv]]; is_mag_lossy[D[nv][0]]++;
+						average_mag_sigma[D[nv][1]] += Ly/2/mag_sigma[material[nv]]; is_mag_lossy[D[nv][1]]++;
+						average_mag_sigma[D[nv][2]] += Lx/2/mag_sigma[material[nv]]; is_mag_lossy[D[nv][2]]++;
+						average_mag_sigma[D[nv][3]] += Lx/2/mag_sigma[material[nv]]; is_mag_lossy[D[nv][3]]++;
+						average_mag_sigma[D[nv][4]] += Ly/2/mag_sigma[material[nv]]; is_mag_lossy[D[nv][4]]++;
+						average_mag_sigma[D[nv][5]] += Lz/2/mag_sigma[material[nv]]; is_mag_lossy[D[nv][5]]++;
+					}
+					
+					average_eps[E_cluster[nv][ 0]] += da_x*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 1]] += da_y*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 2]] += da_z*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 3]] += da_y*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 4]] += da_z*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 5]] += da_x*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 6]] += da_z*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 7]] += da_z*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 8]] += da_x*epsilon[material[nv]];
+					average_eps[E_cluster[nv][ 9]] += da_y*epsilon[material[nv]];
+					average_eps[E_cluster[nv][10]] += da_y*epsilon[material[nv]];
+					average_eps[E_cluster[nv][11]] += da_x*epsilon[material[nv]];
+					
+					if (sigma[material[nv]] != 0)
+					{
+						average_sigma[E_cluster[nv][ 0]] += da_x*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 0]]++;
+						average_sigma[E_cluster[nv][ 1]] += da_y*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 1]]++;
+						average_sigma[E_cluster[nv][ 2]] += da_z*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 2]]++;
+						average_sigma[E_cluster[nv][ 3]] += da_y*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 3]]++;
+						average_sigma[E_cluster[nv][ 4]] += da_z*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 4]]++;
+						average_sigma[E_cluster[nv][ 5]] += da_x*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 5]]++;
+						average_sigma[E_cluster[nv][ 6]] += da_z*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 6]]++;
+						average_sigma[E_cluster[nv][ 7]] += da_z*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 7]]++;
+						average_sigma[E_cluster[nv][ 8]] += da_x*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 8]]++;
+						average_sigma[E_cluster[nv][ 9]] += da_y*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][ 9]]++;
+						average_sigma[E_cluster[nv][10]] += da_y*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][10]]++;
+						average_sigma[E_cluster[nv][11]] += da_x*sigma[material[nv]]; is_ele_lossy[E_cluster[nv][11]]++;
+					}
 					
 					// dual_pts.push_back(pp+0.5*inc_x+0.5*inc_y+0.5*inc_z);
 					nv++;
@@ -654,11 +682,31 @@
       }
 	  
 	  for (uint32_t i=0; i<nf; i++)
-		M_ni.push_back(average_ni[i]/face_area[i]);
-	  
+	  {
+		if (is_mag_lossy[i])
+		{
+			M_ni.push_back(1/(face_area[i]*(1/average_ni[i]+0.5*t_step/average_mag_sigma[i])));
+			M_mu.push_back(face_area[i]*(1/average_ni[i]-0.5*t_step/average_mag_sigma[i]));
+		}
+		else
+		{
+			M_ni.push_back(average_ni[i]/face_area[i]);
+			M_mu.push_back(face_area[i]/average_ni[i]);
+		}
+	  }
 	  for (uint32_t i=0; i<ne; i++)
 	  {
-		 M_h.push_back(edge_len[i]/average_eps[i]);
+		 if (is_ele_lossy[i])
+		 {
+			M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
+			M_e.push_back((average_eps[i] - 0.5*t_step*average_sigma[i])/edge_len[i]);
+		 }
+		 else
+		 {
+			M_h.push_back(edge_len[i]/average_eps[i]);
+			M_e.push_back(average_eps[i]/edge_len[i]);
+		 }
+		 
 		 uint8_t in_b=0;
 		 for (auto ff : Ct[i])
 		 {
@@ -700,6 +748,9 @@
 		 }
 	  }
 	  
+	  this->is_mag_lossy=std::move(is_mag_lossy);
+	  this->is_ele_lossy=std::move(is_ele_lossy);
+	  
       t_mesh.toc();
 	  std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
 	  std::cout << "Mesh statistics: " << std::endl;
@@ -716,7 +767,7 @@
 	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
 	  double step_time_average=0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
-	  size_t i;
+	  uint32_t i,e1,e2,e3,f1,f2,f3;
 	  
 	  // std::cout << Nx << " " << Ny << " " << Nz << std::endl;
 	  
@@ -737,19 +788,57 @@
 			/* Handle fields voxel per voxel */
 			for (uint32_t j = 0; j<D.size()-1; j++)
 			{
-				if (!is_boundary[E_cluster[j][ 7]])
-					U[E_cluster[j][ 7]] += t_step*M_h[E_cluster[j][ 7]]*(F[D[j][3]]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[D[j][4]]);
-				if (!is_boundary[E_cluster[j][10]])
-					U[E_cluster[j][10]] += t_step*M_h[E_cluster[j][10]]*(F[D[j][5]]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[D[j][3]]);
-				if (!is_boundary[E_cluster[j][11]])
-					U[E_cluster[j][11]] += t_step*M_h[E_cluster[j][11]]*(F[D[j][4]]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[D[j][5]]);
+				e1 = E_cluster[j][ 7];
+				e2 = E_cluster[j][10];
+				e3 = E_cluster[j][11];
+				f1 = D[j][3];
+				f2 = D[j][4];
+				f3 = D[j][5];
+			
 
-				if (!boundary_face[D[j][3]])
-					F[D[j][3]] -= t_step*M_ni[D[j][3]]*(U[E_cluster[j][7]]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[E_cluster[j][10]]);
-				if (!boundary_face[D[j][4]])
-					F[D[j][4]] -= t_step*M_ni[D[j][4]]*(U[E_cluster[j][6]]-U[E_cluster[j][7]]+U[E_cluster[j][11]]-U[E_cluster[j][5]]);
-				if (!boundary_face[D[j][5]])
-					F[D[j][5]] -= t_step*M_ni[D[j][5]]*(U[E_cluster[j][8]]-U[E_cluster[j][11]]+U[E_cluster[j][10]]-U[E_cluster[j][9]]);
+				if (!is_boundary[e1])
+				{
+					if (is_ele_lossy[e1]!=0)
+						U[e1] = M_h[e1]*(M_e[e1]*U[e1] + t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]));
+					else
+						U[e1] += M_h[e1]*t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]);
+				}
+				if (!is_boundary[e2])
+				{
+					if (is_ele_lossy[e2]!=0)
+						U[e2] = M_h[e2]*(M_e[e2]*U[e2] + t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]));
+					else
+						U[e2] += M_h[e2]*t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]);
+				}
+				if (!is_boundary[e3])
+				{
+					if (is_ele_lossy[e3]!=0)
+						U[e3] = M_h[e3]*(M_e[e3]*U[e3] + t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]));
+					else
+						U[e3] += M_h[e3]*t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]);
+				}
+				
+				if (!boundary_face[f1])
+				{
+					if (is_mag_lossy[f1])
+						F[f1] = M_ni[f1]*(M_mu[f1]*F[f1]-t_step*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]));
+					else
+						F[f1] -= t_step*M_ni[f1]*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]);
+				}
+				if (!boundary_face[f2])
+				{
+					if (is_mag_lossy[f2])
+						F[f2] = M_ni[f2]*(M_mu[f2]*F[f2]-t_step*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]));
+					else
+						F[f2] -= t_step*M_ni[f2]*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]);
+				}
+				if (!boundary_face[f3])
+				{
+					if (is_mag_lossy[f3])
+						F[f3] = M_ni[f3]*(M_mu[f3]*F[f3]-t_step*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]));
+					else
+						F[f3] -= t_step*M_ni[f3]*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]);
+				}
 			}
 			
 			auto num_val = GetElectricField(probe_elem);
@@ -812,7 +901,7 @@
 		 step_cost.toc();
 		 step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 		 
-		if (i % 20 == 0)
+		if (output_to_file && (i % 20 == 0))
 			ExportFields(i);
 		
 		if ((i+1) % 140 == 0)
@@ -927,11 +1016,12 @@
 	}
    
    private:
+   bool output_to_file = false;
    T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L,volume;
    uint32_t probe_elem, tot_E, tot_F, Nx, Ny, Nz;
    std::vector<bool> is_boundary;
-   std::vector<T> M_ni, M_h, U, F, bc;
-   std::map<uint32_t,double> epsilon,mu;
+   std::vector<T> M_ni, M_h, M_e, M_mu, U, F, bc;
+   std::map<uint32_t,double> epsilon,mu,sigma,mag_sigma;
    double t_step, freq;
    DBfile *_siloDb=NULL;
    std::vector<uint32_t> material, bc_edges;
@@ -942,6 +1032,7 @@
    Eigen::Vector3d area_z_vec, area_y_vec, area_x_vec;
    std::vector<Eigen::Vector3d> pts/*, dual_pts, face_bars*/;
    std::vector<std::vector<uint32_t>> E_cluster,P_cluster;
+   std::vector<uint8_t> is_ele_lossy, is_mag_lossy;
    
    int32_t sgn(int32_t val)
    {

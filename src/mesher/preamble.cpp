@@ -62,6 +62,8 @@ class mesher
 	   nv=nf=ne=np=0;
 	   epsilon[1]=epsilon0;
 	   mu[1]=mu0;
+	   sigma[1]=0.02;
+	   mag_sigma[1]=0;
 	   freq=5e9;
 	   
       //Numerical limits
