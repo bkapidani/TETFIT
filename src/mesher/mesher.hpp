@@ -836,12 +836,12 @@ class mesher
 	  std::cout << std::setw(20) << "edges: "             << std::setw(10) << ne << std::endl; 
 	  std::cout << std::setw(20) << "vertices: "          << std::setw(10) << np << std::endl;
 	  std::cout << std::setw(20) << "materials: "         << std::setw(10) << mu.size() << std::endl; 
-	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl;
+	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl << std::endl;
    }
    
    void Run_VoxBased(const double simulation_time)
    {
-	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
+	  std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
 	  double step_time_average=0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
 	  uint32_t i,e1,e2,e3,f1,f2,f3;
@@ -944,7 +944,7 @@ class mesher
    
    void Run(const double simulation_time)
    {
-	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
+	  std::cout  << std::endl << std::endl <<"---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
 	  double step_time_average=0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;

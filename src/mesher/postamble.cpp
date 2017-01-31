@@ -759,115 +759,118 @@
 	  std::cout << std::setw(20) << "edges: "             << std::setw(10) << ne << std::endl; 
 	  std::cout << std::setw(20) << "vertices: "          << std::setw(10) << np << std::endl;
 	  std::cout << std::setw(20) << "materials: "         << std::setw(10) << mu.size() << std::endl; 
-	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl;
+	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl << std::endl;
    }
    
-   void Run_VoxBased(const double simulation_time)
-   {
-	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
-	  double step_time_average=0;
-	  const uint32_t N_of_steps=simulation_time/t_step;
-	  uint32_t i,e1,e2,e3,f1,f2,f3;
-	  
-	  // std::cout << Nx << " " << Ny << " " << Nz << std::endl;
-	  
-	  T time_function;
-	  timecounter step_cost;
-	  std::vector<T> numeric_values,numeric_times;
-	  
-		for (i=0; i*t_step <= simulation_time; i++)
-		{
-			step_cost.tic();
-			
-			/* Handle boundary field excitations */
-			time_function=sin(2*pi*freq*i*t_step);
-			for (auto ee : bc_edges)
-				if (bc[ee] != 0)
-					U[ee] = time_function*bc[ee];
-			
-			/* Handle fields voxel per voxel */
-			for (uint32_t j = 0; j<D.size()-1; j++)
-			{
-				e1 = E_cluster[j][ 7];
-				e2 = E_cluster[j][10];
-				e3 = E_cluster[j][11];
-				f1 = D[j][3];
-				f2 = D[j][4];
-				f3 = D[j][5];
-			
+void Run_VoxBased(const double simulation_time)
+{
+	std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
+	double step_time_average=0;
+	const uint32_t N_of_steps=simulation_time/t_step;
+	uint32_t i,e1,e2,e3,f1,f2,f3;
 
-				if (!is_boundary[e1])
-				{
-					if (is_ele_lossy[e1]!=0)
-						U[e1] = M_h[e1]*(M_e[e1]*U[e1] + t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]));
-					else
-						U[e1] += M_h[e1]*t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]);
-				}
-				if (!is_boundary[e2])
-				{
-					if (is_ele_lossy[e2]!=0)
-						U[e2] = M_h[e2]*(M_e[e2]*U[e2] + t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]));
-					else
-						U[e2] += M_h[e2]*t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]);
-				}
-				if (!is_boundary[e3])
-				{
-					if (is_ele_lossy[e3]!=0)
-						U[e3] = M_h[e3]*(M_e[e3]*U[e3] + t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]));
-					else
-						U[e3] += M_h[e3]*t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]);
-				}
-				
-				if (!boundary_face[f1])
-				{
-					if (is_mag_lossy[f1])
-						F[f1] = M_ni[f1]*(M_mu[f1]*F[f1]-t_step*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]));
-					else
-						F[f1] -= t_step*M_ni[f1]*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]);
-				}
-				if (!boundary_face[f2])
-				{
-					if (is_mag_lossy[f2])
-						F[f2] = M_ni[f2]*(M_mu[f2]*F[f2]-t_step*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]));
-					else
-						F[f2] -= t_step*M_ni[f2]*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]);
-				}
-				if (!boundary_face[f3])
-				{
-					if (is_mag_lossy[f3])
-						F[f3] = M_ni[f3]*(M_mu[f3]*F[f3]-t_step*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]));
-					else
-						F[f3] -= t_step*M_ni[f3]*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]);
-				}
+	// std::cout << Nx << " " << Ny << " " << Nz << std::endl;
+
+	T time_function;
+	timecounter step_cost;
+	std::vector<T> numeric_values,numeric_times;
+  
+	for (i=0; i*t_step <= simulation_time; i++)
+	{
+		step_cost.tic();
+		
+		/* Handle boundary field excitations */
+		time_function=sin(2*pi*freq*i*t_step);
+		for (auto ee : bc_edges)
+			if (bc[ee] != 0)
+				U[ee] = time_function*bc[ee];
+		
+		
+		
+		
+		/* Handle fields voxel per voxel */
+		for (uint32_t j = 0; j<D.size()-1; j++)
+		{
+			e1 = E_cluster[j][ 7];
+			e2 = E_cluster[j][10];
+			e3 = E_cluster[j][11];
+			f1 = D[j][3];
+			f2 = D[j][4];
+			f3 = D[j][5];
+		
+
+			if (!is_boundary[e1])
+			{
+				if (is_ele_lossy[e1]!=0)
+					U[e1] = M_h[e1]*(M_e[e1]*U[e1] + t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]));
+				else
+					U[e1] += M_h[e1]*t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]);
+			}
+			if (!is_boundary[e2])
+			{
+				if (is_ele_lossy[e2]!=0)
+					U[e2] = M_h[e2]*(M_e[e2]*U[e2] + t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]));
+				else
+					U[e2] += M_h[e2]*t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]);
+			}
+			if (!is_boundary[e3])
+			{
+				if (is_ele_lossy[e3]!=0)
+					U[e3] = M_h[e3]*(M_e[e3]*U[e3] + t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]));
+				else
+					U[e3] += M_h[e3]*t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]);
 			}
 			
-			auto num_val = GetElectricField(probe_elem);
-			numeric_values.push_back(num_val(1));
-			numeric_times.push_back(i*t_step);
-			step_cost.toc();
-			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
-			
-			// if (i % 20 == 0)
-				// ExportFields(i);
-			
-			if ((i+1) % 140 == 0)
-				std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
-			              << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+			if (!boundary_face[f1])
+			{
+				if (is_mag_lossy[f1])
+					F[f1] = M_ni[f1]*(M_mu[f1]*F[f1]-t_step*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]));
+				else
+					F[f1] -= t_step*M_ni[f1]*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]);
+			}
+			if (!boundary_face[f2])
+			{
+				if (is_mag_lossy[f2])
+					F[f2] = M_ni[f2]*(M_mu[f2]*F[f2]-t_step*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]));
+				else
+					F[f2] -= t_step*M_ni[f2]*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]);
+			}
+			if (!boundary_face[f3])
+			{
+				if (is_mag_lossy[f3])
+					F[f3] = M_ni[f3]*(M_mu[f3]*F[f3]-t_step*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]));
+				else
+					F[f3] -= t_step*M_ni[f3]*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]);
+			}
 		}
 		
-		/* Output stats and fields*/
-		std::ofstream os;
-		os.open("numeric_FIT.dat");
-		for (size_t k=0; k < numeric_values.size(); k++)
-		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
-		os.close();
-		std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
-		std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
-   }
+		auto num_val = GetElectricField(probe_elem);
+		numeric_values.push_back(num_val(1));
+		numeric_times.push_back(i*t_step);
+		step_cost.toc();
+		step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
+		
+		// if (i % 20 == 0)
+			// ExportFields(i);
+		
+		if ((i+1) % 140 == 0)
+			std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
+					  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+	}
+	
+	/* Output stats and fields*/
+	std::ofstream os;
+	os.open("numeric_FIT.dat");
+	for (size_t k=0; k < numeric_values.size(); k++)
+	  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
+	os.close();
+	std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
+	std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
+}
    
    void Run(const double simulation_time)
    {
-	  std::cout << "---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
+	  std::cout  << std::endl << std::endl <<"---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
 	  double step_time_average=0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;
