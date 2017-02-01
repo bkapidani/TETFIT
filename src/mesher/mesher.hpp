@@ -758,8 +758,14 @@ class mesher
 		 pz+=Lz;
       }
 	  
+			Nvec.resize(tot_F);
+			Hvec.resize(tot_E);
+			
+
 	  for (uint32_t i=0; i<nf; i++)
 	  {
+			Nvec(i)=average_ni[i]/face_area[i];
+
 		if (is_mag_lossy[i])
 		{
 			M_ni.push_back(1/(face_area[i]*(1/average_ni[i]+0.5*t_step/average_mag_sigma[i])));
@@ -773,6 +779,8 @@ class mesher
 	  }
 	  for (uint32_t i=0; i<ne; i++)
 	  {
+			Hvec(i)=edge_len[i]/average_eps[i];
+
 		 if (is_ele_lossy[i])
 		 {
 			M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
@@ -839,97 +847,119 @@ class mesher
 	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl << std::endl;
    }
    
-   void Run_VoxBased(const double simulation_time)
-   {
-	  std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
-	  double step_time_average=0;
-	  const uint32_t N_of_steps=simulation_time/t_step;
-	  uint32_t i,e1,e2,e3,f1,f2,f3;
-	  
-	  // std::cout << Nx << " " << Ny << " " << Nz << std::endl;
-	  
-	  T time_function;
-	  timecounter step_cost;
-	  std::vector<T> numeric_values,numeric_times;
-	  
+	void RunEigenBased(const double simulation_time)
+	{
+		std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
+		double step_time_average=0;
+		const uint32_t N_of_steps=simulation_time/t_step;
+		uint32_t i,e1,e2,e3,f1,f2,f3;
+
+		// std::cout << Nx << " " << Ny << " " << Nz << std::endl;
+
+		T time_function;
+		timecounter step_cost, debug_counter;
+		std::vector<T> numeric_values,numeric_times;
+		uint32_t nv = D.size()-1;
+		typedef Eigen::Triplet<double,uint32_t> W;
+		Eigen::SparseMatrix<double> Cmat(C.size(),Ct.size()),CTmat(Ct.size(),C.size());
+		std::vector<W> tripletList1, tripletList2;
+		tripletList1.reserve(4*C.size());
+		tripletList2.reserve(4*Ct.size());
+		
+		Eigen::VectorXd U_eigen(U.size()), F_eigen(F.size());
+		// Eigen::VectorXd Hvec(M_h.data()), Nvec(M_ni.data());
+		
+		// std::cout << Hvec.size() << "------" << Nvec.size() << std::endl;
+		
+		for (uint32_t j=0; j<nv; j++)
+		{
+			e1 = E_cluster[j][ 7];
+			e2 = E_cluster[j][10];
+			e3 = E_cluster[j][11];
+			f1 = D[j][3];
+			f2 = D[j][4];
+			f3 = D[j][5];
+			
+			if (!boundary_face[f1])
+			{
+				tripletList1.push_back(W(f1,uint32_t(C[f1][0]), double(1)));
+				tripletList1.push_back(W(f1,uint32_t(C[f1][1]),-double(1)));
+				tripletList1.push_back(W(f1,uint32_t(C[f1][2]), double(1)));
+				tripletList1.push_back(W(f1,uint32_t(C[f1][3]),-double(1)));
+			}
+			
+			if (!boundary_face[f2])
+			{
+				tripletList1.push_back(W(f2,uint32_t(C[f2][0]),-double(1)));
+				tripletList1.push_back(W(f2,uint32_t(C[f2][1]), double(1)));
+				tripletList1.push_back(W(f2,uint32_t(C[f2][2]),-double(1)));
+				tripletList1.push_back(W(f2,uint32_t(C[f2][3]), double(1)));
+			}
+			
+			if (!boundary_face[f3])
+			{
+				tripletList1.push_back(W(f3,uint32_t(C[f3][0]), double(1)));
+				tripletList1.push_back(W(f3,uint32_t(C[f3][1]),-double(1)));
+				tripletList1.push_back(W(f3,uint32_t(C[f3][2]), double(1)));
+				tripletList1.push_back(W(f3,uint32_t(C[f3][3]),-double(1)));
+			}
+			
+			if (!is_boundary[e1])
+			{
+				tripletList2.push_back(W(e1,uint32_t(Ct[e1][0]), double(1)));
+				tripletList2.push_back(W(e1,uint32_t(Ct[e1][1]),-double(1)));
+				tripletList2.push_back(W(e1,uint32_t(Ct[e1][2]), double(1)));
+				tripletList2.push_back(W(e1,uint32_t(Ct[e1][3]),-double(1)));
+			}
+			
+			if (!is_boundary[e2])
+			{
+				tripletList2.push_back(W(e2,uint32_t(Ct[e2][0]),-double(1)));
+				tripletList2.push_back(W(e2,uint32_t(Ct[e2][1]), double(1)));
+				tripletList2.push_back(W(e2,uint32_t(Ct[e2][2]),-double(1)));
+				tripletList2.push_back(W(e2,uint32_t(Ct[e2][3]), double(1)));
+			}
+			
+			if (!is_boundary[e3])
+			{
+				tripletList2.push_back(W(e3,uint32_t(Ct[e3][0]), double(1)));
+				tripletList2.push_back(W(e3,uint32_t(Ct[e3][1]),-double(1)));
+				tripletList2.push_back(W(e3,uint32_t(Ct[e3][2]), double(1)));
+				tripletList2.push_back(W(e3,uint32_t(Ct[e3][3]),-double(1)));
+			}
+		}
+		
+		Cmat.setFromTriplets(tripletList1.begin(), tripletList1.end());
+		CTmat.setFromTriplets(tripletList2.begin(), tripletList2.end());
+		
+		
 		for (i=0; i*t_step <= simulation_time; i++)
 		{
 			step_cost.tic();
 			
+			// debug_counter.tic();
 			/* Handle boundary field excitations */
 			time_function=sin(2*pi*freq*i*t_step);
 			for (auto ee : bc_edges)
 				if (bc[ee] != 0)
-					U[ee] = time_function*bc[ee];
+					U_eigen(ee) = time_function*bc[ee];
 			
-			/* Handle fields voxel per voxel */
-			for (uint32_t j = 0; j<D.size()-1; j++)
-			{
-				e1 = E_cluster[j][ 7];
-				e2 = E_cluster[j][10];
-				e3 = E_cluster[j][11];
-				f1 = D[j][3];
-				f2 = D[j][4];
-				f3 = D[j][5];
-			
-
-				if (!is_boundary[e1])
-				{
-					if (is_ele_lossy[e1]!=0)
-						U[e1] = M_h[e1]*(M_e[e1]*U[e1] + t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]));
-					else
-						U[e1] += M_h[e1]*t_step*(F[f1]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[f2]);
-				}
-				if (!is_boundary[e2])
-				{
-					if (is_ele_lossy[e2]!=0)
-						U[e2] = M_h[e2]*(M_e[e2]*U[e2] + t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]));
-					else
-						U[e2] += M_h[e2]*t_step*(F[f3]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[f1]);
-				}
-				if (!is_boundary[e3])
-				{
-					if (is_ele_lossy[e3]!=0)
-						U[e3] = M_h[e3]*(M_e[e3]*U[e3] + t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]));
-					else
-						U[e3] += M_h[e3]*t_step*(F[f2]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[f3]);
-				}
-				
-				if (!boundary_face[f1])
-				{
-					if (is_mag_lossy[f1])
-						F[f1] = M_ni[f1]*(M_mu[f1]*F[f1]-t_step*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]));
-					else
-						F[f1] -= t_step*M_ni[f1]*(U[e1]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[e2]);
-				}
-				if (!boundary_face[f2])
-				{
-					if (is_mag_lossy[f2])
-						F[f2] = M_ni[f2]*(M_mu[f2]*F[f2]-t_step*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]));
-					else
-						F[f2] -= t_step*M_ni[f2]*(U[E_cluster[j][6]]-U[e1]+U[e3]-U[E_cluster[j][5]]);
-				}
-				if (!boundary_face[f3])
-				{
-					if (is_mag_lossy[f3])
-						F[f3] = M_ni[f3]*(M_mu[f3]*F[f3]-t_step*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]));
-					else
-						F[f3] -= t_step*M_ni[f3]*(U[E_cluster[j][8]]-U[e3]+U[e2]-U[E_cluster[j][9]]);
-				}
-			}
-			
-			auto num_val = GetElectricField(probe_elem);
-			numeric_values.push_back(num_val(1));
-			numeric_times.push_back(i*t_step);
+			F_eigen = F_eigen - Nvec.cwiseProduct(Cmat*U_eigen);
+			U_eigen = U_eigen + Hvec.cwiseProduct(CTmat*F_eigen);
+			// auto num_val = GetElectricField(probe_elem);
+			// numeric_values.push_back(num_val(1));
+			// numeric_times.push_back(i*t_step);
 			step_cost.toc();
 			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 			
+			// debug_counter.toc();
+			// std::cout << "Post proc takes " << debug_counter << " seconds" << std::endl;
 			// if (i % 20 == 0)
 				// ExportFields(i);
 			
 			if ((i+1) % 140 == 0)
 				std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
-			              << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+						  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 		}
 		
 		/* Output stats and fields*/
@@ -940,7 +970,143 @@ class mesher
 		os.close();
 		std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
 		std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
-   }
+	}
+	
+	void Run_VoxBased(const double simulation_time)
+	{
+		std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
+		double step_time_average=0;
+		const uint32_t N_of_steps=simulation_time/t_step;
+		uint32_t i,e1,e2,e3,f1,f2,f3;
+
+		// std::cout << Nx << " " << Ny << " " << Nz << std::endl;
+
+		T time_function;
+		timecounter step_cost, debug_counter;
+		std::vector<T> numeric_values,numeric_times;
+		uint32_t nv = D.size()-1;
+	  
+		for (i=0; i*t_step <= simulation_time; i++)
+		{
+			step_cost.tic();
+			
+			// debug_counter.tic();
+			/* Handle boundary field excitations */
+			time_function=sin(2*pi*freq*i*t_step);
+			for (auto ee : bc_edges)
+				if (bc[ee] != 0)
+					U[ee] = time_function*bc[ee];
+			
+			// debug_counter.toc();
+			// std::cout << "BCs take " << debug_counter << " seconds" << std::endl;
+			// debug_counter.tic();
+			
+			/* Handle fields voxel per voxel */
+			for (uint32_t j=0; j<nv; j++)
+			{
+				// if (j==0)
+					// debug_counter.tic();
+				
+				// e1 = E_cluster[j][ 7];
+				// e2 = E_cluster[j][10];
+				// e3 = E_cluster[j][11];
+				// f1 = D[j][3];
+				// f2 = D[j][4];
+				// f3 = D[j][5];
+
+				// if (j==0)
+				// {
+					// debug_counter.tic();
+				// }
+				
+				if (!is_boundary[E_cluster[j][ 7]])
+				{
+					if (is_ele_lossy[E_cluster[j][ 7]]!=0)
+						U[E_cluster[j][ 7]] = M_h[E_cluster[j][ 7]]*(M_e[E_cluster[j][ 7]]*U[E_cluster[j][ 7]] + t_step*(F[D[j][3]]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[D[j][4]]));
+					else
+						U[E_cluster[j][ 7]] += M_h[E_cluster[j][ 7]]*t_step*(F[D[j][3]]-F[D[j+Nx][3]]+F[D[j+1][4]]-F[D[j][4]]);
+				}
+				if (!is_boundary[E_cluster[j][10]])
+				{
+					if (is_ele_lossy[E_cluster[j][10]]!=0)
+						U[E_cluster[j][10]] = M_h[E_cluster[j][10]]*(M_e[E_cluster[j][10]]*U[E_cluster[j][10]] + t_step*(F[D[j][5]]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[D[j][3]]));
+					else
+						U[E_cluster[j][10]] += M_h[E_cluster[j][10]]*t_step*(F[D[j][5]]-F[D[j+1][5]]+F[D[j+Nx*Ny][3]]-F[D[j][3]]);
+				}
+				if (!is_boundary[E_cluster[j][11]])
+				{
+					if (is_ele_lossy[E_cluster[j][11]]!=0)
+						U[E_cluster[j][11]] = M_h[E_cluster[j][11]]*(M_e[E_cluster[j][11]]*U[E_cluster[j][11]] + t_step*(F[D[j][4]]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[D[j][5]]));
+					else
+						U[E_cluster[j][11]] += M_h[E_cluster[j][11]]*t_step*(F[D[j][4]]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[D[j][5]]);
+				}
+				
+				// if (j==0)
+				// {
+					// debug_counter.toc();
+					// std::cout << "Electric part takes " << debug_counter << " seconds" << std::endl;
+					// debug_counter.tic();
+				// }
+				
+				if (!boundary_face[D[j][3]])
+				{
+					if (is_mag_lossy[D[j][3]])
+						F[D[j][3]] = M_ni[D[j][3]]*(M_mu[D[j][3]]*F[D[j][3]]-t_step*(U[E_cluster[j][ 7]]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[E_cluster[j][10]]));
+					else
+						F[D[j][3]] -= t_step*M_ni[D[j][3]]*(U[E_cluster[j][ 7]]-U[E_cluster[j][4]]+U[E_cluster[j][3]]-U[E_cluster[j][10]]);
+				}
+				if (!boundary_face[D[j][4]])
+				{
+					if (is_mag_lossy[D[j][4]])
+						F[D[j][4]] = M_ni[D[j][4]]*(M_mu[D[j][4]]*F[D[j][4]]-t_step*(U[E_cluster[j][6]]-U[E_cluster[j][ 7]]+U[E_cluster[j][11]]-U[E_cluster[j][5]]));
+					else
+						F[D[j][4]] -= t_step*M_ni[D[j][4]]*(U[E_cluster[j][6]]-U[E_cluster[j][ 7]]+U[E_cluster[j][11]]-U[E_cluster[j][5]]);
+				}
+				if (!boundary_face[D[j][5]])
+				{
+					if (is_mag_lossy[D[j][5]])
+						F[D[j][5]] = M_ni[D[j][5]]*(M_mu[D[j][5]]*F[D[j][5]]-t_step*(U[E_cluster[j][8]]-U[E_cluster[j][11]]+U[E_cluster[j][10]]-U[E_cluster[j][9]]));
+					else
+						F[D[j][5]] -= t_step*M_ni[D[j][5]]*(U[E_cluster[j][8]]-U[E_cluster[j][11]]+U[E_cluster[j][10]]-U[E_cluster[j][9]]);
+				}
+				
+				// if (j==0)
+				// {
+					// debug_counter.toc();
+					// std::cout << "Magnetic part takes " << debug_counter << " seconds" << std::endl;
+					// debug_counter.tic();
+				// }
+			}
+			
+			// debug_counter.toc();
+			// std::cout << "Other fields take " << debug_counter << " seconds" << std::endl;
+			// debug_counter.tic();
+			
+			auto num_val = GetElectricField(probe_elem);
+			numeric_values.push_back(num_val(1));
+			numeric_times.push_back(i*t_step);
+			step_cost.toc();
+			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
+			
+			// debug_counter.toc();
+			// std::cout << "Post proc takes " << debug_counter << " seconds" << std::endl;
+			// if (i % 20 == 0)
+				// ExportFields(i);
+			
+			if ((i+1) % 140 == 0)
+				std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
+						  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+		}
+		
+		/* Output stats and fields*/
+		std::ofstream os;
+		os.open("numeric_FIT.dat");
+		for (size_t k=0; k < numeric_values.size(); k++)
+		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
+		os.close();
+		std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
+		std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
+	}
    
    void Run(const double simulation_time)
    {
@@ -1107,6 +1273,7 @@ class mesher
    std::vector<int32_t> curl, dual_curl;
    Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
    Eigen::Vector3d area_z_vec, area_y_vec, area_x_vec;
+   Eigen::VectorXd Hvec,Nvec;
    std::vector<Eigen::Vector3d> pts/*, dual_pts, face_bars*/;
    std::vector<std::vector<uint32_t>> E_cluster,P_cluster;
    std::vector<uint8_t> is_ele_lossy, is_mag_lossy;
