@@ -1,7 +1,7 @@
 /*
- * This source file is part of FDTD UNIUD.
+ * This source file is part of EMT, the ElectroMagneticTool.
  *
- * Copyright (C) 2017, Bernard Kapidani - kapidani.bernard@spes.uniud.it
+ * Copyright (C) 2013-2015, Matteo Cicuttin - matteo.cicuttin@uniud.it
  * Department of Electrical Engineering, University of Udine
  * All rights reserved.
  *
@@ -27,5 +27,51 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
- 
+
+#pragma once
+
+#include <sstream>
+#include <stdlib.h>
+
+template<typename T>
+T
+inline
+strtot(const char *str, char **endptr)
+{
+    std::stringstream ss(str);
+    T ret;
+    ret << ss;
+    return ret;
+}
+
+template<>
+inline
+double
+strtot(const char *str, char **endptr)
+{
+    return strtod(str, endptr);
+}
+
+template<>
+inline
+float
+strtot(const char *str, char **endptr)
+{
+    return strtof(str, endptr);
+}
+
+template<>
+inline
+long double
+strtot(const char *str, char **endptr)
+{
+    return strtold(str, endptr);
+}
+
+template<>
+inline
+uint32_t
+strtot(const char *str, char **endptr)
+{
+    return (uint32_t) strtoul(str, endptr, 10);
+}

@@ -1,1 +1,1 @@
-../build_folder/fdtd_uniud
+../build_folder/fit_uniud

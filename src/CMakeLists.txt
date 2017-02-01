@@ -35,11 +35,16 @@ set(LINK_LIBS "${LINK_LIBS}" "${SILO_LIBRARIES}")
 
 # add_subdirectory(mesher)
 # add_subdirectory(fdtd)
-add_subdirectory(main)
-add_subdirectory(utils)
 
 include_directories(${INCLUDE_DIRS})
-include_directories(mesher fdtd utils)
+include_directories(FIT DGA utils)
 
-add_executable(fdtd_uniud ${SOURCE})
-target_link_libraries(fdtd_uniud "${LINK_LIBS}" "-lncurses")
+add_subdirectory(FIT)
+add_subdirectory(DGA)
+add_subdirectory(utils)
+
+add_executable(fit_uniud ./FIT/fit_main.cpp ${SOURCE})
+target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses")
+
+add_executable(dgafdtd_uniud ./DGA/dga_main.cpp ${SOURCE})
+target_link_libraries(dgafdtd_uniud "${LINK_LIBS}" "-lncurses")
