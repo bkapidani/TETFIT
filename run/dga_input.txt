@@ -1,0 +1,44 @@
+#input file
+DEFINE mesh 1
+   SET type tetrahedral
+   SET file wg.mesh
+END mesh 1
+
+# Materials definitions
+DEFINE material 1
+   SET sigma 1e-3 #all other values to default
+END material 1
+#DEFINE material 2
+#   SET sigma 1e-2
+#END material 2
+
+# Boundary conditions
+DEFINE bc 2
+   SET type pec
+END bc 2
+DEFINE bc 3
+   SET type pec
+END bc 3
+DEFINE bc 4
+   SET type pec
+END bc 4
+DEFINE bc 5
+   SET type pec
+END bc 5
+DEFINE bc 6
+   SET type pec
+END bc 6
+
+# Sources
+DEFINE source 1
+   SET type sinewave
+   SET direction y
+   SET amplitude 1
+   SET frequency 5e9
+   SET kx 10
+   SET Xbasefunction sin
+END source 1
+
+# Simulation
+DEFINE simulation 1
+

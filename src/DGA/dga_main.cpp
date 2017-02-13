@@ -29,7 +29,9 @@
  */
 
 #include <iostream>
-#include "NetgenMesh.hpp"
+#include <cassert>
+#include "Discretization.hpp"
+// #include "InputParser.hpp"
 #include "sgnint32_t.hpp"
 #include "timecounter.h"
 
@@ -47,10 +49,9 @@ int main(int argc, char **argv)
     
     std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
 	
-	// mesher<double> grid;
+	assert(argc==2);
+	Discretization grid(std::string(argv[1]));
 	
-	// grid.Run(1e-9);
-	// grid.Run_VoxBased(1e-9);
-	// grid.RunEigenBased(1e-9);
+	
     return 0;
 }
