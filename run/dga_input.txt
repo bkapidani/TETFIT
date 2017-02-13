@@ -1,16 +1,17 @@
 #input file
 DEFINE mesh 1
    SET type tetrahedral
+   SET mesher netgen
    SET file wg.mesh
 END mesh 1
 
 # Materials definitions
 DEFINE material 1
-   SET sigma 1e-3 #all other values to default
+#all values set to default -> empty space
 END material 1
-#DEFINE material 2
+#DEFINE material 1
 #   SET sigma 1e-2
-#END material 2
+#END material 1
 
 # Boundary conditions
 DEFINE bc 2
@@ -32,13 +33,20 @@ END bc 6
 # Sources
 DEFINE source 1
    SET type sinewave
+   SET profile square
+   SET center {0.25,0.125,0}
    SET direction y
    SET amplitude 1
    SET frequency 5e9
-   SET kx 10
-   SET Xbasefunction sin
+   SET wavevector {10,0,0}
+   SET basefunctionvector {sin,cos,cos}
 END source 1
 
-# Simulation
+# Simulations
 DEFINE simulation 1
-
+   SET mesh 1
+   SET source 1
+   #SET source 2 #additional sources can be set
+   SET duration 1e-9
+   SET output silo
+END simulation 1

@@ -11,7 +11,7 @@ if ( APPLE )
 endif ( APPLE )
 
 if ( CYGWIN )
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=gnu++14 -fdiagnostics-color=always \
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++14 -fdiagnostics-color=always \
 -DENABLE_CYGWIN_MATH_FIX -fpermissive")
 endif ( CYGWIN )
 

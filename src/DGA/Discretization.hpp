@@ -56,14 +56,11 @@
 #include "mapped_file.h"
 #include "strtot.hpp"
 
-
 /*general parameters*/
 const long double PI = 3.141592653589793238L;
-// double pi = 3.141592653589793;
 double mu0 = 4*PI*1e-7;
 double epsilon0 = 8.854187817e-12;
 double c0 = 1 / sqrt( mu0 * epsilon0 );
-Eigen::Vector3d probe_point(0.025,0.0125,0.05);
 
 namespace parser {
 
@@ -122,23 +119,39 @@ using tm_tuple 				= std::tuple< volume_type, uint32_t >;
 using sm_tuple 				= std::tuple< surface_type, uint32_t >;
 using double_triplet		= Eigen::Triplet<double,uint32_t>;
 
-typedef std::string		Primitive;
-typedef std::string		Sourcetype;
-typedef std::string		Direction;
-typedef std::string		BaseFunction;
-typedef std::string		BoundaryConditionType;
-typedef std::string		Profile;
-typedef double			Amplitude;
-typedef double 			Frequency;
-typedef double 			WaveNumber;
-typedef double			Duration;
+typedef std::string				Primitive;
+typedef std::string				Sourcetype;
+typedef std::string				Direction;
+typedef std::string				BaseFunction;
+typedef std::string				BoundaryConditionType;
+typedef std::string				Profile;
+typedef std::string				Meshtype;
+typedef std::string				OutputMode;
+typedef double					Amplitude;
+typedef double 					Frequency;
+typedef double 					WaveNumber;
+typedef double					Duration;
+typedef std::array<double,4>	SpaceTimePoint;
+typedef std::array<double,3> 	WaveVector;
 
-const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation"};
+
+//lists of allowed string constants
+const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry"};
 const std::vector<Sourcetype>   						sourcetypes   	= { "sine", "gaussian", "dc" };
 const std::vector<Profile>   							profiles   		= { "point", "square", "cube", "domain"};
 const std::vector<Direction>    						directions    	= { "x", "y", "z" };
 const std::vector<BaseFunction> 						basefunctions 	= { "sin", "cos" };
 const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
+const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
+const std::vector<OutputMode>							outputmodes		= { "silo", "probe"};
+
+template<typename T>
+void sort_unique(std::vector<T>& v) //useful as stand-alone
+{
+	std::sort(v.begin(), v.end());
+	auto uniq_iter = std::unique(v.begin(), v.end());
+	v.erase(uniq_iter, v.end());
+}
 
 class BoundaryCondition
 {
@@ -189,10 +202,11 @@ class Source
 		dir   	= "x";
 		amp   	= 0;
 		freq  	= 0;
-		kx		= 0;
-		ky		= 0;
-		kz		= 0;
-		profile = "point";
+		kvec[0] = kvec[1] = kvec[2] = 0;
+		prof    = "point";
+		bfuncs[0] = bfuncs[1] = bfuncs[2] = "cos";
+		center_coords = {0,0,0};
+		surface_label   = 0;
 	}
 	
 	void SetParam(std::string param, std::string value)
@@ -211,65 +225,244 @@ class Source
 			else
 				this->st = value;
 		}
+		else if (param == "profile")
+		{
+			if (std::find(profiles.begin(),profiles.end(),value) == profiles.end())
+				throw std::runtime_error(std::string("Input file error: Unrecognized source profile! Available: point, square, cube, domain"));
+			else
+				this->prof = value;
+		}
+		else if (param == "center")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				throw std::runtime_error(std::string("Input file error: center coordinates must be inside braces {...,..,..}"));
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end());
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						throw std::runtime_error(std::string("Input file error: unbalanced bracket"));
+					else 
+					{
+						if (k < 3)
+						{
+							center_coords[k]= std::stod(coord);
+							k++;
+						}
+						else
+							throw std::runtime_error(std::string("Input file error: Maximum of three coordinates!"));
+						
+						if (*i = ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					throw std::runtime_error(std::string("Input file error: Undefined end to list of coordinates!"));
+			}
+		}
+		else if (param == "wavevector")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				throw std::runtime_error(std::string("Input file error: wavevector coordinates must be inside braces {...,..,..}"));
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end());
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						throw std::runtime_error(std::string("Input file error: unbalanced bracket"));
+					else 
+					{
+						switch(k)
+						{
+							case 0 : 
+							{
+								kvec[0] = std::stod(coord);
+								k++;
+								break;
+							}
+							case 1 : 
+							{
+								kvec[1] = std::stod(coord);
+								k++;
+								break;
+							}
+							case 2 : 
+							{
+								kvec[2] = std::stod(coord);
+								k++;
+								break;
+							}
+							default : 
+							{	
+								throw std::runtime_error(std::string("Input file error: Maximum of three coordinates!"));
+								break;
+							}
+						}
+						
+						if (*i = ',')
+							i++;
+					}
+					
+				}
+				
+				if (i == value.end())
+					throw std::runtime_error(std::string("Input file error: Undefined end to list of coordinates!"));
+			}
+		}
+		else if (param == "basefunctionvector")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				throw std::runtime_error(std::string("Input file error: base-function vector coordinates must be inside braces {...,..,..}"));
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end());
+					{
+						if (*i != ' ')	
+							coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						throw std::runtime_error(std::string("Input file error: unbalanced bracket"));
+					else 
+					{
+						switch(k)
+						{
+							case 0 : 
+							{
+								bfuncs[0] = coord;
+								k++;
+								break;
+							}
+							case 1 : 
+							{
+								bfuncs[1] = coord;
+								k++;
+								break;
+							}
+							case 2 : 
+							{
+								bfuncs[2] = coord;
+								k++;
+								break;
+							}
+							default : 
+							{	
+								throw std::runtime_error(std::string("Input file error: Maximum of three coordinates!"));
+								break;
+							}
+						}
+						
+						if (*i = ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					throw std::runtime_error(std::string("Input file error: Undefined end to list of coordinates!"));
+			}
+		}
 		else if (param == "Xbasefunction")
 		{
 			if (std::find(basefunctions.begin(),basefunctions.end(),value) == basefunctions.end())
 				throw std::runtime_error(std::string("Input file error: Unrecognized base function! Available: sin, cos"));
 			else
-				this->xbf = value;
+				this->bfuncs[0] = value;
 		}
 		else if (param == "Ybasefunction")
 		{
 			if (std::find(basefunctions.begin(),basefunctions.end(),value) == basefunctions.end())
 				throw std::runtime_error(std::string("Input file error: Unrecognized base function! Available: sin, cos"));
 			else
-				this->ybf = value;
+				this->bfuncs[1] = value;
 		}
 		else if (param == "Zbasefunction")
 		{
 			if (std::find(basefunctions.begin(),basefunctions.end(),value) == basefunctions.end())
 				throw std::runtime_error(std::string("Input file error: Unrecognized base function! Available: sin, cos"));
 			else
-				this->zbf = value;
+				this->bfuncs[2] = value;
 		}
 		else if (param == "amplitude")
 			this->amp = std::stod(value);
 		else if (param == "frequency")
 			this->freq = std::stod(value);
 		else if (param == "kx")
-			this->kx = std::stod(value);
+			this->kvec[0] = std::stod(value);
 		else if (param == "ky")
-			this->ky = std::stod(value);
+			this->kvec[1] = std::stod(value);
 		else if (param == "kz")
-			this->kz = std::stod(value);
+			this->kvec[2] = std::stod(value);
+		else if (param == "surface")
+			this->surface_label = std::stod(value);
 		else
-			throw std::runtime_error(std::string("Input file error: Unrecognized parameter for source!"));
+			throw std::runtime_error(std::string("Input file error: unrecognized parameter for source!"));
 		
 	}
 	
 	const Sourcetype& 	GetSourceType(void) { return st; } 
 	const Direction& 	GetDirection(void) { return dir; }
-	const WaveNumber&	Getkx(void) { return kx; }
-	const WaveNumber&	Getky(void) { return ky; }
-	const WaveNumber&	Getkz(void) { return kz; }
+	const WaveNumber&	Getkx(void) { return kvec[0]; }
+	const WaveNumber&	Getky(void) { return kvec[1]; }
+	const WaveNumber&	Getkz(void) { return kvec[2]; }
 	const Frequency&	GetFreq(void) { return freq; }
 	const Amplitude&	GetAmp(void) { return amp; }
 	
-	Eigen::Vector3d Value(double x, double y, double z)
+	Eigen::Vector3d Compute(SpaceTimePoint p)
 	{
-		Eigen::Vector3d ret(x,y,z);
-		return ret;
-	}	
+		double ret = amp*cos(2*PI*freq*p[3]);
+		
+		for (uint8_t j=0; j<3; j++)
+		{
+			if (bfuncs[j] == "sin")
+				ret *= sin(2*PI*kvec[j]*p[j]);
+			else
+				ret *= cos(2*PI*kvec[j]*p[j]);
+		}
+		
+		if (dir == "x")
+			return Eigen::Vector3d({ret,0,0});
+		else if (dir == "y")
+			return Eigen::Vector3d({0,ret,0});
+		else
+			return Eigen::Vector3d({0,0,ret});
+	}
 	
 	private:
 	Sourcetype st;
+	Profile prof;
 	Frequency freq;
 	Amplitude amp;
 	Direction dir;
-	WaveNumber kx,ky,kz;
-	BaseFunction xbf,ybf,zbf;
+	WaveVector kvec;
+	std::array<BaseFunction,3> bfuncs;
+	std::vector<double> center_coords;
+	uint32_t surface_label;
 	// double (*foo)();
-	
 };
 
 class Material
@@ -293,7 +486,6 @@ class Material
 			chi = std::stod(value);
 		else
 			throw std::runtime_error(std::string("Input file error: Unrecognized material parameter! Available: epsilon, mu, sigma, chi"));
-
 	}
 
 	//getters
@@ -313,7 +505,7 @@ class Mesh
 {
 	public:
 	Mesh() 
-	: file("cube.mesh"), type("tetrahedral"), mesher("netgen")
+	: file("cube.mesh"), type("none"), mesher("netgen")
 	{}
 
 	void SetParam(std::string param, std::string value)
@@ -321,21 +513,32 @@ class Mesh
 		if (param == "file")
 			file = value;
 		else if (param == "type")
+		{
+			if (std::find(meshtypes.begin(),meshtypes.end(),value) == meshtypes.end())
+				throw std::runtime_error(std::string("Input file error: undefined mesh type! Available: tetrahedral, cartesian "));
 			type = value;
+		}
 		else if (param == "mesher")
 			mesher = value;
+		else if (param == "xstep")
+			xstep = std::stod(value);
+		else if (param == "ystep")
+			ystep = std::stod(value);
+		else if (param == "zstep")
+			zstep = std::stod(value);
 		else
-			throw std::runtime_error(std::string("Input file error: invalid mesh parameter! Available: file, type"));
+			throw std::runtime_error(std::string("Input file error: undefined mesh parameter! Available: file, type"));
 	}
 	
 	const std::string& GetFileName() { return file; }
 	const std::string& GetMeshType() { return type; }
-	const std::string& GetMesher() { return mesher; }
+	const std::string& GetMesher()   { return mesher; }
 	
 	private:
 	std::string file;
 	std::string type;
 	std::string mesher;
+	double xstep,ystep,zstep; //used only when mesh type is cartesian
 };
 
 class Simulation
@@ -345,11 +548,36 @@ class Simulation
 	{
 		d=0;
 		sources=std::vector<uint32_t>({1});
-		
+		mesh_label=1;
+		mode = "silo";
+	}
+	
+	void SetParam(std::string param, std::string value)
+	{
+		if (param == "source")
+		{
+			sources.push_back(std::stod(value));
+			sort_unique(sources);
+		}
+		else if (param == "mesh")
+			mesh_label = std::stod(value);
+		else if (param == "duration")
+			d = std::stod(value);
+		else if (param == "output")
+		{
+			if (std::find(outputmodes.begin(),outputmodes.end(),value) == outputmodes.end())
+				throw std::runtime_error(std::string("Input file error: undefined output mode type! Available: silo, probe"));
+			mode = value;
+		}
+		else
+			throw std::runtime_error(std::string("Input file error: undefined simulation parameter! Available: source, mesh, duration"));
 	}
 	
 	private:
 	Duration d;
+	std::vector<uint32_t> sources; //can combine multiple sources
+	uint32_t mesh_label;
+	OutputMode mode;
 };
 
 class Discretization
@@ -364,9 +592,7 @@ class Discretization
 		bool mesh_added = false;
 		
 		
-		char action[10], token[20], dummy[20], value[64];
-		// char variable[20];
-		// double value;
+		char action[10], token[20], value[64];
 		std::string thing_being_defined;
 		uint32_t definition_label;
 		
@@ -376,8 +602,9 @@ class Discretization
 		{
 			std::cout << "ciao!" << std::endl;
 			auto c_line = line.c_str();
-			if (c_line[0] != '#' &&       /* lines that begin with '#' are comments         */
-				line.size()>0      )      /* empty lines for better readability are allowed */
+			if (line.size()>0    &&
+				c_line[0] != '#' &&       /* lines that begin with '#' are comments         */
+				c_line[0] != '\n'  )      /* empty lines for better readability are allowed */
 			{
 				sscanf(c_line,"%s %s %s",action,token,value);
 				std::string instr(action), tok(token), val(value);
@@ -499,14 +726,6 @@ class Discretization
 		
 		return;
 		
-	}
-
-	template<typename T>
-	void sort_unique(std::vector<T>& v)
-	{
-		std::sort(v.begin(), v.end());
-		auto uniq_iter = std::unique(v.begin(), v.end());
-		v.erase(uniq_iter, v.end());
 	}
 	
 	void unique(std::vector<label_edge_type>& arr, std::vector<uint32_t>& new_labels)
@@ -1954,6 +2173,7 @@ class Discretization
 	
 	// private:
 	Eigen::SparseMatrix<double> 				C,H,E,Ni;
+	std::map<uint32_t,Simulation>				Simulations;
 	std::map<uint32_t,Source>					Sources;							// a std::map works because every time I use the [] operator on an undefined material
 	std::map<uint32_t,Material>					Materials; 							// (or source), the default constructor makes it empty space (or null source)
 	std::map<uint32_t,BoundaryCondition>		BCs;

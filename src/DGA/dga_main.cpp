@@ -51,7 +51,8 @@ int main(int argc, char **argv)
 	
 	assert(argc==2);
 	Discretization grid(std::string(argv[1]));
-	
+
+    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;	
 	
     return 0;
 }
