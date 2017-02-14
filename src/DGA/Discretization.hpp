@@ -62,78 +62,77 @@ double mu0 = 4*PI*1e-7;
 double epsilon0 = 8.854187817e-12;
 double c0 = 1 / sqrt( mu0 * epsilon0 );
 
-namespace parser {
-
-template<typename T>
-std::tuple<T, T, T>
-read_point_line(const char *str, char **endptr)
+namespace parser 
 {
-    T t1, t2, t3;
-    
-    t1 = strtot<T>(str, endptr);
-    t2 = strtot<T>(*endptr, endptr);
-    t3 = strtot<T>(*endptr, endptr);
-    
-    //return std::make_tuple(t1/1000.0, t2/1000.0, t3/1000.0);
-    return std::make_tuple(t1, t2, t3);
-}
+	template<typename T>
+	std::tuple<T, T, T>
+	read_point_line(const char *str, char **endptr)
+	{
+		T t1, t2, t3;
+		
+		t1 = strtot<T>(str, endptr);
+		t2 = strtot<T>(*endptr, endptr);
+		t3 = strtot<T>(*endptr, endptr);
+		
+		//return std::make_tuple(t1/1000.0, t2/1000.0, t3/1000.0);
+		return std::make_tuple(t1, t2, t3);
+	}
 
-template<typename T>
-std::tuple<T, T, T, T, T>
-read_tetrahedron_line(const char *str, char **endptr)
-{
-    T t1, t2, t3, t4, t5;
-    
-    t1 = strtot<T>(str, endptr);
-    t2 = strtot<T>(*endptr, endptr);
-    t3 = strtot<T>(*endptr, endptr);
-    t4 = strtot<T>(*endptr, endptr);
-    t5 = strtot<T>(*endptr, endptr);
-    
-    return std::make_tuple(t1, t2-1, t3-1, t4-1, t5-1);
-}
-    
-template<typename T>
-std::tuple<T, T, T, T>
-read_triangle_line(const char *str, char **endptr)
-{
-    T t1, t2, t3, t4;
-    
-    t1 = strtot<T>(str, endptr);
-    t2 = strtot<T>(*endptr, endptr);
-    t3 = strtot<T>(*endptr, endptr);
-    t4 = strtot<T>(*endptr, endptr);
-    
-    return std::make_tuple(t1, t2-1, t3-1, t4-1);
-}   
-} //namespace priv
+	template<typename T>
+	std::tuple<T, T, T, T, T>
+	read_tetrahedron_line(const char *str, char **endptr)
+	{
+		T t1, t2, t3, t4, t5;
+		
+		t1 = strtot<T>(str, endptr);
+		t2 = strtot<T>(*endptr, endptr);
+		t3 = strtot<T>(*endptr, endptr);
+		t4 = strtot<T>(*endptr, endptr);
+		t5 = strtot<T>(*endptr, endptr);
+		
+		return std::make_tuple(t1, t2-1, t3-1, t4-1, t5-1);
+	}
+		
+	template<typename T>
+	std::tuple<T, T, T, T>
+	read_triangle_line(const char *str, char **endptr)
+	{
+		T t1, t2, t3, t4;
+		
+		t1 = strtot<T>(str, endptr);
+		t2 = strtot<T>(*endptr, endptr);
+		t3 = strtot<T>(*endptr, endptr);
+		t4 = strtot<T>(*endptr, endptr);
+		
+		return std::make_tuple(t1, t2-1, t3-1, t4-1);
+	}   
+} //namespace parser
 
-using cluster_list     		= std::vector<sgnint32_t<int32_t>>; 
-using volume_type 			= std::tuple<uint32_t,uint32_t,uint32_t,uint32_t>;
-using surface_type 			= std::tuple<uint32_t,uint32_t,uint32_t>;
-using label_surface_type 	= std::pair<surface_type,uint32_t>;
-using edge_type 			= std::tuple<uint32_t,uint32_t>;
-using label_edge_type 		= std::pair<edge_type,uint32_t>;
-using label_node_type 		= std::pair<uint32_t,uint32_t>;
-using tm_tuple 				= std::tuple< volume_type, uint32_t >;
-using sm_tuple 				= std::tuple< surface_type, uint32_t >;
-using double_triplet		= Eigen::Triplet<double,uint32_t>;
 
-typedef std::string				Primitive;
-typedef std::string				Sourcetype;
-typedef std::string				Direction;
-typedef std::string				BaseFunction;
-typedef std::string				BoundaryConditionType;
-typedef std::string				Profile;
-typedef std::string				Meshtype;
-typedef std::string				OutputMode;
-typedef double					Amplitude;
-typedef double 					Frequency;
-typedef double 					WaveNumber;
-typedef double					Duration;
-typedef std::array<double,4>	SpaceTimePoint;
-typedef std::array<double,3> 	WaveVector;
-
+typedef std::vector<sgnint32_t<int32_t>>						cluster_list;
+typedef std::tuple<uint32_t,uint32_t,uint32_t,uint32_t>			volume_type;
+typedef std::tuple<uint32_t,uint32_t,uint32_t>					surface_type;
+typedef std::pair<surface_type,uint32_t>						label_surface_type;
+typedef std::tuple<uint32_t,uint32_t>							edge_type;
+typedef std::pair<edge_type,uint32_t>							label_edge_type;
+typedef std::pair<uint32_t,uint32_t>							label_node_type;
+typedef std::tuple< volume_type, uint32_t >						tm_tuple;
+typedef std::tuple< surface_type, uint32_t >					sm_tuple;
+typedef Eigen::Triplet<double,uint32_t>							double_triplet;
+typedef std::string												Primitive;
+typedef std::string												Sourcetype;
+typedef std::string												Direction;
+typedef std::string												BaseFunction;
+typedef std::string												BoundaryConditionType;
+typedef std::string												Profile;
+typedef std::string												Meshtype;
+typedef std::string												OutputMode;
+typedef double													Amplitude;
+typedef double 													Frequency;
+typedef double 													WaveNumber;
+typedef double													Duration;
+typedef std::array<double,4>									SpaceTimePoint;
+typedef std::array<double,3> 									WaveVector;
 
 //lists of allowed string constants
 const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry"};
@@ -143,6 +142,7 @@ const std::vector<Direction>    						directions    	= { "x", "y", "z" };
 const std::vector<BaseFunction> 						basefunctions 	= { "sin", "cos" };
 const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
+const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
 const std::vector<OutputMode>							outputmodes		= { "silo", "probe"};
 
 template<typename T>
@@ -159,7 +159,7 @@ class BoundaryCondition
 	BoundaryCondition()
 	: type("pec")
 	{
-		thickness=0;
+		thickness=0; //just for PML, otherwise unused
 	}
 	
 	void SetParam(std::string param, std::string value)
@@ -421,7 +421,6 @@ class Source
 			this->surface_label = std::stod(value);
 		else
 			throw std::runtime_error(std::string("Input file error: unrecognized parameter for source!"));
-		
 	}
 	
 	const Sourcetype& 	GetSourceType(void) { return st; } 
@@ -432,7 +431,7 @@ class Source
 	const Frequency&	GetFreq(void) { return freq; }
 	const Amplitude&	GetAmp(void) { return amp; }
 	
-	Eigen::Vector3d Compute(SpaceTimePoint p)
+	Eigen::Vector3d Compute(SpaceTimePoint p) //returns a vector, so one can use superposition of sources
 	{
 		double ret = amp*cos(2*PI*freq*p[3]);
 		
@@ -505,8 +504,10 @@ class Mesh
 {
 	public:
 	Mesh() 
-	: file("cube.mesh"), type("none"), mesher("netgen")
-	{}
+	: file(NULL), type("none"), mesher("none")
+	{
+		loaded = false;
+	}
 
 	void SetParam(std::string param, std::string value)
 	{
@@ -515,11 +516,15 @@ class Mesh
 		else if (param == "type")
 		{
 			if (std::find(meshtypes.begin(),meshtypes.end(),value) == meshtypes.end())
-				throw std::runtime_error(std::string("Input file error: undefined mesh type! Available: tetrahedral, cartesian "));
+				throw std::runtime_error(std::string("Input file error: undefined mesh type! Available: tetrahedral, cartesian"));
 			type = value;
 		}
 		else if (param == "mesher")
+		{
+			if (std::find(meshers.begin(),meshers.end(),value) == meshers.end())
+				throw std::runtime_error(std::string("Input file error: undefined mesher! Available: netgen, gmsh"));
 			mesher = value;
+		}
 		else if (param == "xstep")
 			xstep = std::stod(value);
 		else if (param == "ystep")
@@ -533,11 +538,17 @@ class Mesh
 	const std::string& GetFileName() { return file; }
 	const std::string& GetMeshType() { return type; }
 	const std::string& GetMesher()   { return mesher; }
+	const double& GetLx() { return xstep; }
+	const double& GetLy() { return xstep; }
+	const double& GetLz() { return xstep; }
+	bool IsLoaded() { return loaded; }
+	void Switch() { loaded = !loaded; }
 	
 	private:
 	std::string file;
 	std::string type;
 	std::string mesher;
+	bool loaded;
 	double xstep,ystep,zstep; //used only when mesh type is cartesian
 };
 
@@ -659,26 +670,12 @@ class Discretization
 
 		timecounter t_read;
 		t_read.tic();
-		ReadMesh((*Meshes.begin()).second.GetFileName());
+		ReadMesh((*Meshes.begin()).second);
 		t_read.toc();
 		std::cout << "Loading complex took: " << t_read << " s" << std::endl;
 		
 		readFile.close();
 	}
-	
-	/*Discretization(std::string meshfile)
-	{
-		Epsilon[1]=epsilon0;
-		Mu[1]=mu0;
-		Sigma[1]=0.02;
-		Chi[1]=0;
-		freq=5e9;
-		timecounter t_read;
-		t_read.tic();
-		ReadMesh(meshfile);
-		t_read.toc();
-		std::cout << "Loading complex took: " << t_read << " s" << std::endl;
-	}*/
 
 	void unique(std::vector<label_surface_type>& arr, std::vector<uint32_t>& new_labels)
 	{
@@ -838,12 +835,15 @@ class Discretization
 		return ret;
 	}
 
-	bool ReadMesh(const std::string& _filename)
+	bool ReadMesh(Mesh& msh)
 	{	
 		timecounter tc, tctot;
 		
+		if (msh.IsLoaded())
+			return true;
+		
 		/* Open file */
-		if (_filename.size() == 0)
+		if (msh.GetFileName().size() == 0)
 		{
 			std::cout << "Invalid mesh file name" << std::endl;
 			return false;
@@ -851,7 +851,7 @@ class Discretization
 		
 		uint32_t	lines, linecount;
 		
-		mapped_file mf(_filename);
+		mapped_file mf(msh.GetFileName());
 		
 		std::cout << " * * * Reading NETGEN format mesh * * * " << std::endl;
 		
@@ -2112,7 +2112,8 @@ class Discretization
 		return fr.str();
 	}
 
-	std::string print_edge(const uint32_t& label, const uint32_t& e, bool orient, double r, double g, double b)
+	std::string print_edge(const uint32_t& label, const uint32_t& e,
+	                       bool orient, double r, double g, double b)
 	{
 		std::ostringstream fr;
 		
@@ -2131,7 +2132,9 @@ class Discretization
 		return fr.str();
 	}
 
-	std::string print_edge(const uint32_t label, double x1, double y1, double z1, double x2, double y2, double z2)
+	std::string print_edge(const uint32_t label, 
+	double x1, double y1, double z1, 
+	double x2, double y2, double z2)
 	{
 		std::ostringstream fr;
 		
@@ -2141,7 +2144,11 @@ class Discretization
 		return fr.str();
 	}
 
-	std::string print_face(const uint32_t label, bool orient, double x1, double y1, double z1, double x2, double y2, double z2, double x3, double y3, double z3, double r, double g, double b)
+	std::string print_face(const uint32_t label, bool orient, 
+	                       double x1, double y1, double z1, 
+						   double x2, double y2, double z2, 
+						   double x3, double y3, double z3, 
+						   double r, double g, double b)
 	{
 		std::ostringstream fr;
 		
@@ -2174,11 +2181,10 @@ class Discretization
 	// private:
 	Eigen::SparseMatrix<double> 				C,H,E,Ni;
 	std::map<uint32_t,Simulation>				Simulations;
-	std::map<uint32_t,Source>					Sources;							// a std::map works because every time I use the [] operator on an undefined material
-	std::map<uint32_t,Material>					Materials; 							// (or source), the default constructor makes it empty space (or null source)
+	std::map<uint32_t,Source>					Sources;								/* a std::map works because every time I use the [] operator on an undefined material */
+	std::map<uint32_t,Material>					Materials; 								/* (or source), the default constructor makes it empty space (or null source) */
 	std::map<uint32_t,BoundaryCondition>		BCs;
-	std::map<uint32_t,Mesh>						Meshes;
-	// std::map<uint32_t,double>                   Epsilon,Mu,Sigma,Chi;			
+	std::map<uint32_t,Mesh>						Meshes;			
 	std::vector<double>                         CellVolumes;
 	std::vector<uint32_t> 						vol_material;
 	std::vector<bool>							recombine_edges, recombine_faces;
@@ -2187,15 +2193,14 @@ class Discretization
 	std::vector<surface_type> 					surfaces;
 	std::vector<edge_type> 						edges;
 	std::vector<Eigen::Vector3d>	 			pts;
-	/* node -> cluster of edge IDs around it */
-	std::vector<cluster_list>    				nte_list;
-	std::vector<cluster_list>    				etn_list;	
-	/* edge -> cluster of face IDs around it */
-	std::vector<cluster_list>        			etf_list;
-	std::vector<cluster_list>        			fte_list;	
-	/* triangle -> cluster of volume IDs around it */
-	std::vector<cluster_list>  					ftv_list;
-	std::vector<cluster_list> 					vtf_list;
+	std::vector<cluster_list>    				nte_list;								/* node     -> cluster of edge IDs around it   */
+	std::vector<cluster_list>    				etn_list;								/* edge     -> two node IDs at its endpoints   */
+	std::vector<cluster_list>        			etf_list;								/* edge     -> cluster of face IDs around it   */
+	std::vector<cluster_list>        			fte_list;								/* triangle -> three edge IDs in its boundary  */
+	std::vector<cluster_list>  					ftv_list;								/* triangle -> cluster of volume IDs around it */
+	std::vector<cluster_list> 					vtf_list;								/* volume   -> four face IDs in its boundary   */
 	double                                      freq, t_step;
+	uint32_t									loaded_mesh_label;
+	std::array<std::vector<uint32_t>,20>		sources_by_label; 						/* Each label has a vector containing all the sources active on that label */
 };
 
