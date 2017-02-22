@@ -1,8 +1,10 @@
 #input file
+
+# mesh
 DEFINE mesh 1
-   SET type tetrahedral
+   SET type   tetrahedral
    SET mesher netgen
-   SET file wg.mesh
+   SET file   small.mesh
 END mesh 1
 
 # Materials definitions
@@ -32,21 +34,24 @@ END bc 6
 
 # Sources
 DEFINE source 1
-   SET type sinewave
-   SET profile square
-   SET center {0.25,0.125,0}
-   SET direction y
-   SET amplitude 1
-   SET frequency 5e9
-   SET wavevector {10,0,0}
-   SET basefunctionvector {sin,cos,cos}
+   SET surface            1
+   SET type               e # electric field
+   SET profile            wave
+   SET mode               { sin , cos , cos }
+   SET center             {0, 0, 0} # x-xcenter, y-ycenter, z-zcenter
+   SET direction          y
+   SET amplitude          1
+   SET frequency          5e9
+   SET wavevector         { 10, 0, 0}
+   SET width              0.01 #only for gaussian sources
 END source 1
 
 # Simulations
 DEFINE simulation 1
-   SET mesh 1
-   SET source 1
+   SET mesh     1
+   SET source   1
    #SET source 2 #additional sources can be set
    SET duration 1e-9
-   SET output silo
+   SET output   probepoint
+   SET probe    { 0.25 , 0.125 , 0.5 }
 END simulation 1

@@ -33,6 +33,7 @@
 #define SGNINT32_T_HPP
 
 #include <cmath>
+#include <vector>
 #include <iostream>
 #include <stdlib.h>
 
@@ -219,5 +220,15 @@ std::ostream& operator<<(std::ostream& os, const sgnint32_t<T>& s)
     
     return os;
 }
+
+template <typename T>
+std::vector<uint32_t> abs(const std::vector<sgnint32_t<T>> v)
+{
+	std::vector<uint32_t> ret;
+	for (auto vv : v)
+		ret.push_back(abs(vv));
+	return ret;
+		
+} 
 
 #endif

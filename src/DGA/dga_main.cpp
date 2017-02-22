@@ -50,9 +50,11 @@ int main(int argc, char **argv)
     std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
 	
 	assert(argc==2);
-	Discretization grid(std::string(argv[1]));
+	std::string input(argv[1]);
+	Discretization grid(input);
+	grid.Run();
 
-    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;	
+    // std::cout << "That's all for me!" << std::endl;	
 	
     return 0;
 }

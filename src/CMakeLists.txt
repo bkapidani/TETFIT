@@ -11,8 +11,7 @@ if ( APPLE )
 endif ( APPLE )
 
 if ( CYGWIN )
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++14 -fdiagnostics-color=always \
--DENABLE_CYGWIN_MATH_FIX -fpermissive")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++14 -fdiagnostics-color=always -fpermissive")
 endif ( CYGWIN )
 
 if ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )
@@ -43,8 +42,9 @@ add_subdirectory(FIT)
 add_subdirectory(DGA)
 add_subdirectory(utils)
 
-add_executable(fit_uniud ./FIT/fit_main.cpp ${SOURCE})
-target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses")
+# add_executable(fit_uniud ./FIT/fit_main.cpp ${SOURCE})
+# target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses")
 
-add_executable(dgafdtd_uniud ./DGA/dga_main.cpp ${SOURCE})
+# add_executable(dgafdtd_uniud ./DGA/dga_main.cpp ${SOURCE})
+add_executable(dgafdtd_uniud ${SOURCE})
 target_link_libraries(dgafdtd_uniud "${LINK_LIBS}" "-lncurses")
