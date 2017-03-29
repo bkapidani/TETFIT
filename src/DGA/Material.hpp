@@ -27,33 +27,42 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <iostream>
-#include <cassert>
-#include "Discretization.hpp"
-// #include "InputParser.hpp"
-#include "sgnint32_t.hpp"
-#include "timecounter.h"
-
-int main(int argc, char **argv)
+ 
+ //file Material.hpp
+ #include "Utilities.hpp"
+ 
+class Material
 {
-    
-    const char *splash =
-"    ---------------------------------------------------------------------\n"
-"    |          *** FD-TD Uniud - an FD-TD implementation ***            |\n"
-"    |    Bernard Kapidani (C) 2017 - kapidani.bernard@spes.uniud.it     |\n"
-"    |        Dept. of Electrical Engineering, University of Udine       |\n"
-"    ---------------------------------------------------------------------\n";
-    
-    std::cout << splash << std::endl;
-    
-    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
+	public:
+	Material()
+	{
+		epsilon = epsilon0;
+		sigma = 0;
+		mu = mu0;
+		chi = 0;
+	}
 	
-	assert(argc==2);
-	std::string input(argv[1]);
-	Discretization grid(input);
+	//setters
+	void SetParam(uint32_t input_line, std::string param, std::string value)
+	{
+		if (param == "epsilon")
+			epsilon = epsilon0*std::stod(value);
+		else if (param == "mu")
+			mu = mu0*std::stod(value);
+		else if (param == "sigma")
+			sigma = std::stod(value);
+		else if (param == "chi")
+			chi = std::stod(value);
+		else
+			MyThrow(input_line,material_unknown_parameter);
+	}
 
-    // std::cout << "That's all for me!" << std::endl;	
+	//getters
+	double Epsilon(void) { return epsilon; }
+	double Mu(void) { return mu; }
+	double Sigma(void) { return sigma; }
+	double Chi(void) { return chi; }
 	
-    return 0;
-}
+	private:
+	double epsilon, sigma, mu, chi;
+};

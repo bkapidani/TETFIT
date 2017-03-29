@@ -27,33 +27,54 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <iostream>
-#include <cassert>
-#include "Discretization.hpp"
-// #include "InputParser.hpp"
-#include "sgnint32_t.hpp"
-#include "timecounter.h"
-
-int main(int argc, char **argv)
+ 
+ //file BoundaryCondition.hpp
+ #include "Utilities.hpp"
+ 
+class BoundaryCondition
 {
-    
-    const char *splash =
-"    ---------------------------------------------------------------------\n"
-"    |          *** FD-TD Uniud - an FD-TD implementation ***            |\n"
-"    |    Bernard Kapidani (C) 2017 - kapidani.bernard@spes.uniud.it     |\n"
-"    |        Dept. of Electrical Engineering, University of Udine       |\n"
-"    ---------------------------------------------------------------------\n";
-    
-    std::cout << splash << std::endl;
-    
-    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
+	public:
+	BoundaryCondition()
+	: type("none")
+	{
+		thickness=0; //just for PML, otherwise unused
+		is_set = false;
+	}
 	
-	assert(argc==2);
-	std::string input(argv[1]);
-	Discretization grid(input);
-
-    // std::cout << "That's all for me!" << std::endl;	
+	bool Set(void) { return is_set; };
 	
-    return 0;
-}
+	void SetParam(uint32_t input_line, std::string param, std::string value)
+	{
+		is_set = true;
+		if (param == "type")
+		{
+			// Temporary error messages
+			if (value == "pml")
+				MyThrow(input_line,pml_missing);
+			else if (value == "pmc")
+			{
+				type = value;
+				this->val=0;
+			}
+			else if (value == "pec")
+			{
+				type = value;
+				this->val=0;
+			}
+			else
+				MyThrow(input_line,bc_unknown_type);
+		}
+		else if (param == "thickness")
+			thickness = std::stod(value);
+		else	
+			MyThrow(input_line,bc_unknown_parameter);
+	}
+	const std::string& 		Type(void) { return type; }
+	const double& 			GetThickness(void) { return thickness; }
+	const double&			GetValue(void) { return val; }
+	
+	private:
+	std::string type;
+	bool is_set;
+	double thickness, val;
+};

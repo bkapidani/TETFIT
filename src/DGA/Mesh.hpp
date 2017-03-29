@@ -27,33 +27,61 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <iostream>
-#include <cassert>
-#include "Discretization.hpp"
-// #include "InputParser.hpp"
-#include "sgnint32_t.hpp"
-#include "timecounter.h"
-
-int main(int argc, char **argv)
+ 
+ //file Mesh.hpp
+ #include "Utilities.hpp"
+ 
+class Mesh
 {
-    
-    const char *splash =
-"    ---------------------------------------------------------------------\n"
-"    |          *** FD-TD Uniud - an FD-TD implementation ***            |\n"
-"    |    Bernard Kapidani (C) 2017 - kapidani.bernard@spes.uniud.it     |\n"
-"    |        Dept. of Electrical Engineering, University of Udine       |\n"
-"    ---------------------------------------------------------------------\n";
-    
-    std::cout << splash << std::endl;
-    
-    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
-	
-	assert(argc==2);
-	std::string input(argv[1]);
-	Discretization grid(input);
+	public:
+	Mesh() 
+	: type("none"), mesher("none")
+	{
+		loaded = false;
+		xstep = ystep = zstep = 0;
+	}
 
-    // std::cout << "That's all for me!" << std::endl;	
+	void SetParam(uint32_t input_line, std::string param, std::string value)
+	{
+		if (param == "file")
+			file = value;
+		else if (param == "name")
+			name = value;
+		else if (param == "type")
+		{
+			if (std::find(meshtypes.begin(),meshtypes.end(),value) == meshtypes.end())
+				MyThrow(input_line,mesh_unknown_type);
+			type = value;
+		}
+		else if (param == "mesher")
+		{
+			if (std::find(meshers.begin(),meshers.end(),value) == meshers.end())
+				MyThrow(input_line,mesh_unknown_mesher);
+			mesher = value;
+		}
+		else if (param == "xstep")
+			xstep = std::stod(value);
+		else if (param == "ystep")
+			ystep = std::stod(value);
+		else if (param == "zstep")
+			zstep = std::stod(value);
+		else
+			MyThrow(input_line,mesh_unknown_parameter);
+	}
 	
-    return 0;
-}
+	const std::string& Name() { return name; }
+	const std::string& FileName() { return file; }
+	const std::string& GetMeshType() { return type; }
+	const std::string& GetMesher()   { return mesher; }
+	const double& GetLx() { return xstep; }
+	const double& GetLy() { return xstep; }
+	const double& GetLz() { return xstep; }
+	bool IsLoaded() { return loaded; }
+	void Switch() { loaded = !loaded; }
+	
+	private:
+	std::string file, name, type;
+	std::string mesher;
+	bool loaded;
+	double xstep,ystep,zstep; //used only when mesh type is cartesian
+};

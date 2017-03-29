@@ -1116,9 +1116,9 @@
 			Ex_vals.push_back(Efield(0));
 			Ey_vals.push_back(Efield(1));
 			Ez_vals.push_back(Efield(2));
-			Hx_vals.push_back(Efield(0));
-			Hy_vals.push_back(Efield(1));
-			Hz_vals.push_back(Efield(2));
+			Hx_vals.push_back(Hfield(0));
+			Hy_vals.push_back(Hfield(1));
+			Hz_vals.push_back(Hfield(2));
 		}
 		
 		int dims[3] = { static_cast<int>(Nx), static_cast<int>(Ny), static_cast<int>(Nz) };

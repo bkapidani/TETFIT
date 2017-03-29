@@ -4,16 +4,29 @@
 DEFINE mesh 1
    SET type   tetrahedral
    SET mesher netgen
-   SET file   small.mesh
+   SET file   wg_mediumball.mesh
+   # SET file   wg_box.mesh
+   # SET file   wg.mesh
+   # SET file   minimal.mesh
+   SET name	  waveguide
 END mesh 1
+
+# DEFINE mesh 2
+   # SET type   tetrahedral
+   # SET mesher netgen
+   # SET file   wg.mesh
+# END mesh 2
 
 # Materials definitions
 DEFINE material 1
-#all values set to default -> empty space
+   # SET sigma 0.05
+   # SET chi 0.1 
 END material 1
-#DEFINE material 1
-#   SET sigma 1e-2
-#END material 1
+
+DEFINE material 2
+   SET sigma 0.05
+   # SET chi 0.001
+END material 2
 
 # Boundary conditions
 DEFINE bc 2
@@ -46,12 +59,40 @@ DEFINE source 1
    SET width              0.01 #only for gaussian sources
 END source 1
 
+# Sources
+# DEFINE source 2
+   # SET surface            1
+   # SET type               e # electric field
+   # SET profile            wave
+   # SET mode               { sin , cos , cos }
+   # SET center             {0, 0, 0} # x-xcenter, y-ycenter, z-zcenter
+   # SET direction          y
+   # SET amplitude          2
+   # SET frequency          5e9
+   # SET wavevector         { 10, 0, 0}
+   # SET width              0.01 #only for gaussian sources
+# END source 2
+
+# Output setups
+DEFINE output 1
+   SET mode   	probepoint
+   SET probe    { 0.025 , 0.0125 , 0.05 } #useless if mode is silo
+   SET period	0
+END output 1
+
 # Simulations
 DEFINE simulation 1
    SET mesh     1
    SET source   1
    #SET source 2 #additional sources can be set
-   SET duration 1e-9
-   SET output   probepoint
-   SET probe    { 0.25 , 0.125 , 0.5 }
+   SET duration 2e-9
+   SET output 	1
 END simulation 1
+
+# DEFINE simulation 2
+   # SET mesh     1
+   # SET source   1
+   # SET source 2 #additional sources can be set
+   # SET duration 1e-9
+   # SET output 	1
+# END simulation 2
