@@ -265,10 +265,11 @@ class Discretization
 		uint64_t i;
 		
 		std::cout << std::endl << "Simulation parameters:" << std::endl;
-		std::cout << std::setw(20) << "Mesh: "            << std::setw(20) << m.FileName()              << std::endl;
-		std::cout << std::setw(20) << "Simulation time: " << std::setw(20) << simulation_time              << " seconds" << std::endl;
-		std::cout << std::setw(20) << "Time step: "       << std::setw(20) << t_step                       << " seconds" << std::endl;
-		std::cout << std::setw(20) << "Unknowns: "        << std::setw(20) << U_frac_size+F_frac_size      << std::endl << std::endl;
+		std::cout << std::setw(20) << "Mesh: "             << std::setw(20) << m.FileName()              				  << std::endl;
+		std::cout << std::setw(20) << "Minimum diameter: " << std::setw(20)  << min_h 						<< "   m" << std::endl;
+		std::cout << std::setw(20) << "Simulation time: "  << std::setw(20) << simulation_time              << " sec" << std::endl;
+		std::cout << std::setw(20) << "Time step: "        << std::setw(20) << t_step                       << " sec" << std::endl;
+		std::cout << std::setw(20) << "Unknowns: "         << std::setw(20) << U_frac_size+F_frac_size      << std::endl  << std::endl;
 		
 		
 		// T time_function;
@@ -376,9 +377,9 @@ class Discretization
 			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 
 			// Debug
-			std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-			std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
-			std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+			// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+			// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
+			// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 			
 			if ((*o).AllowPrint(current_time))
 				ExportFields(mod_out, current_time);
@@ -1575,7 +1576,8 @@ class Discretization
 	double estimate_time_step_bound() //theoretic bound
 	{
 		double ret=1;
-		double max_h=1e6;
+		min_h=1e6;
+		average_diameter=0;
 		
 		//std::cout << volumes_size() << std::endl;
 		
@@ -1598,13 +1600,16 @@ class Discretization
 				
 				if (dt<ret)
 					ret=dt;
-				if (diameter < max_h)
-					max_h = diameter;
-			}
+				if (diameter < min_h)
+					min_h = diameter;
+				
+				average_diameter+=2*diameter;
+			}			
 		}
 		
-		// std::cout << "Minimum diameter: " << max_h << std::endl;
-		
+		// std::cout << "Minimum diameter: " << min_h << std::endl;
+		min_h = 2*min_h;
+		average_diameter /= (4*volumes_size());
 		return ret;
 	}
 	
@@ -2574,7 +2579,7 @@ class Discretization
 	std::vector<edge_type> 						edges;
 	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
-	double                                      t_step;
+	double                                      t_step, min_h, average_diameter;
 	uint32_t									loaded_mesh_label, current_simulation;
 	DBfile 										*_siloDb=NULL;
 	// std::array<std::vector<uint32_t>,20>		sources_by_label; 						/* Each label has a vector containing all the sources active on that label */
