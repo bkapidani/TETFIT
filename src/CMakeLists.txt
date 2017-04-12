@@ -27,6 +27,10 @@ set (CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(EIGEN REQUIRED)
 include_directories("${EIGEN_INCLUDE_DIRS}")
 
+# Find SPECTRA
+find_package(SPECTRA REQUIRED)
+include_directories("${SPECTRA_INCLUDE_DIRS}")
+
 # Find SILO
 find_package(SILO REQUIRED)
 include_directories("${SILO_INCLUDE_DIRS}")

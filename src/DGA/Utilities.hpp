@@ -55,8 +55,11 @@
 // #include <future>
 #include <chrono>
 #include <mutex>
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include <Spectra/MatOp/SparseSymMatProd.h>
+#include <Spectra/SymEigsSolver.h>
 #include "timecounter.h"
 #include "sgnint32_t.hpp"
 #include "mapped_file.h"

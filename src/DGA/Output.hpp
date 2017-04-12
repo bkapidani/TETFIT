@@ -36,7 +36,7 @@ class Output
 	public:
 	Output()
 	{
-		probepoint = Eigen::Vector3d({0,0,0});
+		// probepoint = Eigen::Vector3d({0,0,0});
 		mode = "none";
 		name = "simulation";
 		output_period = 0;
@@ -48,6 +48,8 @@ class Output
 		index = 0;
 	}
 	
+	const uint32_t Nprobes(void) const { return probepoint.size(); }
+	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
 	{
 		if (param == "mode")
@@ -58,6 +60,7 @@ class Output
 		}
 		else if (param == "probe")
 		{
+			Eigen::Vector3d new_probepoint;
 			auto  i = value.begin();
 			if (*i != '{')
 				MyThrow(input_line,coordinates_syntax);
@@ -79,7 +82,7 @@ class Output
 					{
 						if (k < 3)
 						{
-							probepoint[k]= std::stod(coord);
+							new_probepoint[k]= std::stod(coord);
 							k++;
 						}
 						else
@@ -94,6 +97,8 @@ class Output
 				if (i == value.end())
 					MyThrow(input_line,too_few_coords);
 			}
+			
+			probepoint.push_back(new_probepoint);
 		}
 		else if (param == "period")
 		{
@@ -119,12 +124,16 @@ class Output
 	const double& Period(void) const { return output_period; }
 	const std::string& Name(void) const { return name; }
 	const OutputMode& Mode(void) const { return mode; }
-	const Eigen::Vector3d& Probe(void) const { return probepoint; }
+	const Eigen::Vector3d& Probe(uint32_t i) const 
+	{ 
+		assert(i<probepoint.size());
+		return probepoint[i];
+	}
 	
 	private:
 	std::string name;
 	double index;
 	double output_period;
-	Eigen::Vector3d probepoint;
+	std::vector<Eigen::Vector3d> probepoint;
 	OutputMode mode;
 };

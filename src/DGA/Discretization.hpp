@@ -207,10 +207,10 @@ class Discretization
 				std::vector<std::vector<uint32_t>>().swap(edge_src);
 				std::vector<std::vector<uint32_t>>().swap(face_src);
 				std::vector<double>().swap(CellVolumes);
-				std::vector<double>().swap(probe_numeric_times);
-				std::vector<double>().swap(probe_numeric_yvalues);
-				std::vector<double>().swap(probe_numeric_zvalues); 
-				std::vector<double>().swap(probe_numeric_xvalues);
+				// std::vector<double>().swap(probe_numeric_times);
+				// std::vector<double>().swap(probe_numeric_yvalues);
+				// std::vector<double>().swap(probe_numeric_zvalues); 
+				// std::vector<double>().swap(probe_numeric_xvalues);
 				std::vector<Eigen::Vector3d>().swap(edge_bars);
 				std::vector<Eigen::Vector3d>().swap(face_bars);
 			}
@@ -240,19 +240,45 @@ class Discretization
 		FlushMesh();
 		ReadMesh(m);
 		loaded_mesh_label = s.MeshLabel();
-		t_step = (double(9)/double(20))*estimate_time_step_bound();
-		// t_step = (double(1)/double(20))*estimate_time_step_bound();
-		// t_step = 2e-12;
+		t_step = estimate_time_step_bound();
 		ConstructMaterialMatrices();
 		
+		Eigen::VectorXd rhs_PM = Eigen::VectorXd::Random(edges_size());
+		// double new_norm = std::pow(double(2)/t_step,double(2))/(rhs_PM.norm());
+		// rhs_PM = new_norm*rhs_PM;
+		timecounter t_power; t_power.tic();
+		double t_step_power = estimate_time_step_bound_algebraic(rhs_PM);
+		t_power.toc();
+		std::cout << "Power method took " << t_power << "s." << std::endl;
+		// t_power.tic();
+		// double t_step_spectra = estimate_ts_w_spectra();
+		// t_power.toc();
+		// std::cout << "Spectra method took " << t_power << "s." << std::endl;
+		
+		auto geom_t_step = t_step;
+		t_step = t_step_power;
+		ConstructMaterialMatrices();
 		
 		if ( mod_out == "probepoint")
 		{
-			probe_elem = FindProbe((*o).Probe());
+			// std::cout << "ci sono" << std::endl;
 			probe_numeric_times.clear();
-			probe_numeric_xvalues.clear();
-			probe_numeric_yvalues.clear();
-			probe_numeric_zvalues.clear();
+			probe_elem.clear();
+			probe_numeric_xvalues.resize(0);
+			probe_numeric_yvalues.resize(0);
+			probe_numeric_zvalues.resize(0);
+			std::vector<double> dummy_probe;
+			
+			for (uint32_t p=0; p<(*o).Nprobes(); p++)
+			{
+				// std::cout << "ci sono" << std::endl;
+				probe_elem.push_back(FindProbe((*o).Probe(p)));
+				probe_numeric_xvalues.push_back(dummy_probe);
+				probe_numeric_yvalues.push_back(dummy_probe);
+				probe_numeric_zvalues.push_back(dummy_probe);
+			}
+			
+			// std::cout << "ci sono" << std::endl;
 		}
 		
 		// for (auto bb : BCs)
@@ -269,6 +295,8 @@ class Discretization
 		std::cout << std::setw(20) << "Minimum diameter: " << std::setw(20)  << min_h 						<< "   m" << std::endl;
 		std::cout << std::setw(20) << "Simulation time: "  << std::setw(20) << simulation_time              << " sec" << std::endl;
 		std::cout << std::setw(20) << "Time step: "        << std::setw(20) << t_step                       << " sec" << std::endl;
+		// std::cout << std::setw(20) << "Time step spec.: "  << std::setw(20) << t_step_spectra                       << " sec" << std::endl;
+		std::cout << std::setw(20) << "Lower bound: "      << std::setw(20) << geom_t_step                  << " sec" << std::endl;
 		std::cout << std::setw(20) << "Unknowns: "         << std::setw(20) << U_frac_size+F_frac_size      << std::endl  << std::endl;
 		
 		
@@ -396,19 +424,22 @@ class Discretization
 		{
 			std::ofstream os;
 			
-			std::stringstream ss;
-			ss << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe.dat";
-			os.open(ss.str().c_str());
-			for (size_t k=0; k < probe_numeric_times.size(); k++)
+			for (uint32_t p=0; p<probe_elem.size(); p++)
 			{
-			  os << std::setw(15) << probe_numeric_times[k];
-			  os << std::setw(15) << probe_numeric_xvalues[k];
-			  os << std::setw(15) << probe_numeric_yvalues[k];
-			  os << std::setw(15) << probe_numeric_zvalues[k];
-			  os << std::endl;
+				std::stringstream ss;
+				ss << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe" << p+1 << ".dat";
+				os.open(ss.str().c_str());
+				for (size_t k=0; k < probe_numeric_times.size(); k++)
+				{
+				  os << std::setw(15) << probe_numeric_times[k];
+				  os << std::setw(15) << probe_numeric_xvalues[p][k];
+				  os << std::setw(15) << probe_numeric_yvalues[p][k];
+				  os << std::setw(15) << probe_numeric_zvalues[p][k];
+				  os << std::endl;
+				}
+				
+				os.close();
 			}
-			
-			os.close();
 		}
 		// else if (mod_out == "silo")
 		// {
@@ -517,11 +548,14 @@ class Discretization
 		// Eigen::Vector3d num_val;
 		if (s == "probepoint")
 		{
-			auto num_ele = GetElectricField(probe_elem);
+			for (uint32_t p=0; p<probe_elem.size(); p++)
+			{
+				auto num_ele = GetElectricField(probe_elem[p]);
+				probe_numeric_xvalues[p].push_back(num_ele[0]);
+				probe_numeric_yvalues[p].push_back(num_ele[1]);
+				probe_numeric_zvalues[p].push_back(num_ele[2]);
+			}
 			
-			probe_numeric_xvalues.push_back(num_ele[0]);
-			probe_numeric_yvalues.push_back(num_ele[1]);
-			probe_numeric_zvalues.push_back(num_ele[2]);
 			probe_numeric_times.push_back(t);
 		}
 		else if (s == "silo")
@@ -1595,7 +1629,7 @@ class Discretization
 			
 			for (auto ff : fareas)
 			{
-				double diameter = 6*vol/(sqrt(ff(0)*ff(0) + ff(1)*ff(1) + ff(2)*ff(2)));
+				double diameter = 1.5*vol/(sqrt(ff(0)*ff(0) + ff(1)*ff(1) + ff(2)*ff(2)));
 				double dt = diameter/c;
 				
 				if (dt<ret)
@@ -1615,41 +1649,78 @@ class Discretization
 	
 	Eigen::VectorXd power_method_iteration(Eigen::VectorXd b )
 	{
-		b = b*(1/b.norm());
-		auto cb = C*b;
-		auto nicb = N*cb;
-		auto ctnib = C.transpose()*nicb;
-		return H*ctnib;
+		timecounter t_iter_pw;
+		t_iter_pw.tic();
+		
+		
+		
+		// auto alfa = C*b;
+		// auto beta = N*alfa;
+		// auto gamma = C.transpose()*beta;
+		// auto delta = Einv*gamma;
+		
+		auto delta = Einv*(C.transpose()*(N*(C*b)));
+		
+		t_iter_pw.toc();
+		// std::cout << "iteration took " << t_iter_pw << "s." << std::endl;
+ 		return delta;
+	}
+	
+	double estimate_ts_w_spectra(void) //use spectra
+	{
+		// We are going to calculate the eigenvalues of M
+		// Eigen::MatrixXd A = Eigen::MatrixXd::Random(10, 10);
+		// Eigen::MatrixXd M = A + A.transpose();
+
+		// Construct matrix operation object using the wrapper class DenseGenMatProd
+		Eigen::SparseMatrix<double> M(Einv*(C.transpose()*(N*C)));
+		Spectra::SparseSymMatProd<double> op(M);
+
+		// Construct eigen solver object, requesting the largest three eigenvalues
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double> > eigs(&op, 1, 7);
+
+		// Initialize and compute
+		eigs.init();
+		int nconv = eigs.compute();
+
+		// Retrieve results
+		double lambda;
+		if(eigs.info() == Spectra::SUCCESSFUL)
+		{
+			auto eig_vec = eigs.eigenvalues();
+			lambda = eig_vec(0);
+		}
+		return double(2)/sqrt(lambda);
 	}
 	
 	double estimate_time_step_bound_algebraic(Eigen::VectorXd b ) //power method
 	{
-
-		b = power_method_iteration(b);
-		double lambda = b.norm();
-		double tol;
-		double lambda_old = lambda;
-		
+		double lambda;
+		double tol = 0.01;
+		std::vector<double> values;
 		uint32_t it = 0;
 		
-		do{
-			b = power_method_iteration(b);
-			lambda = b.norm();
 
-			// bstar = arma::trans(b_old);
+		Eigen::VectorXd bnew;
+
+		while (true)
+		{
+			bnew = b/b.norm();
+			b = Einv*(C.transpose()*(N*(C*bnew)));
+			lambda = bnew.dot(b);
 			
-			// lambda = dot(b_old,b) / (dot(b_old,b_old));
+			values.push_back(double(2)/sqrt(lambda));
 			
-			// std::cout << "Current eigenval: " << lambda << std::endl;
-			
-			/*parameters for next iteration*/
-			tol = fabs(lambda_old-lambda)/lambda_old;
-			lambda_old = lambda;
-			it++;
-		// }while (it<100);
-		}while (tol>=1e-3);
+			if ((b-lambda*bnew).norm() <= tol*fabs(lambda))
+				break;
+		}
 		
-		return 2/sqrt(lambda);
+		std::ofstream dbg_pm("asymptote_power_method.dat");
+		for (uint32_t i=0; i<values.size(); ++i)
+			dbg_pm << std::setw(10) << i << " " << std::setw(20) << values[i] << std::endl;
+		dbg_pm.close();
+		double ts = double(2)/sqrt(lambda);
+		return ts - tol*ts;
 	}
 	
 	void ConstructMaterialMatrices(void)
@@ -1662,11 +1733,11 @@ class Discretization
 		std::vector<bool> mu_computed(volumes_size(),false);
 		Eigen::MatrixXd local_E, local_S;
 		Eigen::Matrix4d local_M, local_Z;
-		std::vector<double_triplet> H_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
+		std::vector<double_triplet> H_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
 		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip;  
 		uint32_t jj,kk;
 		
-		// auto local_mag_Id = = Eigen::MatrixXd::Identity(4,4);
+		auto local_mag_Id = Eigen::MatrixXd::Identity(4,4);
 		for (uint32_t vv=0; vv < volumes.size(); vv++)
 		{
 			double mu_vol    = Materials[vol_material[vv]].Mu();
@@ -1731,8 +1802,8 @@ class Discretization
 				local_Z *= 0.5*t_step;
 			}
 				
-			auto local_N = (local_M + local_Z).inverse();
-			// auto local_N = (local_M + local_Z).llt().solve(local_mag_Id); 
+			// auto local_N = (local_M + local_Z).inverse();
+			Eigen::MatrixXd local_N = (local_M + local_Z).llt().solve(local_mag_Id);
 			auto local_R = local_N*(local_M - local_Z);
 			
 			// std::cout << "Tetrahedron: [ " << std::get<0>(volumes[vv]) << " " << std::get<1>(volumes[vv]) << " " << std::get<2>(volumes[vv]) << " " << std::get<3>(volumes[vv]);
@@ -2050,6 +2121,7 @@ class Discretization
 			// if (nid==0)
 				// std::cout << std::endl << local_E << std::endl << std::endl;
 			/* Handling pec edges */
+			auto local_E_nondirichlet = local_E;
 			for (auto j = global_i.begin(); j != global_i.end(); j++)
 			{	
 				if (classify_edges[*j] == 4)
@@ -2077,7 +2149,9 @@ class Discretization
 			
 			// std::cout << std::endl << local_Id << std::endl << std::endl;
 			
-			auto local_H = (local_E+local_S).inverse(); //faster than inverse
+			// auto local_H = (local_E+local_S).inverse(); 
+			Eigen::MatrixXd local_H = (local_E+local_S).llt().solve(local_Id); //faster than inverse
+			Eigen::MatrixXd local_E_inv = (local_E_nondirichlet).llt().solve(local_Id);
 			auto local_P = local_H*(local_E - local_S);
 	
 			// std::cout << std::endl << local_P << std::endl << std::endl;
@@ -2182,23 +2256,27 @@ class Discretization
 						}						
 					}
 				}
-
+				
+				for (uint32_t ll=0; ll < local_E_size; ll++)
+					if (local_E_inv(jj,ll) != 0)
+						Einv_trip.push_back(double_triplet(global_i[jj],global_i[ll],local_E_inv(jj,ll)));
+				
 				jj++;
 				kk=0;
 			}
 		}
 		
 		
-		t_material.toc();
-		std::cout << "done - " << t_material << " seconds" << std::endl;
+		// t_material.toc();
+		// std::cout << "done - " << t_material << " seconds" << std::endl;
 		
-		t_material.tic();
+		// t_material.tic();
 		U_frac_size = H_size + P_size + Q_size + B_size;
 		F_frac_size = N_size + R_size + S_size;
 		
 		this->P_p=std::move(P_p);
 		
-		Eigen::SparseMatrix<double> H(H_size,edges_size()), N(N_size,surfaces_size());
+		Eigen::SparseMatrix<double> H(H_size,edges_size()), N(N_size,surfaces_size()), Einv(edges_size(),edges_size());
 		Eigen::SparseMatrix<double> M(edges_size(),U_frac_size), Mq(Q_size,edges_size()), Mp(P_size,edges_size());
 		Eigen::SparseMatrix<double> T(surfaces_size(),F_frac_size),Tr(R_size,surfaces_size()),Ts(S_size,surfaces_size());
 		Eigen::SparseMatrix<double> /*P(P_size,U_frac_size),*/Q(Q_size,Q_size);
@@ -2233,19 +2311,20 @@ class Discretization
 		// std::cout << "12" << std::endl;
 		Ts.setFromTriplets(Ts_trip.begin(),Ts_trip.end(), ass);
 		// std::cout << "13" << std::endl;
-		
+		Einv.setFromTriplets(Einv_trip.begin(),Einv_trip.end(), ass);
+		// std::cout << "14" << std::endl;
 		// Eigen::MatrixXd dMat = Eigen::MatrixXd(H);
 		// std::ofstream debug_file("new_massmatrix.dat");
 		// debug_file << dMat << std::endl;
 		// debug_file.close();
 		
-		this->H=std::move(H);
+		this->H=std::move(H); this->Einv=std::move(Einv);
 		this->T=std::move(T); this->M=std::move(M); this->N=std::move(N); this->Mp=std::move(Mp); 
 		this->Mq=std::move(Mq); this->N=std::move(N); this->P=std::move(P); this->Q=std::move(Q); 
 		this->R=std::move(R); this->S=std::move(S); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 
 		t_material.toc();
-		std::cout << "Constructing sparse matrices: done - " << t_material << " seconds" << std::endl;
+		std::cout << "done - " << t_material << " seconds" << std::endl;
 	}
 
 	// double add_to_sparse (const double& a, const double& b)
@@ -2554,8 +2633,8 @@ class Discretization
 	}
 	
 	private:
-	uint32_t									input_line, H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size, probe_elem;
-	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts;
+	uint32_t									input_line, H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
+	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv;
 	Eigen::VectorXd								U,F,I,P_p;
 	std::mutex									meshlock;
 	std::map<uint32_t,Output>					Outputs;
@@ -2564,10 +2643,11 @@ class Discretization
 	std::map<uint32_t,Material>					Materials; 								/* (or source), the default constructor makes it empty space (or null source) */
 	std::map<uint32_t,BoundaryCondition>		BCs;
 	std::map<uint32_t,Mesh>						Meshes;
-	std::vector<double>                         CellVolumes, probe_numeric_xvalues, probe_numeric_yvalues, probe_numeric_zvalues, probe_numeric_times;
+	std::vector<double>                         CellVolumes, probe_numeric_times;
+	std::vector<std::vector<double>>			probe_numeric_xvalues, probe_numeric_yvalues, probe_numeric_zvalues;
 	// std::vector<bool>							is_dirichlet;
 	std::vector<uint32_t> 						vol_material, boundary_index, h_index, p_index, n_index, r_index, edge_bids;
-	std::vector<uint32_t>				        edge_bcs, face_bcs;
+	std::vector<uint32_t>				        edge_bcs, face_bcs, probe_elem;
 	std::vector<uint8_t>						classify_edges, classify_surfaces;
 	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets;
 	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
