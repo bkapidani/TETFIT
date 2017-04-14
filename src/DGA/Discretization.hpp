@@ -36,6 +36,7 @@
 #include "Mesh.hpp"
 #include "Simulation.hpp"
 #include "Output.hpp"
+#include "bessel.h"
 
 class Discretization
 {	
@@ -182,6 +183,78 @@ class Discretization
 		std::cout << "----------- All simulations ran. Elapsed time: " << t_sim << " seconds ----------" << std::endl;
 	}
 	
+	double analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
+	{
+		auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
+		double c = 1/sqrt(eps*mu);
+		double ax=5e-2;
+		double az=10e-2;
+		double ay=2.5e-2; //momentarily useless
+		double ksi = sigma/eps/2;
+		double alph1 = pow(3.141592*c/ax,2);
+		double alph2 = 0.25*pow(sigma/eps,2);
+		double alpha;
+		bool flag = true;
+		if (alph1>alph2)
+		{
+			flag = true;
+			alpha =  sqrt(alph1-alph2);
+		}
+		else
+		{
+			flag = false;
+			alpha = sqrt(alph2-alph1);
+		}
+		
+		
+		// std::cout << "Debug: " << pow(3.141592*c/ax,2) << " " << pow(sigma/eps,2)/4 << std::endl;
+		
+		// std::cout << "Parameters:" << std::endl << "C = " << c << "  ksi = " << ksi 
+		                                        // << "  alpha = " << alpha << std::endl; 
+		
+		int32_t lim1 = floor( (t * c - z) / (2 * az) );
+		int32_t lim2 = floor( (t * c + z) / (2 * az) - 1);
+		
+		// std::cout << "At time t = " << t << " limits are : " << lim1 << "\t" << lim2 << std::endl;
+		
+		double a1, a2;
+		int32_t j=0;
+		// i=j=0;
+		a1=a2=0;
+		
+		
+		while (true)
+		{
+			double k = (z + 2 * az * j) / c;
+			if (t>k)
+			{
+				// std::cout << "First set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
+				// std::cout << "Alpha =" << alpha << std::endl;
+				a1 += sin(3.141592*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq,flag);
+			}
+			else
+				break;
+			j++;
+		}
+		
+		j=1;
+		while (true)
+		{
+			double k = (2*az*j - z) / c;
+			if (t>k)
+			{
+				// std::cout << "Second set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
+				// std::cout << "Alpha =" << alpha << std::endl;
+				a2 -= sin(3.141592*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq,flag);
+			}
+			else
+				break;
+			j++;
+		}
+		
+		return a1+a2;
+	}
+	
 	void FlushMesh(void)
 	{
 		auto m = Meshes[loaded_mesh_label];
@@ -243,20 +316,21 @@ class Discretization
 		t_step = estimate_time_step_bound();
 		ConstructMaterialMatrices();
 		
-		Eigen::VectorXd rhs_PM = Eigen::VectorXd::Random(edges_size());
+		// Eigen::VectorXd rhs_PM = Eigen::VectorXd::Random(edges_size());
 		// double new_norm = std::pow(double(2)/t_step,double(2))/(rhs_PM.norm());
 		// rhs_PM = new_norm*rhs_PM;
-		timecounter t_power; t_power.tic();
-		double t_step_power = estimate_time_step_bound_algebraic(rhs_PM);
-		t_power.toc();
-		std::cout << "Power method took " << t_power << "s." << std::endl;
+		timecounter t_power;
 		// t_power.tic();
-		// double t_step_spectra = estimate_ts_w_spectra();
+		// double t_step_power = estimate_time_step_bound_algebraic(rhs_PM);
 		// t_power.toc();
-		// std::cout << "Spectra method took " << t_power << "s." << std::endl;
+		// std::cout << "Power method took " << t_power << "s." << std::endl;
+		t_power.tic();
+		double t_step_spectra = estimate_ts_w_spectra();
+		t_power.toc();
+		std::cout << "Spectral method took " << t_power << "s." << std::endl;
 		
-		auto geom_t_step = t_step;
-		t_step = t_step_power;
+		auto t_step_geom = t_step;
+		t_step = 0.98*t_step_spectra;
 		ConstructMaterialMatrices();
 		
 		if ( mod_out == "probepoint")
@@ -267,15 +341,21 @@ class Discretization
 			probe_numeric_xvalues.resize(0);
 			probe_numeric_yvalues.resize(0);
 			probe_numeric_zvalues.resize(0);
+			analytic_value_vector.resize(0);
+			probe_points.resize(0);
+			
 			std::vector<double> dummy_probe;
 			
 			for (uint32_t p=0; p<(*o).Nprobes(); p++)
 			{
-				// std::cout << "ci sono" << std::endl;
-				probe_elem.push_back(FindProbe((*o).Probe(p)));
+				auto pv = (*o).Probe(p);
+				probe_points.push_back(pv);
+				probe_elem.push_back(FindProbe(pv));
 				probe_numeric_xvalues.push_back(dummy_probe);
 				probe_numeric_yvalues.push_back(dummy_probe);
 				probe_numeric_zvalues.push_back(dummy_probe);
+				analytic_value_vector.push_back(dummy_probe);
+				
 			}
 			
 			// std::cout << "ci sono" << std::endl;
@@ -290,14 +370,14 @@ class Discretization
 		const uint32_t N_of_steps=simulation_time/t_step;
 		uint64_t i;
 		
-		std::cout << std::endl << "Simulation parameters:" << std::endl;
-		std::cout << std::setw(20) << "Mesh: "             << std::setw(20) << m.FileName()              				  << std::endl;
-		std::cout << std::setw(20) << "Minimum diameter: " << std::setw(20)  << min_h 						<< "   m" << std::endl;
-		std::cout << std::setw(20) << "Simulation time: "  << std::setw(20) << simulation_time              << " sec" << std::endl;
-		std::cout << std::setw(20) << "Time step: "        << std::setw(20) << t_step                       << " sec" << std::endl;
-		// std::cout << std::setw(20) << "Time step spec.: "  << std::setw(20) << t_step_spectra                       << " sec" << std::endl;
-		std::cout << std::setw(20) << "Lower bound: "      << std::setw(20) << geom_t_step                  << " sec" << std::endl;
-		std::cout << std::setw(20) << "Unknowns: "         << std::setw(20) << U_frac_size+F_frac_size      << std::endl  << std::endl;
+		std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
+		std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              				  << std::endl;
+		std::cout << std::setw(20) << "Minimum diameter: " 		<< std::setw(20)  << min_h 						<< "   m" << std::endl;
+		std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
+		std::cout << std::setw(20) << "Time step geom: "   		<< std::setw(20) << t_step_geom                      << " sec" << std::endl;
+		// std::cout << std::setw(20) << "Time step power: "  		<< std::setw(20) << t_step_power                       << " sec" << std::endl;
+		std::cout << std::setw(20) << "Time step spectral: "  	<< std::setw(20) << t_step                       << " sec" << std::endl;
+		std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size      << std::endl  << std::endl;
 		
 		
 		// T time_function;
@@ -320,7 +400,10 @@ class Discretization
 		Eigen::Map<Eigen::VectorXd> F_a(start_of_f,N_size), F_b(start_of_f+N_size,R_size), F_c(start_of_f+N_size+R_size,S_size);
 		
 		double current_time;
-
+		// auto pippo = M.transpos()*C.transpose();
+		// std::ofstream file_pippo("Stau_per_C.dat");
+		// filo_pippo << pippo;
+		// file_pippo.close();
 		// std::cout << M.norm() << " " << edges.size() << std::endl;
 		// Actual simulation!
 		for (i=1; i*t_step <= simulation_time; i++)
@@ -422,13 +505,16 @@ class Discretization
 		// /* Output stats and fields*/
 		if (mod_out == "probepoint")
 		{
-			std::ofstream os;
+			std::ofstream os, os_a;
 			
 			for (uint32_t p=0; p<probe_elem.size(); p++)
 			{
-				std::stringstream ss;
+				std::stringstream ss, sa;
 				ss << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe" << p+1 << ".dat";
+				sa << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe" << p+1 << "_analytic.dat";
 				os.open(ss.str().c_str());
+				os_a.open(sa.str().c_str());
+				
 				for (size_t k=0; k < probe_numeric_times.size(); k++)
 				{
 				  os << std::setw(15) << probe_numeric_times[k];
@@ -436,9 +522,12 @@ class Discretization
 				  os << std::setw(15) << probe_numeric_yvalues[p][k];
 				  os << std::setw(15) << probe_numeric_zvalues[p][k];
 				  os << std::endl;
+				  
+				  os_a << std::setw(15) << probe_numeric_times[k] << " " << std::setw(15) << analytic_value_vector[p][k] <<  std::endl;
 				}
 				
 				os.close();
+				os_a.close();
 			}
 		}
 		// else if (mod_out == "silo")
@@ -554,6 +643,11 @@ class Discretization
 				probe_numeric_xvalues[p].push_back(num_ele[0]);
 				probe_numeric_yvalues[p].push_back(num_ele[1]);
 				probe_numeric_zvalues[p].push_back(num_ele[2]);
+				SpaceTimePoint stp = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t});
+				double anal_value = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
+													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+				analytic_value_vector[p].push_back(anal_value);
 			}
 			
 			probe_numeric_times.push_back(t);
@@ -604,14 +698,6 @@ class Discretization
 			
 			t_export.toc();
 			std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
-			
-			
-			for (uint32_t i=0; i < volumes_size(); i++)
-			{
-				auto num_ele = GetElectricField(i);
-				
-				
-			}
 		}
 	}
 	
@@ -1671,13 +1757,37 @@ class Discretization
 		// We are going to calculate the eigenvalues of M
 		// Eigen::MatrixXd A = Eigen::MatrixXd::Random(10, 10);
 		// Eigen::MatrixXd M = A + A.transpose();
-
-		// Construct matrix operation object using the wrapper class DenseGenMatProd
-		Eigen::SparseMatrix<double> M(Einv*(C.transpose()*(N*C)));
-		Spectra::SparseSymMatProd<double> op(M);
+		class MyMatProd
+		{
+			public:
+			
+			MyMatProd(uint32_t s, Eigen::SparseMatrix<double>& c, Eigen::SparseMatrix<double>& n, Eigen::SparseMatrix<double>& einv )
+			{
+				size = s;
+				this->C = &c;
+				this->N = &n;
+				this->Einv = &einv;
+			}
+			
+			int rows() { return size; }
+			int cols() { return size; }
+			
+			void perform_op(double *x_in, double *y_out)
+			{
+				Eigen::Map<Eigen::VectorXd> X(x_in,size);
+				Eigen::Map<Eigen::VectorXd> Y(y_out,size);
+				
+				Y = (*Einv)*((*C).transpose()*((*N)*((*C)*X)));
+			}
+			
+			Eigen::SparseMatrix<double> *C, *N, *Einv;
+			uint32_t size;
+		};
+		// Construct matrix operation object using the wrapper class MyMatProd
+		MyMatProd op(this->edges_size(),C,N,Einv);
 
 		// Construct eigen solver object, requesting the largest three eigenvalues
-		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, Spectra::SparseSymMatProd<double> > eigs(&op, 1, 7);
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyMatProd > eigs(&op, 1, 10);
 
 		// Initialize and compute
 		eigs.init();
@@ -2644,7 +2754,7 @@ class Discretization
 	std::map<uint32_t,BoundaryCondition>		BCs;
 	std::map<uint32_t,Mesh>						Meshes;
 	std::vector<double>                         CellVolumes, probe_numeric_times;
-	std::vector<std::vector<double>>			probe_numeric_xvalues, probe_numeric_yvalues, probe_numeric_zvalues;
+	std::vector<std::vector<double>>			probe_numeric_xvalues, probe_numeric_yvalues, probe_numeric_zvalues, analytic_value_vector;
 	// std::vector<bool>							is_dirichlet;
 	std::vector<uint32_t> 						vol_material, boundary_index, h_index, p_index, n_index, r_index, edge_bids;
 	std::vector<uint32_t>				        edge_bcs, face_bcs, probe_elem;
@@ -2657,7 +2767,7 @@ class Discretization
 	std::vector<surface_type> 					surfaces;
 	std::vector<uint32_t>                       dual_is_fractured, primal_is_fractured;
 	std::vector<edge_type> 						edges;
-	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars;
+	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars, probe_points;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
 	double                                      t_step, min_h, average_diameter;
 	uint32_t									loaded_mesh_label, current_simulation;
