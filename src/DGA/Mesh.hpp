@@ -39,6 +39,7 @@ class Mesh
 	{
 		loaded = false;
 		xstep = ystep = zstep = 0;
+		scalefactor = 1;
 	}
 
 	void SetParam(uint32_t input_line, std::string param, std::string value)
@@ -65,6 +66,8 @@ class Mesh
 			ystep = std::stod(value);
 		else if (param == "zstep")
 			zstep = std::stod(value);
+		else if (param == "scalefactor")
+			scalefactor = std::stod(value);
 		else
 			MyThrow(input_line,mesh_unknown_parameter);
 	}
@@ -73,6 +76,7 @@ class Mesh
 	const std::string& FileName() { return file; }
 	const std::string& GetMeshType() { return type; }
 	const std::string& GetMesher()   { return mesher; }
+	const double& Scale() { return scalefactor; }
 	const double& GetLx() { return xstep; }
 	const double& GetLy() { return xstep; }
 	const double& GetLz() { return xstep; }
@@ -83,5 +87,6 @@ class Mesh
 	std::string file, name, type;
 	std::string mesher;
 	bool loaded;
+	double scalefactor;
 	double xstep,ystep,zstep; //used only when mesh type is cartesian
 };

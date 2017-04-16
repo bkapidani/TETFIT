@@ -24,11 +24,13 @@ int main(int argc, char **argv)
 	std::string new_instr;
 	std::string semicolon(";");
 	std::vector<std::string> diseq_vec;
-	for (size_t k=0; k<7; k++) //min and max values of x,y,z and grid resolution h
+	// for (size_t k=0; k<7; k++) //min and max values of x,y,z and grid resolution h
+	std::getline(geom, new_instr,'\n');
+	while(new_instr != "END")
 	{
-		std::getline(geom, new_instr,'\n');
 		auto instr = new_instr + semicolon;
 		dest << "      " << instr << std::endl;
+		std::getline(geom, new_instr,'\n');
 	}
 	
 	while (std::getline(geom,new_instr,'\n'))

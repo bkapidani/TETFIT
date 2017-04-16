@@ -58,6 +58,8 @@ class Output
 				MyThrow(input_line,sim_unknown_output);
 			mode = value;
 		}
+		else if (param == "radiator")
+			radiating_vol_bnd.push_back(std::stod(value));
 		else if (param == "probe")
 		{
 			Eigen::Vector3d new_probepoint;
@@ -124,13 +126,15 @@ class Output
 	const double& Period(void) const { return output_period; }
 	const std::string& Name(void) const { return name; }
 	const OutputMode& Mode(void) const { return mode; }
-	const Eigen::Vector3d& Probe(uint32_t i) const 
+	const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; };
+	const Eigen::Vector3d& Probe(uint32_t i) const
 	{ 
 		assert(i<probepoint.size());
 		return probepoint[i];
 	}
 	
 	private:
+	std::vector<uint32_t> radiating_vol_bnd;
 	std::string name;
 	double index;
 	double output_period;

@@ -49,8 +49,8 @@ int main(int argc, char **argv)
 	
 	mesher<double> grid;
 	
-	// grid.Run(1e-9);
-	grid.Run_VoxBased(1e-9);
+	grid.Run(2e-9);
+	// grid.Run_VoxBased(1e-9);
 	// grid.RunEigenBased(1e-9);
     return 0;
 }

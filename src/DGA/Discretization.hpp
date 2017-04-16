@@ -312,7 +312,17 @@ class Discretization
 		
 		FlushMesh();
 		ReadMesh(m);
+		
 		loaded_mesh_label = s.MeshLabel();
+		
+		is_bnd_of_antenna.resize((*Materials.rbegin()).first+1,false);
+		
+		for (auto bnds : (*o).GetRadiators())
+		{
+			assert(bnds < is_bnd_of_antenna.size());
+			is_bnd_of_antenna[bnds] = true;
+		}
+		
 		t_step = estimate_time_step_bound();
 		ConstructMaterialMatrices();
 		
@@ -529,6 +539,11 @@ class Discretization
 				os.close();
 				os_a.close();
 			}
+			
+			os.open("radiator_points.txt");
+			for (auto ppt : antenna_bnd_pts)
+				os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
+			os.close();
 		}
 		// else if (mod_out == "silo")
 		// {
@@ -1054,6 +1069,7 @@ class Discretization
 	bool ReadMesh(Mesh& msh)
 	{	
 		timecounter tc, tctot;
+		double scale = msh.Scale();
 		
 		if (msh.IsLoaded())
 			return true;
@@ -1103,7 +1119,7 @@ class Discretization
 			
 			
 			Eigen::Vector3d point(std::get<0>(t),std::get<1>(t),std::get<2>(t));
-			pts.push_back(point);
+			pts.push_back(scale*point);
 			associated_volumes.push_back(dummy_ass_vols);
 			
 			/* Do something with that point */
@@ -1839,7 +1855,7 @@ class Discretization
 		std::cout.flush();
 		timecounter t_material;
 		t_material.tic();
-		
+		radiator_center = Eigen::Vector3d({2.85, 2.45, 1});
 		std::vector<bool> mu_computed(volumes_size(),false);
 		Eigen::MatrixXd local_E, local_S;
 		Eigen::Matrix4d local_M, local_Z;
@@ -1857,8 +1873,34 @@ class Discretization
 			auto fids = vtf_list[vv];
 			std::vector<uint32_t> abs_fids;			
 			
+			bool break_cond=false;
 			for (auto ff : fids)
+			{
 				abs_fids.push_back(abs(ff));
+				
+				if (!break_cond && is_bnd_of_antenna[vol_material[vv]])
+				{
+					auto lista = ftv_list[abs(ff)];
+					if (lista.size() == 1)
+					{
+						antenna_bnd_pts.push_back(vol_barycenter(vv)-radiator_center);
+						break_cond = true;
+					}
+					else
+					{
+						for (auto v_other : lista)
+						{
+							if (vol_material[abs(v_other)] != vol_material[vv])
+							{
+								antenna_bnd_pts.push_back(vol_barycenter(vv)-radiator_center);
+								break_cond = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+			
 			double coeff=mu_vol*36.0/(fabs(CellVolumes[vv]));
 			
 			local_M = local_Z = Eigen::Matrix4d::Zero();
@@ -2762,12 +2804,13 @@ class Discretization
 	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets;
 	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
 	std::vector<std::vector<uint32_t>>			edge_src, face_src;
-	std::vector<bool> 							bnd_nodes;
+	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna;
 	std::vector<volume_type> 					volumes;
 	std::vector<surface_type> 					surfaces;
 	std::vector<uint32_t>                       dual_is_fractured, primal_is_fractured;
 	std::vector<edge_type> 						edges;
-	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars, probe_points;
+	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars, probe_points, antenna_bnd_pts;
+	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
 	double                                      t_step, min_h, average_diameter;
 	uint32_t									loaded_mesh_label, current_simulation;

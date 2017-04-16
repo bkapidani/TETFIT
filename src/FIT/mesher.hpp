@@ -60,11 +60,6 @@ class mesher
 	   t_mesh.tic();
 	   uint32_t nv,nf,ne,np;
 	   nv=nf=ne=np=0;
-	   epsilon[1]=epsilon0;
-	   mu[1]=mu0;
-	   sigma[1]=0.02;
-	   mag_sigma[1]=0;
-	   freq=5e9;
 	   
       //Numerical limits
 		 
@@ -74,7 +69,12 @@ class mesher
       ymax= 0.025;
       zmin= 0;
       zmax= 0.1;
-      L=0.0005;
+      L=0.001;
+      epsilon[1]=epsilon0;
+      mu[1]=mu0;
+      sigma[1]=1;
+      mag_sigma[1]=0;
+      freq=5e9;
       //other instructions in constructor
 	  // std::cout << "Qui?" << std::endl;
 	  auto px = xmin;
@@ -777,12 +777,15 @@ class mesher
 			M_mu.push_back(face_area[i]/average_ni[i]);
 		}
 	  }
+	  // uint32_t number_of_lossy=0;
+	  
 	  for (uint32_t i=0; i<ne; i++)
 	  {
 			Hvec(i)=edge_len[i]/average_eps[i];
 
 		 if (is_ele_lossy[i])
 		 {
+			// std::cout << ++number_of_lossy << std::endl;
 			M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
 			M_e.push_back((average_eps[i] - 0.5*t_step*average_sigma[i])/edge_len[i]);
 		 }
@@ -1118,25 +1121,29 @@ class mesher
 	  T time_function;
 	  timecounter step_cost;
 	  std::vector<T> numeric_values,numeric_times;
-
-      for (i=0; i*t_step <= simulation_time; i++)
+      std::vector<T> U_old(U); std::vector<T> F_old(F);
+	  
+      
+	  for (i=0; i*t_step <= simulation_time; i++)
 	  {
 		 step_cost.tic();
 		 time_function=sin(2*pi*freq*i*t_step);
+		 U_old=U;
          for (size_t j=0; j<U.size(); j++)
 		 {
 			if (bc[j]!=0)
 			{
 				if (!is_boundary[j])
-					U[j] += t_step*M_h[j]*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]);
+					U[j] = M_h[j]*(M_e[j]*U_old[j] +t_step*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]));
 				else
 					U[j] = time_function*bc[j];
 			}
 		 }
 		 
+		 F_old=F;
          for (size_t j=0; j<F.size(); j++)
 			 if (!boundary_face[j])
-				F[j] -= t_step*M_ni[j]*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]);
+				F[j] =  M_ni[j]*(M_mu[j]*F_old[j] - t_step*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]));
 		
 		 auto num_val = GetElectricField(probe_elem);
 		 numeric_values.push_back(num_val(1));
@@ -1193,9 +1200,9 @@ class mesher
 			Ex_vals.push_back(Efield(0));
 			Ey_vals.push_back(Efield(1));
 			Ez_vals.push_back(Efield(2));
-			Hx_vals.push_back(Efield(0));
-			Hy_vals.push_back(Efield(1));
-			Hz_vals.push_back(Efield(2));
+			Hx_vals.push_back(Hfield(0));
+			Hy_vals.push_back(Hfield(1));
+			Hz_vals.push_back(Hfield(2));
 		}
 		
 		int dims[3] = { static_cast<int>(Nx), static_cast<int>(Ny), static_cast<int>(Nz) };

@@ -173,7 +173,7 @@ const std::runtime_error src_unknown_parameter(std::string("unrecognized paramet
 const std::runtime_error material_unknown_parameter(std::string("Unrecognized material parameter! Available: epsilon, mu, sigma, chi"));
 const std::runtime_error mesh_unknown_type(std::string("undefined mesh type! Available: tetrahedral, cartesian"));
 const std::runtime_error mesh_unknown_mesher(std::string("undefined mesher! Available: netgen, gmsh"));
-const std::runtime_error mesh_unknown_parameter(std::string("undefined mesh parameter! Available: file, name, type"));
+const std::runtime_error mesh_unknown_parameter(std::string("undefined mesh parameter! Available: file, name, type, mesher, scalefactor"));
 const std::runtime_error sim_unknown_output(std::string("undefined output mode type! Available: silo, probe"));
 const std::runtime_error sim_unknown_parameter(std::string("undefined simulation parameter! Available: source, mesh, duration, output"));
 const std::runtime_error out_unknown_parameter(std::string("undefined output parameter! Available: mode, period, probe, name"));

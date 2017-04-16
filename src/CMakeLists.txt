@@ -40,6 +40,10 @@ find_package(SILO REQUIRED)
 include_directories("${SILO_INCLUDE_DIRS}")
 set(LINK_LIBS "${LINK_LIBS}" "${SILO_LIBRARIES}")
 
+# Find BOOST
+find_package(BOOST REQUIRED)
+include_directories("${BOOST_INCLUDE_DIRS}")
+
 # add_subdirectory(mesher)
 # add_subdirectory(fdtd)
 
@@ -50,9 +54,7 @@ add_subdirectory(FIT)
 add_subdirectory(DGA)
 add_subdirectory(utils)
 
-# add_executable(fit_uniud ./FIT/fit_main.cpp ${SOURCE})
-# target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses")
-
-# add_executable(dgafdtd_uniud ./DGA/dga_main.cpp ${SOURCE})
-add_executable(dgafdtd_uniud ${SOURCE})
+add_executable(dgafdtd_uniud ./DGA/main/dga_main.cpp ${SOURCE})
+add_executable(fit_uniud ./FIT/main/fit_main.cpp ${SOURCE})
 target_link_libraries(dgafdtd_uniud "${LINK_LIBS}" "-lncurses" "-lgsl")
+target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses" "-lgsl")

@@ -60,11 +60,6 @@ class mesher
 	   t_mesh.tic();
 	   uint32_t nv,nf,ne,np;
 	   nv=nf=ne=np=0;
-	   epsilon[1]=epsilon0;
-	   mu[1]=mu0;
-	   sigma[1]=0.02;
-	   mag_sigma[1]=0;
-	   freq=5e9;
 	   
       //Numerical limits
 		 
