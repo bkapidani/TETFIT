@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+
 struct my_data
 {
 	double t, ksi, c, freq;

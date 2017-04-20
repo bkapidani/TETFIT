@@ -738,7 +738,7 @@
 
 				auto bar = edge_barycenter(i);
 				if (bar(2) <= zmin && Ct[i].size() > 2)
-					bc.push_back(sin( bar(0)*pi/0.05 )*edge_vector(i)(1));
+					bc.push_back(sin( bar(0)*PI/0.05 )*edge_vector(i)(1));
 				else
 					bc.push_back(0);
 
@@ -865,7 +865,7 @@
 			
 			// debug_counter.tic();
 			/* Handle boundary field excitations */
-			time_function=sin(2*pi*freq*i*t_step);
+			time_function=sin(2*PI*freq*i*t_step);
 			for (auto ee : bc_edges)
 				if (bc[ee] != 0)
 					U_eigen(ee) = time_function*bc[ee];
@@ -909,7 +909,7 @@
 
 		T time_function;
 		timecounter step_cost, debug_counter;
-		std::vector<T> numeric_values,numeric_times;
+		std::vector<T> numeric_values,numeric_times, analytic_values;
 		uint32_t nv = D.size()-1;
 	  
 		for (i=0; i*t_step <= simulation_time; i++)
@@ -918,7 +918,7 @@
 			
 			// debug_counter.tic();
 			/* Handle boundary field excitations */
-			time_function=sin(2*pi*freq*i*t_step);
+			time_function=sin(2*PI*freq*i*t_step);
 			for (auto ee : bc_edges)
 				if (bc[ee] != 0)
 					U[ee] = time_function*bc[ee];
@@ -1009,8 +1009,12 @@
 			// debug_counter.tic();
 			
 			auto num_val = GetElectricField(probe_elem);
+			double current_time = i*t_step;
+			auto spp = SpaceTimePoint({probe_point(0),probe_point(1),probe_point(2),current_time});
+			auto anal_val = analytic_value(spp,sigma[material[probe_elem]],epsilon[material[probe_elem]],mu[material[probe_elem]],freq);
 			numeric_values.push_back(num_val(1));
-			numeric_times.push_back(i*t_step);
+			analytic_values.push_back(anal_val);
+			numeric_times.push_back(current_time);
 			step_cost.toc();
 			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 			
@@ -1038,19 +1042,20 @@
    {
 	  std::cout  << std::endl << std::endl <<"---------------- Running FDTD simulation ----------------" << std::endl << std::endl;
 	  double step_time_average=0;
+	  double max_rel_err = 0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
 	  size_t i;
 	  
 	  T time_function;
 	  timecounter step_cost;
-	  std::vector<T> numeric_values,numeric_times;
+	  std::vector<T> numeric_values,numeric_times,analytic_values;
       std::vector<T> U_old(U); std::vector<T> F_old(F);
 	  
       
 	  for (i=0; i*t_step <= simulation_time; i++)
 	  {
 		 step_cost.tic();
-		 time_function=sin(2*pi*freq*i*t_step);
+		 time_function=sin(2*PI*freq*(i+1)*t_step);
 		 U_old=U;
          for (size_t j=0; j<U.size(); j++)
 		 {
@@ -1068,11 +1073,15 @@
 			 if (!boundary_face[j])
 				F[j] =  M_ni[j]*(M_mu[j]*F_old[j] - t_step*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]));
 		
-		 auto num_val = GetElectricField(probe_elem);
-		 numeric_values.push_back(num_val(1));
-		 numeric_times.push_back(i*t_step);
-		 step_cost.toc();
-		 step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
+		auto num_val = GetElectricField(probe_elem);
+		double current_time = double(i+1)*t_step;
+		auto spp = SpaceTimePoint({probe_point(0),probe_point(1),probe_point(2),current_time});
+		auto anal_val = analytic_value(spp,sigma[material[probe_elem]],epsilon[material[probe_elem]],mu[material[probe_elem]],freq);
+		numeric_values.push_back(num_val(1));
+		analytic_values.push_back(anal_val);
+		numeric_times.push_back(current_time);
+		step_cost.toc();
+		step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 		 
 		if (output_to_file && (i % 20 == 0))
 			ExportFields(i);
@@ -1080,16 +1089,34 @@
 		if ((i+1) % 140 == 0)
 			std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
 					  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+					  
+		if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
+		{
+			double rel_err = fabs(anal_val - num_val(1))/fabs(anal_val);
+			if (rel_err > max_rel_err)
+				max_rel_err = rel_err;
+		}
 	  }
 	  
 	  /* Output stats and fields*/
-	  std::ofstream os;
+	  std::ofstream os, os_a;
 	  os.open("numeric_FIT.dat");
+	  os_a.open("analytic_FIT.dat");
+	  
 	  for (size_t k=0; k < numeric_values.size(); k++)
+	  {
 		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
-	  os.close();
+		  os_a << numeric_times[k] << " " << analytic_values[k] << std::endl;		  
+	  }
+	  
+	  os.close(); os_a.close();
+	  
+	  std::ofstream max_error_file("max_rel_err_fit.dat",std::ofstream::out | std::ofstream::app);
+	  max_error_file << U.size()+F.size() << " " << max_rel_err << std::endl;
+	  
 	  std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
 	  std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
+	  std::cout << "Max relative error is "     << max_rel_err <<  std::endl;
    }
    
    uint32_t Volumes_size() { return D.size(); }

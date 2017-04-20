@@ -36,6 +36,7 @@
 #include "timecounter.h"
 #include "Efield.hpp"
 #include "Hfield.hpp"
+#include "Utilities.hpp"
 #include <silo.h>
 #include <string.h>
 #include <set>
@@ -44,10 +45,10 @@
 #include <iomanip>
 
 /*general parameters*/
-double pi = 3.141592653589793;
-double mu0 = 4*pi*1e-7;
-double epsilon0 = 8.854187817e-12;
-double c0 = 1 / sqrt( mu0 * epsilon0 );
+// double pi = 3.141592653589793;
+// double mu0 = 4*pi*1e-7;
+// double epsilon0 = 8.854187817e-12;
+// double c0 = 1 / sqrt( mu0 * epsilon0 );
 Eigen::Vector3d probe_point(0.025,0.0125,0.05);
 
 template<typename T>

@@ -64,8 +64,9 @@
 #include "sgnint32_t.hpp"
 #include "mapped_file.h"
 #include "strtot.hpp"
+#include "bessel.h"
 
-
+#pragma once
 
 /*general parameters*/
 const long double PI = 3.141592653589793238L;
@@ -217,4 +218,76 @@ void MyThrow(uint32_t input_line, const std::runtime_error& e)
 {
 	std::cout << "Input file error at line " << input_line << ": " << e.what() << std::endl;
 	throw e;
+}
+
+double analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
+{
+	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
+	double c = 1/sqrt(eps*mu);
+	double ax=5e-2;
+	double az=10e-2;
+	double ay=2.5e-2; //momentarily useless
+	double ksi = sigma/eps/2;
+	double alph1 = pow(PI*c/ax,2);
+	double alph2 = 0.25*pow(sigma/eps,2);
+	double alpha;
+	bool flag = true;
+	if (alph1>alph2)
+	{
+		flag = true;
+		alpha =  sqrt(alph1-alph2);
+	}
+	else
+	{
+		flag = false;
+		alpha = sqrt(alph2-alph1);
+	}
+	
+	
+	// std::cout << "Debug: " << pow(3.141592*c/ax,2) << " " << pow(sigma/eps,2)/4 << std::endl;
+	
+	// std::cout << "Parameters:" << std::endl << "C = " << c << "  ksi = " << ksi 
+											// << "  alpha = " << alpha << std::endl; 
+	
+	int32_t lim1 = floor( (t * c - z) / (2 * az) );
+	int32_t lim2 = floor( (t * c + z) / (2 * az) - 1);
+	
+	// std::cout << "At time t = " << t << " limits are : " << lim1 << "\t" << lim2 << std::endl;
+	
+	double a1, a2;
+	int32_t j=0;
+	// i=j=0;
+	a1=a2=0;
+	
+	
+	while (true)
+	{
+		double k = (z + 2 * az * j) / c;
+		if ((t-k) > 1e-6*k)
+		{
+			// std::cout << "First set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
+			// std::cout << "k = " << k <<  " time = " << t << std::endl;
+			a1 += sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq,flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	j=1;
+	while (true)
+	{
+		double k = (2*az*j - z) / c;
+		if ((t-k) > 1e-6*k)
+		{
+			// std::cout << "Second set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
+			// std::cout << "k = " << k <<  " time = " << t << std::endl;
+			a2 -= sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq,flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	return a1+a2;
 }
