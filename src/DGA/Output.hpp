@@ -41,6 +41,7 @@ class Output
 		name = "simulation";
 		output_period = 0;
 		index = 0;
+		// silo_instant = 0;
 	}
 	
 	void Initialize(void)
@@ -106,6 +107,8 @@ class Output
 		{
 			output_period = std::stod(value);
 		}
+		// else if (param == "instant")
+			// silo_instant = std::stod(value);
 		else if (param == "name")
 			name = value;
 		else
@@ -114,6 +117,7 @@ class Output
 	
 	bool AllowPrint(double t)
 	{
+		
 		if (t >= index)
 		{
 			index+=output_period;
@@ -124,6 +128,7 @@ class Output
 	}
 	
 	const double& Period(void) const { return output_period; }
+	// const double& Instant(void) const { return silo_instant; }
 	const std::string& Name(void) const { return name; }
 	const OutputMode& Mode(void) const { return mode; }
 	const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; };

@@ -62,15 +62,17 @@
          std::vector<Q> tripletList;
          tripletList.reserve(Nx*Ny);
 
-         for (uint32_t j=0;j<Ny;j++)
+         for (uint32_t j=0;j<Ny;++j)
 		 {
             std::vector<uint32_t> this_col(Nx,0);
             px=xmin;
-            for (uint32_t i=0;i<Nx;i++)
+            for (uint32_t i=0;i<Nx;++i)
 			{
 			   
                if (IsGridVol(px,py,pz))
-			   {
+				   material.push_back(2);
+			   else
+				   material.push_back(1);
 				  Eigen::Vector3d pp(px,py,pz);
 				  
 				  if (not_found)
@@ -395,7 +397,7 @@
 				  //Dt[D[nv][4]].push_back( nv);
 				  //Dt[D[nv][5]].push_back( nv);
 
-				  material.push_back(1);
+				  // material.push_back(1);
 				
 				 if (!G[E_cluster[nv][0]].size())
 				 {
@@ -667,7 +669,7 @@
 					nv++;
 					tripletList.push_back(Q(i,j,nv));
 					this_col[i]=nv;
-			   }
+			   // }
 			   
                px+=Lx;
 			}
@@ -685,7 +687,7 @@
 			Hvec.resize(tot_E);
 			
 
-	  for (uint32_t i=0; i<nf; i++)
+	  for (uint32_t i=0; i<nf; ++i)
 	  {
 			Nvec(i)=average_ni[i]/face_area[i];
 
@@ -702,7 +704,7 @@
 	  }
 	  // uint32_t number_of_lossy=0;
 	  
-	  for (uint32_t i=0; i<ne; i++)
+	  for (uint32_t i=0; i<ne; ++i)
 	  {
 			Hvec(i)=edge_len[i]/average_eps[i];
 
@@ -764,13 +766,7 @@
 	  
       t_mesh.toc();
 	  std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
-	  std::cout << "Mesh statistics: " << std::endl;
-	  std::cout << std::setw(20) << "volumes: "           << std::setw(10) << nv << std::endl; 
-	  std::cout << std::setw(20) << "surfaces: "          << std::setw(10) << nf << std::endl;
-	  std::cout << std::setw(20) << "edges: "             << std::setw(10) << ne << std::endl; 
-	  std::cout << std::setw(20) << "vertices: "          << std::setw(10) << np << std::endl;
-	  std::cout << std::setw(20) << "materials: "         << std::setw(10) << mu.size() << std::endl; 
-	  std::cout << std::setw(20) << "N. of unknowns: "    << std::setw(10) << nf+ne << std::endl << std::endl;
+
    }
    
 	void RunEigenBased(const double simulation_time)
@@ -797,7 +793,7 @@
 		
 		// std::cout << Hvec.size() << "------" << Nvec.size() << std::endl;
 		
-		for (uint32_t j=0; j<nv; j++)
+		for (uint32_t j=0; j<nv; ++j)
 		{
 			e1 = E_cluster[j][ 7];
 			e2 = E_cluster[j][10];
@@ -859,7 +855,7 @@
 		CTmat.setFromTriplets(tripletList2.begin(), tripletList2.end());
 		
 		
-		for (i=0; i*t_step <= simulation_time; i++)
+		for (i=0; i*t_step <= simulation_time; ++i)
 		{
 			step_cost.tic();
 			
@@ -912,7 +908,7 @@
 		std::vector<T> numeric_values,numeric_times, analytic_values;
 		uint32_t nv = D.size()-1;
 	  
-		for (i=0; i*t_step <= simulation_time; i++)
+		for (i=0; i*t_step <= simulation_time; ++i)
 		{
 			step_cost.tic();
 			
@@ -928,7 +924,7 @@
 			// debug_counter.tic();
 			
 			/* Handle fields voxel per voxel */
-			for (uint32_t j=0; j<nv; j++)
+			for (uint32_t j=0; j<nv; ++j)
 			{
 				// if (j==0)
 					// debug_counter.tic();
@@ -1051,39 +1047,52 @@
 	  std::vector<T> numeric_values,numeric_times,analytic_values;
       std::vector<T> U_old(U); std::vector<T> F_old(F);
 	  
+
+		std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
+		std::cout << std::setw(20) << "Mesh diamter: " 			<< std::setw(20) << 0.5*L*sqrt(3)				 << "   m" << std::endl;
+		std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
+		std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
+		std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
       
-	  for (i=0; i*t_step <= simulation_time; i++)
+	  for (i=0; i*t_step <= simulation_time; ++i)
 	  {
 		 step_cost.tic();
-		 time_function=sin(2*PI*freq*(i+1)*t_step);
+		 time_function=sin(2*PI*freq*(i)*t_step);
+		 // std::cout << "where does it go" << std::endl;
 		 U_old=U;
-         for (size_t j=0; j<U.size(); j++)
+         for (size_t j=0; j<U.size(); ++j)
 		 {
-			if (bc[j]!=0)
-			{
+			// if (bc[j]!=0)
+			// {
 				if (!is_boundary[j])
 					U[j] = M_h[j]*(M_e[j]*U_old[j] +t_step*dual_curl[j]*(F[Ct[j][0]]-F[Ct[j][1]]+F[Ct[j][2]]-F[Ct[j][3]]));
 				else
 					U[j] = time_function*bc[j];
-			}
+			// }
 		 }
 		 
+		 // std::cout << "where does it go" << std::endl;
+		 
+		 // for (auto j : bc_edges)
+			 // U[j] = time_function*bc[j];
+		 
 		 F_old=F;
-         for (size_t j=0; j<F.size(); j++)
-			 if (!boundary_face[j])
+         for (size_t j=0; j<F.size(); ++j)
+			 // if (!boundary_face[j])
 				F[j] =  M_ni[j]*(M_mu[j]*F_old[j] - t_step*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]));
 		
 		auto num_val = GetElectricField(probe_elem);
 		double current_time = double(i+1)*t_step;
 		auto spp = SpaceTimePoint({probe_point(0),probe_point(1),probe_point(2),current_time});
-		auto anal_val = analytic_value(spp,sigma[material[probe_elem]],epsilon[material[probe_elem]],mu[material[probe_elem]],freq);
+		// auto anal_val = analytic_value(spp,sigma[material[probe_elem]],epsilon[material[probe_elem]],mu[material[probe_elem]],freq);
+		double anal_val = 0;
 		numeric_values.push_back(num_val(1));
 		analytic_values.push_back(anal_val);
 		numeric_times.push_back(current_time);
 		step_cost.toc();
 		step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 		 
-		if (output_to_file && (i % 20 == 0))
+		if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
 			ExportFields(i);
 		
 		if ((i+1) % 140 == 0)
@@ -1129,7 +1138,7 @@
 		timecounter t_export;
 		t_export.tic();
 		std::stringstream namedummy;
-		namedummy << "./output/fit" << time << ".silo";
+		namedummy << "fit" << time << ".silo";
 		auto filename = namedummy.str();
 		_siloDb = DBCreate(filename.c_str(), DB_CLOBBER, DB_LOCAL, NULL, DB_PDB);
 		
@@ -1192,11 +1201,11 @@
 		coordnames[2] = strdup("Z");
 		/* Give the x coordinates of the mesh */
 		// uint32_t pt_iter=0;
-		for (size_t i=0; i<=Nx; i++)
+		for (size_t i=0; i<=Nx; ++i)
 			nodex.push_back(i*Lx);
-		for (size_t i=0; i<=Ny; i++)
+		for (size_t i=0; i<=Ny; ++i)
 			nodey.push_back(i*Ly);
-		for (size_t i=0; i<=Nz; i++)
+		for (size_t i=0; i<=Nz; ++i)
 			nodez.push_back(i*Lz);
 		
 		/* How many nodes in each direction? */
@@ -1231,6 +1240,7 @@
    Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
    Eigen::Vector3d area_z_vec, area_y_vec, area_x_vec;
    Eigen::VectorXd Hvec,Nvec;
+   Eigen::Vector3d probe_point;
    std::vector<Eigen::Vector3d> pts/*, dual_pts, face_bars*/;
    std::vector<std::vector<uint32_t>> E_cluster,P_cluster;
    std::vector<uint8_t> is_ele_lossy, is_mag_lossy;
@@ -1244,7 +1254,7 @@
    {
 	  std::vector<T> u;
 	  
-	  for (uint32_t i=0; i<12; i++)
+	  for (uint32_t i=0; i<12; ++i)
 		  u.push_back(U[E_cluster[cube][i]]);
 	  
       Eigen::Vector3d ret = (u[0]*dual_area_x +	u[ 1]*dual_area_y + u[ 2]*dual_area_z +
@@ -1258,7 +1268,7 @@
    {
 	  std::vector<T> u;
 	  
-	  for (uint32_t i=0; i<6; i++)
+	  for (uint32_t i=0; i<6; ++i)
 		  u.push_back(F[D[cube][i]]);
 	  
       Eigen::Vector3d ret = (u[0]*area_z_vec + u[1]*area_y_vec + u[2]*area_x_vec +
@@ -1299,23 +1309,23 @@
    
    bool IsGridVol(T x, T y, T z)
    {
-	   if (IsGridPoint(x,y,z))
-		   return true;
-	   if (IsGridPoint(x+Lx,y,z))
-		   return true;
-	   if (IsGridPoint(x,y+Ly,z))
-		   return true;
-	   if (IsGridPoint(x,y,z+Lz))
-		   return true;
-	   if (IsGridPoint(x+Lx,y+Ly,z))
-		   return true;
-	   if (IsGridPoint(x+Lx,y,z+Lz))
-		   return true;
-	   if (IsGridPoint(x,y+Ly,z+L))
-		   return true;
-	   if (IsGridPoint(x+Lx,y+Ly,z+Lz))
-		  return true;
-	   return false;
+	   if (!IsGridPoint(x,y,z))
+		   return false;
+	   if (!IsGridPoint(x+Lx,y,z))
+		   return false;
+	   if (!IsGridPoint(x,y+Ly,z))
+		   return false;
+	   if (!IsGridPoint(x,y,z+Lz))
+		   return false;
+	   if (!IsGridPoint(x+Lx,y+Ly,z))
+		   return false;
+	   if (!IsGridPoint(x+Lx,y,z+Lz))
+		   return false;
+	   if (!IsGridPoint(x,y+Ly,z+L))
+		   return false;
+	   if (!IsGridPoint(x+Lx,y+Ly,z+Lz))
+		  return false;
+	   return true;
    }
    
    bool IsGridPoint(T x, T y, T z)

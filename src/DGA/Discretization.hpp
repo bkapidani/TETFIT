@@ -308,12 +308,12 @@ class Discretization
 		uint64_t i;
 		
 		std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
-		std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              				  << std::endl;
-		std::cout << std::setw(20) << "Minimum diameter: " 		<< std::setw(20)  << min_h 						<< "   m" << std::endl;
+		std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
+		std::cout << std::setw(20) << "Mesh diamter: " 			<< std::setw(20)  << max_circum_r 				 << "   m" << std::endl;
 		std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
-		std::cout << std::setw(20) << "Time step geom: "   		<< std::setw(20) << t_step_geom                      << " sec" << std::endl;
+		// std::cout << std::setw(20) << "Time step geom: "   		<< std::setw(20) << t_step_geom                      << " sec" << std::endl;
 		// std::cout << std::setw(20) << "Time step power: "  		<< std::setw(20) << t_step_power                       << " sec" << std::endl;
-		std::cout << std::setw(20) << "Time step spectral: "  	<< std::setw(20) << t_step                       << " sec" << std::endl;
+		std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 		std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size      << std::endl  << std::endl;
 		
 		
@@ -501,7 +501,7 @@ class Discretization
 		// }
 		
 		std::ofstream max_error_file("max_rel_err.dat",std::ofstream::out | std::ofstream::app);
-		max_error_file << edges_size()+surfaces_size() << max_rel_err << std::endl;
+		max_error_file << max_circum_r << " " << max_rel_err << std::endl;
 		
 		std::cout << std::setw(20) << "Time step average cost is "  << step_time_average/(double(i)) 
 		          << " seconds (" << i << " time steps!)" << std::endl;
@@ -614,9 +614,10 @@ class Discretization
 				probe_numeric_yvalues[p].push_back(num_ele[1]);
 				probe_numeric_zvalues[p].push_back(num_ele[2]);
 				SpaceTimePoint stp = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t});
-				double anal_value = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
-				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
-													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+				// double anal_value = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+				                                       // Materials[vol_material[probe_elem[p]]].Epsilon(),
+													   // Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+				double anal_value = 0;
 				analytic_value_vector[p].push_back(anal_value);
 				
 				if ((t - t_step) < 1e-9 && (t + t_step) > 1e-9 && p==0)
@@ -678,30 +679,72 @@ class Discretization
 		}
 	}
 	
-	uint32_t FindProbe(const Eigen::Vector3d& probe_vec)
+	uint32_t FindProbe(const Eigen::Vector3d& pv)
 	{
-		double dist = (vol_barycenter(0)-probe_vec).norm();
-		uint32_t ret = 0;
+		// double dist = (vol_barycenter(0)-probe_vec).norm();
+		// uint32_t ret = 0;
 		
 		for (uint32_t v=0; v<volumes_size(); v++)
 		{
-			double new_dist = (vol_barycenter(v)-probe_vec).norm();
+			double vol = CellVolumes[v];
+			auto v1 = pts[tet_nodes[v][0]];
+			auto v2 = pts[tet_nodes[v][1]];
+			auto v3 = pts[tet_nodes[v][2]];
+			auto v4 = pts[tet_nodes[v][3]];
 			
-			if (new_dist < dist)
+			Eigen::Matrix4d mat1;
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			double det0 = mat1.determinant();
+			
+			mat1 <<  pv(0), pv(1), pv(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			double det1 = mat1.determinant();
+			
+			auto check1 = (std::signbit(det0) == std::signbit(det1));
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     pv(0), pv(1), pv(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			det1 = mat1.determinant();
+			auto check2 = (std::signbit(det0) == std::signbit(det1));
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     pv(0), pv(1), pv(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			det1 = mat1.determinant();
+			auto check3 = (std::signbit(det0) == std::signbit(det1));
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     pv(0), pv(1), pv(2), 1;
+					 
+			det1 = mat1.determinant();
+			auto check4 = (std::signbit(det0) == std::signbit(det1));
+			
+			if (check1 && check2 && check3 && check4)
 			{
-				dist = new_dist;
-				ret = v;
+				std::cout << (pv - vol_barycenter(v)).norm() << std::endl;
+				return v;
 			}
+				
 		}
 
-		// std::ofstream debug_faces("debug_faces.txt", std::ofstream::out | std::ofstream::app);
+		std::cout << "Probe out of mesh!" << std::endl;
 		
-		// for (auto ff : vtf_list[ret])
-			// debug_faces << print_face(4,abs(ff),true,0,255,255);
-		
-		// debug_faces.close();
-		
-		return ret;
+		return 0;
 	}
 	
 	Eigen::Vector3d GetElectricField(uint32_t vol)
@@ -1115,6 +1158,7 @@ class Discretization
 		std::vector<bool> bnd_nodes(pts.size(),false);
 		uint32_t my_hack_number = 0;
 		
+		max_circum_r = 0;
 		// new_neutral_file << lines << std::endl;
 		tc.tic();
 		while (linecount < lines)
@@ -1211,10 +1255,17 @@ class Discretization
 			Eigen::Vector3d v2 = pts[p2] - pts[p0];
 			Eigen::Vector3d v3 = pts[p3] - pts[p0];		
 
-			// std::cout << v1 << std::endl << std::endl; 
-			// std::cout << v2 << std::endl << std::endl;
-			// std::cout << v3 << std::endl << std::endl;
-			// std::cout << "-----------"   << std::endl;
+			double coords[12] = { pts[p0](0), pts[p0](1), pts[p0](2),
+                                  pts[p1](0), pts[p1](1), pts[p1](2),
+								  pts[p2](0), pts[p2](1), pts[p2](2),
+								  pts[p3](0), pts[p3](1), pts[p3](2) };
+			
+			double cc[3];
+			double circum_r;
+			
+			tetrahedron_circumsphere(coords,circum_r, cc);
+			if ( circum_r > max_circum_r)
+				max_circum_r = circum_r;
 			
 			auto cross_partial = v2.cross(v3);			
 			double vol_partial = v1.dot(cross_partial);
@@ -1227,6 +1278,7 @@ class Discretization
 			vol_material.push_back(mat_label);
 			
 			auto pp = std::vector<uint32_t>({p0,p1,p2,p3});
+			tet_nodes.push_back(pp);
 			
 			for (uint8_t ip=0; ip<4; ip++)
 			{
@@ -2594,6 +2646,23 @@ class Discretization
 		}
 	}
 
+	// bool SameSide(Eigen::Vector3d v1, Eigen::Vector3d v2, Eigen::Vector3d v3, Eigen::Vector3d v4, Eigen::Vector3d p)
+	// {
+		// auto normal = (v2 - v1).cross(v3 - v1);
+		// auto dotV4 = normal.dot(v4 - v1);
+		// auto dotP = normal.dot(p - v1);
+		// return ( (std::signbit(dotV4) == std::signbit(dotP)) && (fabs(dotP) > 0) && (fabs(dotP) <= fabs(dotV4)) );
+	// }
+
+	// bool PointInTetrahedron(uint32_t v, Eigen::Vector3d p)
+	// {
+		
+		// return (SameSide(v1, v2, v3, v4, p) &&
+			    // SameSide(v2, v3, v4, v1, p) &&
+			    // SameSide(v3, v4, v1, v2, p) &&
+			    // SameSide(v4, v1, v2, v3, p));
+	// }
+	
 	Eigen::Vector3d vol_barycenter(const uint32_t& v)
 	{
 		return (pts[std::get<0>(volumes[v])]+pts[std::get<1>(volumes[v])]+pts[std::get<2>(volumes[v])]+pts[std::get<3>(volumes[v])])/4;
@@ -2819,7 +2888,7 @@ class Discretization
 	std::vector<uint32_t> 						vol_material, boundary_index, h_index, p_index, n_index, r_index, edge_bids;
 	std::vector<uint32_t>				        edge_bcs, face_bcs, probe_elem;
 	std::vector<uint8_t>						classify_edges, classify_surfaces;
-	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets;
+	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets, tet_nodes;
 	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
 	std::vector<std::vector<uint32_t>>			edge_src, face_src;
 	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna;
@@ -2830,7 +2899,7 @@ class Discretization
 	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars, probe_points, antenna_bnd_pts;
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
-	double                                      t_step, min_h, average_diameter, max_rel_err;
+	double                                      t_step, min_h, average_diameter, max_rel_err, max_circum_r;
 	uint32_t									loaded_mesh_label, current_simulation;
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;
