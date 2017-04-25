@@ -91,6 +91,7 @@ DEFINE simulation 1
    #SET source 2 #additional sources can be set
    SET duration 2e-9
    SET output 	1
+   SET method dga
 END simulation 1
 
 # DEFINE simulation 2
