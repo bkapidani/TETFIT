@@ -11,7 +11,7 @@ if ( APPLE )
 endif ( APPLE )
 
 if ( CYGWIN )
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++14 -fdiagnostics-color=always -fpermissive -Wa,-mbig-obj")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=gnu++14 -fdiagnostics-color=always -fpermissive -Wa,-mbig-obj")
 endif ( CYGWIN )
 
 if ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )

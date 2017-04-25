@@ -58,8 +58,14 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-#include <Spectra/MatOp/SparseSymMatProd.h>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
+#include <Eigen/IterativeLinearSolvers>
+#include <Eigen/Eigenvalues>
 #include <Spectra/SymEigsSolver.h>
+#include <Spectra/SymGEigsSolver.h>
+#include <Spectra/MatOp/SparseSymMatProd.h>
+#include <Spectra/MatOp/SparseCholesky.h>
 #include "timecounter.h"
 #include "sgnint32_t.hpp"
 #include "mapped_file.h"
@@ -140,6 +146,7 @@ typedef std::string												BoundaryConditionType;
 typedef std::string												Profile;
 typedef std::string												Meshtype;
 typedef std::string												OutputMode;
+typedef std::string												SimMethod;
 typedef double													Amplitude;
 typedef double 													Frequency;
 typedef double 													WaveNumber;
@@ -157,6 +164,7 @@ const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
 const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
 const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint"};
+const std::vector<SimMethod>							simmethods		= { "fit", "dga", "fem"};
 
 const std::runtime_error pml_missing(std::string("Sorry, PML not implemented yet, getting there!"));
 const std::runtime_error pmc_missing(std::string("Sorry, PMC not implemented yet, getting there!"));
@@ -173,12 +181,13 @@ const std::runtime_error too_few_coords(std::string("Undefined end to list of co
 const std::runtime_error src_unknown_bf(std::string("Unrecognized base function! Available: sin, cos"));
 const std::runtime_error src_unknown_parameter(std::string("unrecognized parameter for source!"));
 const std::runtime_error material_unknown_parameter(std::string("Unrecognized material parameter! Available: epsilon, mu, sigma, chi"));
-const std::runtime_error mesh_unknown_type(std::string("undefined mesh type! Available: tetrahedral, cartesian"));
-const std::runtime_error mesh_unknown_mesher(std::string("undefined mesher! Available: netgen, gmsh"));
-const std::runtime_error mesh_unknown_parameter(std::string("undefined mesh parameter! Available: file, name, type, mesher, scalefactor"));
-const std::runtime_error sim_unknown_output(std::string("undefined output mode type! Available: silo, probe"));
-const std::runtime_error sim_unknown_parameter(std::string("undefined simulation parameter! Available: source, mesh, duration, output"));
-const std::runtime_error out_unknown_parameter(std::string("undefined output parameter! Available: mode, period, probe, name"));
+const std::runtime_error mesh_unknown_type(std::string("Undefined mesh type! Available: tetrahedral, cartesian"));
+const std::runtime_error mesh_unknown_mesher(std::string("Undefined mesher! Available: netgen, gmsh"));
+const std::runtime_error mesh_unknown_parameter(std::string("Undefined mesh parameter! Available: file, name, type, mesher, scalefactor"));
+const std::runtime_error sim_unknown_output(std::string("Undefined output mode type! Available: silo, probe"));
+const std::runtime_error sim_unknown_method(std::string("Undefined simulation method! Available: fit, dga, fem"));
+const std::runtime_error sim_unknown_parameter(std::string("Undefined simulation parameter! Available: source, mesh, duration, output"));
+const std::runtime_error out_unknown_parameter(std::string("Undefined output parameter! Available: mode, period, probe, name"));
 const std::runtime_error set_wo_define(std::string("define something before setting variables"));
 const std::runtime_error unknown_define(std::string("can only define material, mesh, boundary condition or source"));
 const std::runtime_error end_wo_define(std::string("ending non defined definition"));

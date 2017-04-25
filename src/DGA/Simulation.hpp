@@ -40,6 +40,7 @@ class Simulation
 		sources=std::vector<uint32_t>({1});
 		mesh_label=1;
 		output = 0;
+		method = "dga";
 	}
 	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
@@ -55,6 +56,8 @@ class Simulation
 			d = std::stod(value);
 		else if (param == "output")
 			output = std::stod(value);
+		else if (param == "method")
+			SetMethod(input_line,value);
 		// else if (param == "probe")
 		// {
 			// auto  i = value.begin();
@@ -102,11 +105,21 @@ class Simulation
 	const uint32_t& MeshLabel(void) const { return mesh_label; }
 	const uint32_t& Output(void) const { return output; }
 	const std::vector<uint32_t>& Src(void) { return sources; }
+	const SimMethod& Method(void) const { return method; }
 	// const Eigen::Vector3d& Probe(void) const { return probepoint; }
 	
 	private:
 	Duration d;
+	SimMethod method;
 	// Eigen::Vector3d probepoint;
 	std::vector<uint32_t> sources; //can combine multiple sources
 	uint32_t mesh_label, output;
+	void SetMethod(uint32_t il, SimMethod m)
+	{
+		if (std::find(simmethods.begin(),simmethods.end(),m) == simmethods.end())
+								MyThrow(il,sim_unknown_method);
+		else 
+			method = m;
+	}
+	
 };
