@@ -56,6 +56,10 @@
 #include <chrono>
 #include <mutex>
 
+// #ifndef EIGEN_USE_BLAS 
+// #define EIGEN_USE_BLAS
+// #endif
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/Core>
@@ -66,12 +70,15 @@
 #include <Spectra/SymGEigsSolver.h>
 #include <Spectra/MatOp/SparseSymMatProd.h>
 #include <Spectra/MatOp/SparseCholesky.h>
+
+
 #include "timecounter.h"
 #include "sgnint32_t.hpp"
 #include "mapped_file.h"
 #include "strtot.hpp"
 #include "bessel.h"
 #include "burkardt.h"
+#include "agmg.hpp"
 
 #pragma once
 
@@ -190,7 +197,7 @@ const std::runtime_error sim_unknown_parameter(std::string("Undefined simulation
 const std::runtime_error out_unknown_parameter(std::string("Undefined output parameter! Available: mode, period, probe, name"));
 const std::runtime_error set_wo_define(std::string("define something before setting variables"));
 const std::runtime_error unknown_define(std::string("can only define material, mesh, boundary condition or source"));
-const std::runtime_error end_wo_define(std::string("ending non defined definition"));
+const std::runtime_error end_wo_define(std::string("ending unopened definition"));
 const std::runtime_error unknown_instruction(std::string("Unknown instruction inside define block"));
 const std::runtime_error unexpected_end(std::string("File ended unexpectedly before ending definition"));
 const std::runtime_error out_of_bounds_freq(std::string("Output frequency must be a value between 0 and 1!"));

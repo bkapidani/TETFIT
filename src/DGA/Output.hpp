@@ -36,11 +36,15 @@ class Output
 	public:
 	Output()
 	{
-		// probepoint = Eigen::Vector3d({0,0,0});
+		// probepoints = Eigen::Vector3d({0,0,0});
 		mode = "none";
 		name = "simulation";
 		output_period = 0;
 		index = 0;
+		grid = false;
+		xstart = ystart = zstart = 0;
+		xstop  = ystop  = zstop  = 0;
+		xstep  = ystep  = zstep  = 0;
 		// silo_instant = 0;
 	}
 	
@@ -48,8 +52,6 @@ class Output
 	{
 		index = 0;
 	}
-	
-	const uint32_t Nprobes(void) const { return probepoint.size(); }
 	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
 	{
@@ -100,15 +102,186 @@ class Output
 				if (i == value.end())
 					MyThrow(input_line,too_few_coords);
 			}
-			
-			probepoint.push_back(new_probepoint);
+			std::cout << new_probepoint << std::endl;
+			probepoints.push_back(new_probepoint);
 		}
 		else if (param == "period")
 		{
 			output_period = std::stod(value);
 		}
-		// else if (param == "instant")
-			// silo_instant = std::stod(value);
+		else if (param == "xgrid")
+		{
+			// double xstart,xstep,xstop;
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k == 0)
+						{
+							xstart = std::stod(coord);
+							k++;
+						}
+						else if (k == 1)
+						{
+							xstep = std::stod(coord);
+							k++;
+						}
+						else if (k == 2)
+						{
+							xstop = std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+					
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+			
+			assert(xstart <= xstop);
+			assert(xstep > 0);
+		}
+		else if (param == "ygrid")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k == 0)
+						{
+							ystart = std::stod(coord);
+							k++;
+						}
+						else if (k == 1)
+						{
+							ystep = std::stod(coord);
+							k++;
+						}
+						else if (k == 2)
+						{
+							ystop = std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+					
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+			
+			assert(ystart <= ystop);
+			assert(ystep > 0);
+		}
+		else if (param == "zgrid")
+		{
+			// double xstart,xstep,xstop;
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k == 0)
+						{
+							zstart = std::stod(coord);
+							k++;
+						}
+						else if (k == 1)
+						{
+							zstep = std::stod(coord);
+							k++;
+						}
+						else if (k == 2)
+						{
+							zstop = std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+					
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+			
+			assert(zstart <= zstop);
+			assert(zstep > 0);
+		}
+		else if (param == "grid")
+		{
+			if (value == "on")
+			{
+				double xiter, yiter, ziter;
+				for (ziter=zstart; ziter<=zstop; ziter+=zstep)
+					for (yiter=ystart; yiter<=ystop; yiter+=ystep)
+						for (xiter=xstart; xiter<=xstop; xiter+=xstep)
+							probepoints.push_back(Eigen::Vector3d({xiter,yiter,ziter}));
+			}
+			else if (value == "off")
+				;
+			else
+				MyThrow(input_line,out_unknown_parameter);
+		}
 		else if (param == "name")
 			name = value;
 		else
@@ -127,6 +300,8 @@ class Output
 			return false;
 	}
 	
+		
+	const uint32_t Nprobes(void) const { return probepoints.size(); }
 	const double& Period(void) const { return output_period; }
 	// const double& Instant(void) const { return silo_instant; }
 	const std::string& Name(void) const { return name; }
@@ -134,15 +309,16 @@ class Output
 	const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; };
 	const Eigen::Vector3d& Probe(uint32_t i) const
 	{ 
-		assert(i<probepoint.size());
-		return probepoint[i];
+		assert(i<probepoints.size());
+		return probepoints[i];
 	}
 	
 	private:
+	bool grid;
 	std::vector<uint32_t> radiating_vol_bnd;
 	std::string name;
-	double index;
+	double index, xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
 	double output_period;
-	std::vector<Eigen::Vector3d> probepoint;
+	std::vector<Eigen::Vector3d> probepoints;
 	OutputMode mode;
 };

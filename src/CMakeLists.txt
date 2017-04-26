@@ -11,7 +11,7 @@ if ( APPLE )
 endif ( APPLE )
 
 if ( CYGWIN )
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=gnu++14 -fdiagnostics-color=always -fpermissive -Wa,-mbig-obj")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++14 -fdiagnostics-color=always -fpermissive -Wa,-mbig-obj")
 endif ( CYGWIN )
 
 if ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )
@@ -48,13 +48,14 @@ include_directories("${BOOST_INCLUDE_DIRS}")
 # add_subdirectory(fdtd)
 
 include_directories(${INCLUDE_DIRS})
-include_directories(FIT DGA utils)
+include_directories(FIT DGA utils agmg)
 
 add_subdirectory(FIT)
 add_subdirectory(DGA)
 add_subdirectory(utils)
+add_subdirectory(agmg)
 
 add_executable(dgafdtd_uniud ./DGA/main/dga_main.cpp ${SOURCE})
 add_executable(fit_uniud ./FIT/main/fit_main.cpp ${SOURCE})
-target_link_libraries(dgafdtd_uniud "${LINK_LIBS}" "-lncurses" "-lgsl" "-lblas")
-target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses" "-lgsl" "-lblas")
+target_link_libraries(dgafdtd_uniud "${LINK_LIBS}" "-lncurses" "-lgsl" "-lblas" "-llapack")
+target_link_libraries(fit_uniud "${LINK_LIBS}" "-lncurses" "-lgsl" "-lblas" "-llapack")

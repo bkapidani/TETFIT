@@ -4,9 +4,9 @@
 DEFINE mesh 1
    SET type   tetrahedral
    SET mesher netgen
-   # SET file   wg.mesh
+   # SET file   wg_smallball.mesh
    # SET file   camera_nuova_big.mesh
-   SET file   /home/bernard/tap_meshes/wg1.mesh
+   SET file   /home/Bernard/tap_meshes/wg1.mesh
    SET name	  waveguide
    SET scalefactor 1
 END mesh 1
@@ -75,29 +75,31 @@ END source 1
 
 # Output setups
 DEFINE output 1
-   SET mode   	silo
+   SET mode   	probepoint
    # SET probe    { 0.025 , 0.0125 , 0.050 } #useless if mode is silo
-   # SET probe    { 0.025 , 0.0125 , 0.0551 } #useless if mode is silo
+   # SET probe    { 0.025 , 0.0125 , 0.055 } #useless if mode is silo
    # SET probe    { 0.025 , 0.0125 , 0.060 } #useless if mode is silo
+   SET xgrid { 0.0005, 0.0005, 0.0495}
+   SET ygrid { 0.0125, 1,  0.0125}
+   SET zgrid { 0.05, 1,  0.05}
+   SET grid on
    # SET radiator 3 
    SET period	1e-9
 END output 1
 
 # Simulations
-DEFINE simulation 1
+# DEFINE simulation 1
+   # SET method   fem
+   # SET mesh     1
+   # SET source   1
+   # SET duration 2e-9
+   # SET output 	1
+# END simulation 1
+
+DEFINE simulation 2
    SET method   dga
    SET mesh     1
    SET source   1
-   #SET source 2 #additional sources can be set
    SET duration 2e-9
    SET output 	1
-   SET method dga
-END simulation 1
-
-# DEFINE simulation 2
-   # SET mesh     1
-   # SET source   1
-   # SET source 2 #additional sources can be set
-   # SET duration 1e-9
-   # SET output 	1
-# END simulation 2
+END simulation 2
