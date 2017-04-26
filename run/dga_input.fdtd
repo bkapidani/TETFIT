@@ -88,18 +88,18 @@ DEFINE output 1
 END output 1
 
 # Simulations
-# DEFINE simulation 1
-   # SET method   fem
-   # SET mesh     1
-   # SET source   1
-   # SET duration 2e-9
-   # SET output 	1
-# END simulation 1
-
-DEFINE simulation 2
-   SET method   dga
+DEFINE simulation 1
+   SET method   fem
    SET mesh     1
    SET source   1
    SET duration 2e-9
    SET output 	1
-END simulation 2
+END simulation 1
+
+# DEFINE simulation 2
+   # SET method   dga
+   # SET mesh     1
+   # SET source   1
+   # SET duration 2e-9
+   # SET output 	1
+# END simulation 2
