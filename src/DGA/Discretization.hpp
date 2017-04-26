@@ -724,7 +724,8 @@ class Discretization
 		{
 			for (uint32_t p=0; p<probe_elem.size(); p++)
 			{
-				auto num_ele = GetElectricField(probe_elem[p]);
+				auto num_ele = GetWhitneyElectricField(probe_elem[p],(*probe_points[p]));
+				// auto num_ele = GetElectricField(probe_elem[p]);
 				probe_numeric_xvalues[p].push_back(num_ele[0]);
 				probe_numeric_yvalues[p].push_back(num_ele[1]);
 				probe_numeric_zvalues[p].push_back(num_ele[2]);
@@ -2355,6 +2356,7 @@ class Discretization
 			wn(2,3)=-(nx3*ny1+nx1*ny2+nx2*ny3-nx1*ny3-nx3*ny2-nx2*ny1)/det;
 			wn(3,3)=(-nx2*ny1*nz3+nx2*ny3*nz1-nx3*ny2*nz1+nx1*ny2*nz3+ny1*nx3*nz2-ny3*nx1*nz2)/det;
 			
+			whitney_nodal.push_back(wn);
 			Eigen::Matrix<double,3,4> grad_wn = wn.block<3,4>(0,0);
 			
 			Eigen::Matrix<double,6,6> sumn = Eigen::Matrix<double,6,6>::Zero();
@@ -3243,23 +3245,6 @@ class Discretization
 			return face_bars[ff];
 		}
 	}
-
-	// bool SameSide(Eigen::Vector3d v1, Eigen::Vector3d v2, Eigen::Vector3d v3, Eigen::Vector3d v4, Eigen::Vector3d p)
-	// {
-		// auto normal = (v2 - v1).cross(v3 - v1);
-		// auto dotV4 = normal.dot(v4 - v1);
-		// auto dotP = normal.dot(p - v1);
-		// return ( (std::signbit(dotV4) == std::signbit(dotP)) && (fabs(dotP) > 0) && (fabs(dotP) <= fabs(dotV4)) );
-	// }
-
-	// bool PointInTetrahedron(uint32_t v, Eigen::Vector3d p)
-	// {
-		
-		// return (SameSide(v1, v2, v3, v4, p) &&
-			    // SameSide(v2, v3, v4, v1, p) &&
-			    // SameSide(v3, v4, v1, v2, p) &&
-			    // SameSide(v4, v1, v2, v3, p));
-	// }
 	
 	Eigen::Vector3d vol_barycenter(const uint32_t& v)
 	{
@@ -3289,6 +3274,139 @@ class Discretization
 		}
 	}
 
+    std::vector<uint32_t> GetVolEdges(uint32_t vol)
+	{
+		if (vol_edges.size()>0)
+			return vol_edges[vol];
+		else
+		{
+			for (uint32_t vv=0; vv<volumes_size(); ++vv)
+			{
+				std::vector<uint32_t> edgs_l2g;
+				for (auto ff : vtf_list[vv])
+					for (auto ee : fte_list[abs(ff)])
+						edgs_l2g.push_back(abs(ee));
+					
+				sort_unique(edgs_l2g);
+				std::swap(edgs_l2g[1],edgs_l2g[2]);
+				std::swap(edgs_l2g[1],edgs_l2g[3]);
+				
+				vol_edges.push_back(edgs_l2g);
+			}
+		}
+
+		return vol_edges[vol];
+	}
+	
+	Eigen::Vector3d GetWhitneyElectricField(const uint32_t& vol, const Eigen::Vector3d& p)
+	{
+		if (whitney_nodal.size()==0)
+		{
+			for (uint32_t vv=0; vv<volumes_size(); ++vv)
+			{
+				auto vol_nodes = std::vector<uint32_t>({std::get<0>(volumes[vv]),std::get<1>(volumes[vv]),
+															std::get<2>(volumes[vv]),std::get<3>(volumes[vv])});
+															
+				std::vector<uint32_t> edgs_l2g;
+				for (auto ff : vtf_list[vv])
+					for (auto ee : fte_list[abs(ff)])
+						edgs_l2g.push_back(abs(ee));	
+				sort_unique(edgs_l2g);
+				std::swap(edgs_l2g[1],edgs_l2g[2]);
+				std::swap(edgs_l2g[1],edgs_l2g[3]);
+				Eigen::Matrix<double,4,3> node;
+				
+				double nx1,ny1,nz1,nx2,ny2,nz2,nx3,ny3,nz3,nx4,ny4,nz4;
+				
+				for (uint32_t i=0; i<4; i++)
+				{	
+					auto px = (pts[vol_nodes[i]])(0);
+					auto py = (pts[vol_nodes[i]])(1);
+					auto pz = (pts[vol_nodes[i]])(2);
+					
+					if (i==0)
+					{
+						nx1=px;
+						ny1=py;
+						nz1=pz;						
+					}
+					else if (i==1)
+					{
+						nx2=px;
+						ny2=py;
+						nz2=pz;	
+					}
+					else if (i==2)
+					{
+						nx3=px;
+						ny3=py;
+						nz3=pz;	
+					}
+					else
+					{
+						nx4=px;
+						ny4=py;
+						nz4=pz;	
+					}
+					
+					node(i,0)=px;
+					node(i,1)=py;
+					node(i,2)=pz;
+				}
+
+				auto det=(-ny4*nx3*nz2-ny4*nx1*nz3+ny4*nx3*nz1+nx4*ny2*nz1-nx4*ny2*nz3+ny4*nx1*nz2- 
+					  nx3*ny2*nz1+ny1*nx4*nz3-ny1*nx3*nz4-nx4*ny3*nz1-ny3*nx1*nz2+nx3*ny2*nz4- 
+					  nx1*ny2*nz4+nx1*ny2*nz3+nx1*ny3*nz4+ny3*nx4*nz2-nx2*ny3*nz4-nx2*ny1*nz3- 				
+					  nx2*ny4*nz1+nx2*ny4*nz3+nx2*ny3*nz1+nx2*ny1*nz4+ny1*nx3*nz2-ny1*nx4*nz2);
+				
+				Eigen::Matrix4d wn(4,4);
+				
+				wn(0,0)=(-ny4*nz3+ny4*nz2-ny3*nz2-ny2*nz4+ny2*nz3+ny3*nz4)/det;
+				wn(1,0)=-(-nx4*nz3-nx2*nz4+nx3*nz4-nx3*nz2+nx2*nz3+nx4*nz2)/det;
+				wn(2,0)=(-nx2*ny4+nx3*ny4-nx3*ny2+nx4*ny2-nx4*ny3+nx2*ny3)/det;
+				wn(3,0)=-(nx2*ny3*nz4-nx2*ny4*nz3+nx4*ny2*nz3-nx3*ny2*nz4+ny4*nx3*nz2-ny3*nx4*nz2)/det;
+
+				wn(0,1)=-(ny4*nz1+ny3*nz4-ny3*nz1-ny1*nz4+ny1*nz3-ny4*nz3)/det;
+				wn(1,1)=(-nx1*nz4+nx1*nz3+nx3*nz4+nx4*nz1-nx4*nz3-nx3*nz1)/det;
+				wn(2,1)=-(nx1*ny3-nx4*ny3-ny4*nx1+ny1*nx4-nx3*ny1+nx3*ny4)/det;
+				wn(3,1)=(-nx4*ny3*nz1+ny1*nx4*nz3-ny4*nx1*nz3+ny4*nx3*nz1+nx1*ny3*nz4-ny1*nx3*nz4)/det;
+
+				wn(0,2)=(-ny1*nz4+ny1*nz2+ny2*nz4-ny4*nz2+ny4*nz1-ny2*nz1)/det;
+				wn(1,2)=-(-nx4*nz2-nx1*nz4+nx2*nz4-nx2*nz1+nx1*nz2+nx4*nz1)/det;
+				wn(2,2)=(-ny4*nx1+nx2*ny4-nx2*ny1+ny1*nx4-nx4*ny2+nx1*ny2)/det;
+				wn(3,2)=-(nx1*ny2*nz4-ny4*nx1*nz2+ny1*nx4*nz2-nx2*ny1*nz4+nx2*ny4*nz1-nx4*ny2*nz1)/det;
+
+				wn(0,3)=-(-ny1*nz3+ny1*nz2+ny2*nz3-ny3*nz2-ny2*nz1+ny3*nz1)/det;
+				wn(1,3)=(nx3*nz1+nx2*nz3-nx1*nz3+nx1*nz2-nx2*nz1-nx3*nz2)/det;
+				wn(2,3)=-(nx3*ny1+nx1*ny2+nx2*ny3-nx1*ny3-nx3*ny2-nx2*ny1)/det;
+				wn(3,3)=(-nx2*ny1*nz3+nx2*ny3*nz1-nx3*ny2*nz1+nx1*ny2*nz3+ny1*nx3*nz2-ny3*nx1*nz2)/det;
+				
+				whitney_nodal.push_back(wn);
+			}
+		}
+		
+		Eigen::Matrix<double,3,4> grad_wn = whitney_nodal[vol].block<3,4>(0,0);
+		Eigen::Matrix<double,1,4> this_point(4), w_n(4);
+		Eigen::Matrix<double,3,6> we(3,6);
+		Eigen::Matrix<double,6,1> dofs_local_values;
+		
+		this_point(0) = p(0); this_point(1) = p(1); this_point(2) = p(2); this_point(3)=1;
+		w_n = this_point*whitney_nodal[vol];
+		
+		we.col(0)=w_n(0)*grad_wn.col(1)-w_n(1)*grad_wn.col(0);
+		we.col(1)=w_n(1)*grad_wn.col(2)-w_n(2)*grad_wn.col(1);
+		we.col(2)=w_n(0)*grad_wn.col(2)-w_n(2)*grad_wn.col(0);
+		we.col(3)=w_n(0)*grad_wn.col(3)-w_n(3)*grad_wn.col(0);
+		we.col(4)=w_n(1)*grad_wn.col(3)-w_n(3)*grad_wn.col(1);
+		we.col(5)=w_n(2)*grad_wn.col(3)-w_n(3)*grad_wn.col(2);
+		
+		auto edg_labels = GetVolEdges(vol);
+		for (uint32_t i=0;i<6;++i)
+			dofs_local_values[i] = U[edg_labels[i]];
+		
+		return we*dofs_local_values;
+	}
+	
 	std::string print_face(const uint32_t& label, const uint32_t& f, bool orient, double r, double g, double b)
 	{
 		std::ostringstream fr;
@@ -3486,12 +3604,13 @@ class Discretization
 	std::vector<uint32_t> 						vol_material, boundary_index, h_index, p_index, n_index, r_index, edge_bids;
 	std::vector<uint32_t>				        edge_bcs, face_bcs, probe_elem, compressed_dirichlet;
 	std::vector<uint8_t>						classify_edges, classify_surfaces;
-	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets; //tet_nodes;
+	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets, vol_edges; //tet_nodes;
 	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
 	std::vector<std::vector<uint32_t>>			edge_src, face_src;
 	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna;
 	std::vector<volume_type> 					volumes;
 	std::vector<surface_type> 					surfaces;
+	std::vector<Eigen::Matrix4d>				whitney_nodal;
 	std::vector<uint32_t>                       dual_is_fractured, primal_is_fractured;
 	std::vector<edge_type> 						edges;
 	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars, antenna_bnd_pts;
