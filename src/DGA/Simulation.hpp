@@ -41,6 +41,7 @@ class Simulation
 		mesh_label=1;
 		output = 0;
 		method = "dga";
+		analytic = false;
 	}
 	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
@@ -58,49 +59,20 @@ class Simulation
 			output = std::stod(value);
 		else if (param == "method")
 			SetMethod(input_line,value);
-		// else if (param == "probe")
-		// {
-			// auto  i = value.begin();
-			// if (*i != '{')
-				// MyThrow(input_line,coordinates_syntax);
-			// else
-			// {
-				// uint8_t k=0;
-				// i++;
-				// while (*i != ',' && *i != '}' && i != value.end())
-				// {
-					// std::string coord;
-					// while (*i != ',' && *i != '}' && i != value.end())
-					// {
-						// coord.push_back(*i);
-						// i++;
-					// }
-					// if (i == value.end())
-						// MyThrow(input_line,unbalanced_bracket);
-					// else 
-					// {
-						// if (k < 3)
-						// {
-							// probepoint[k]= std::stod(coord);
-							// k++;
-						// }
-						// else
-							// MyThrow(input_line,too_many_coords);
-						
-						// if (*i == ',')
-							// i++;
-					// }
-					
-				// }
-				
-				// if (i == value.end())
-					// MyThrow(input_line,too_few_coords);
-			// }
-		// }
+		else if (param == "analytic")
+		{
+			if (value == "true")
+				analytic = true;
+			else if (value == "false")
+				analytic = false;
+			else
+				MyThrow(input_line,sim_unknown_parameter);
+		}
 		else
 			MyThrow(input_line,sim_unknown_parameter);
 	}
 	
+	const bool& HaveAnalytic(void) const { return analytic; }
 	const Duration& Time(void) const { return d; } 
 	const uint32_t& MeshLabel(void) const { return mesh_label; }
 	const uint32_t& Output(void) const { return output; }
@@ -111,6 +83,7 @@ class Simulation
 	private:
 	Duration d;
 	SimMethod method;
+	bool analytic;
 	// Eigen::Vector3d probepoint;
 	std::vector<uint32_t> sources; //can combine multiple sources
 	uint32_t mesh_label, output;

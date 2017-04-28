@@ -63,8 +63,14 @@ class ConjugateGradientSolver
         Eigen::VectorXd r(N_), z(N_), p(N_), q(N_);
 		auto x = resultx;
 		
+		timecounter tc;
+		tc.tic();
         r = b - A_*x;
-        residual0 = residual = r.norm();
+        tc.toc();
+		
+		// std::cout << "Multiplying by mass matrix takes " << tc << " seconds" << std::endl;
+		
+		residual0 = residual = r.norm();
         while ( residual/residual0 > tol && iter < maxiter )
         {
             z = pre_.cwiseProduct(r);

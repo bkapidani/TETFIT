@@ -12,7 +12,19 @@
 	  T area_x = Ly*Lz;
 	  T area_y = Lx*Lz;
 	  
-	  
+	assert(xstart <= xstop);
+	assert(xstep > 0);
+	assert(ystart <= ystop);
+	assert(ystep > 0); 
+	assert(zstart <= zstop);
+	assert(zstep > 0);
+	
+	 std::vector<Eigen::Vector3d> probe_points;
+	double xiter, yiter, ziter;
+	for (ziter=zstart; ziter<=zstop; ziter+=zstep)
+		for (yiter=ystart; yiter<=ystop; yiter+=ystep)
+			for (xiter=xstart; xiter<=xstop; xiter+=xstep)
+				probe_points.push_back(Eigen::Vector3d({xiter,yiter,ziter}));
 	  
 	  T da_z = area_z/4;
 	  T da_x = area_x/4;
@@ -50,7 +62,7 @@
 	  // previous_layer.SetZero();
 	
       Eigen::Vector3d inc_x(Lx,0,0), inc_y(0,Ly,0), inc_z(0,0,Lz), dummy_vec;
-	  bool not_found = true;
+	  std::vector<bool> not_found(probepoints.size(),true);
 	  std::vector<int32_t> cplus=std::vector<int32_t>({1,-1,1,-1});
 	  std::vector<int32_t> cminus=std::vector<int32_t>({-1,1,-1,1});
 	  
@@ -74,19 +86,24 @@
 			   else
 				   material.push_back(1);
 				  Eigen::Vector3d pp(px,py,pz);
+				  auto pp2 = pp+inc_x+inc_y+inc_z;
 				  
-				  if (not_found)
+				  for (uint32_t piter=0; piter<probe_points.size(); ++piter)
 				  {
-					 auto pp2 = pp+inc_x+inc_y+inc_z;
-				     if (probe_point(0)>= pp(0) && probe_point(0)<= pp2(0) && 
-					     probe_point(1)>= pp(1) && probe_point(1)<= pp2(1) &&
-                         probe_point(2)>= pp(2) && probe_point(2)<= pp2(2))
-					 {
-                        not_found = false;
-						probe_elem = nv;
-						// std::cout << "# of element to be probed: " << nv+1 << std::endl;
-					 }
-                  }
+					  if (not_found[piter])
+					  {
+						 
+						 if (probe_points[piter](0)>= pp(0) && probe_points[piter](0)<= pp2(0) && 
+							 probe_points[piter](1)>= pp(1) && probe_points[piter](1)<= pp2(1) &&
+							 probe_points[piter](2)>= pp(2) && probe_points[piter](2)<= pp2(2))
+						 {
+							not_found[piter] = false;
+							probe_elem.push_back(nv);
+							probepoints.push_back(probe_points[piter]);
+							// std::cout << "# of element to be probed: " << nv+1 << std::endl;
+						 }
+					  }
+				  }
 
 				  std::vector<uint32_t> dummy(6), dummyf;
 				  std::vector<int32_t> dummycurl;
@@ -136,7 +153,7 @@
 						}
 						
 						P_cluster.push_back(std::vector<uint32_t>({np,np+1,np+2,np+3,
-						                                    np+4,np+5,np+6,np+7}));
+																   np+4,np+5,np+6,np+7}));
 						np+=8;
 						
 						// for (uint32_t cnt=0; cnt<8; cnt++)
@@ -769,7 +786,7 @@
 
    }
    
-	void RunEigenBased(const double simulation_time)
+	/*void RunEigenBased(const double simulation_time)
 	{
 		std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
 		double step_time_average=0;
@@ -780,7 +797,7 @@
 
 		T time_function;
 		timecounter step_cost, debug_counter;
-		std::vector<T> numeric_values,numeric_times;
+		std::vector<T> probe_numeric_yvalues,numeric_times;
 		uint32_t nv = D.size()-1;
 		typedef Eigen::Triplet<double,uint32_t> W;
 		Eigen::SparseMatrix<double> Cmat(C.size(),Ct.size()),CTmat(Ct.size(),C.size());
@@ -860,7 +877,6 @@
 			step_cost.tic();
 			
 			// debug_counter.tic();
-			/* Handle boundary field excitations */
 			time_function=sin(2*PI*freq*i*t_step);
 			for (auto ee : bc_edges)
 				if (bc[ee] != 0)
@@ -868,8 +884,8 @@
 			
 			F_eigen = F_eigen - Nvec.cwiseProduct(Cmat*U_eigen);
 			U_eigen = U_eigen + Hvec.cwiseProduct(CTmat*F_eigen);
-			// auto num_val = GetElectricField(probe_elem);
-			// numeric_values.push_back(num_val(1));
+			// auto num_val = GetElectricField(probe_elem[piter]);
+			// probe_numeric_yvalues[piter].push_back(num_val(1));
 			// numeric_times.push_back(i*t_step);
 			step_cost.toc();
 			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
@@ -884,17 +900,16 @@
 						  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 		}
 		
-		/* Output stats and fields*/
 		std::ofstream os;
 		os.open("numeric_FIT.dat");
-		for (size_t k=0; k < numeric_values.size(); k++)
-		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
+		for (uint32_t k=0; k < probe_numeric_yvalues.size(); k++)
+		  os << numeric_times[k] << " " << probe_numeric_yvalues[k] << std::endl;
 		os.close();
 		std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
 		std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
-	}
+	}*/
 	
-	void Run_VoxBased(const double simulation_time)
+	/*void Run_VoxBased(const double simulation_time)
 	{
 		std::cout << "---------------------- Running FDTD simulation ----------------------" << std::endl << std::endl;
 		double step_time_average=0;
@@ -905,7 +920,9 @@
 
 		T time_function;
 		timecounter step_cost, debug_counter;
-		std::vector<T> numeric_values,numeric_times, analytic_values;
+		std::vector<std::vector<T>> probe_numeric_yvalues, analytic_values;
+		std::vector<T> numeric_times;
+		
 		uint32_t nv = D.size()-1;
 	  
 		for (i=0; i*t_step <= simulation_time; ++i)
@@ -913,7 +930,6 @@
 			step_cost.tic();
 			
 			// debug_counter.tic();
-			/* Handle boundary field excitations */
 			time_function=sin(2*PI*freq*i*t_step);
 			for (auto ee : bc_edges)
 				if (bc[ee] != 0)
@@ -923,7 +939,6 @@
 			// std::cout << "BCs take " << debug_counter << " seconds" << std::endl;
 			// debug_counter.tic();
 			
-			/* Handle fields voxel per voxel */
 			for (uint32_t j=0; j<nv; ++j)
 			{
 				// if (j==0)
@@ -1004,12 +1019,12 @@
 			// std::cout << "Other fields take " << debug_counter << " seconds" << std::endl;
 			// debug_counter.tic();
 			
-			auto num_val = GetElectricField(probe_elem);
+			auto num_val = GetElectricField(probe_elem[piter]);
 			double current_time = i*t_step;
-			auto spp = SpaceTimePoint({probe_point(0),probe_point(1),probe_point(2),current_time});
-			auto anal_val = analytic_value(spp,sigma[material[probe_elem]],epsilon[material[probe_elem]],mu[material[probe_elem]],freq);
-			numeric_values.push_back(num_val(1));
-			analytic_values.push_back(anal_val);
+			auto spp = SpaceTimePoint({probepoints[piter](0),probepoints[piter](1),probepoints[piter](2),current_time});
+			auto anal_val = analytic_value(spp,sigma[material[probe_elem[piter]]],epsilon[material[probe_elem[piter]]],mu[material[probe_elem[piter]]],freq);
+			probe_numeric_yvalues[piter].push_back(num_val(1));
+			analytic_values[piter].push_back(anal_val);
 			numeric_times.push_back(current_time);
 			step_cost.toc();
 			step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
@@ -1024,15 +1039,14 @@
 						  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 		}
 		
-		/* Output stats and fields*/
 		std::ofstream os;
 		os.open("numeric_FIT.dat");
-		for (size_t k=0; k < numeric_values.size(); k++)
-		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
+		for (uint32_t k=0; k < probe_numeric_yvalues.size(); k++)
+		  os << numeric_times[k] << " " << probe_numeric_yvalues[k] << std::endl;
 		os.close();
 		std::cout << "Time step takes (average) " << step_time_average/(double(i)) << " seconds (" << i << " time steps!)" << std::endl;
 		std::cout << "Total running time is "     << step_time_average << " seconds" << std::endl;
-	}
+	}*/
    
    void Run(const double simulation_time)
    {
@@ -1040,13 +1054,24 @@
 	  double step_time_average=0;
 	  double max_rel_err = 0;
 	  const uint32_t N_of_steps=simulation_time/t_step;
-	  size_t i;
+	  uint32_t i;
 	  
 	  T time_function;
 	  timecounter step_cost;
-	  std::vector<T> numeric_values,numeric_times,analytic_values;
+		std::vector<std::vector<T>> probe_numeric_xvalues, probe_numeric_yvalues, probe_numeric_zvalues, analytic_values;
+		std::vector<T> numeric_times;
       std::vector<T> U_old(U); std::vector<T> F_old(F);
 	  
+		std::vector<T> dummy_vector;
+			
+		for (uint32_t piter=0; piter<probepoints.size(); ++piter)
+		{
+			probe_numeric_xvalues.push_back(dummy_vector);
+			probe_numeric_yvalues.push_back(dummy_vector);
+			probe_numeric_zvalues.push_back(dummy_vector);
+			analytic_values.push_back(dummy_vector);
+		}
+		 
 
 		std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 		std::cout << std::setw(20) << "Mesh diamter: " 			<< std::setw(20) << 0.5*L*sqrt(3)				 << "   m" << std::endl;
@@ -1058,9 +1083,10 @@
 	  {
 		 step_cost.tic();
 		 time_function=sin(2*PI*freq*(i)*t_step);
+		 double current_time = double(i)*t_step;
 		 // std::cout << "where does it go" << std::endl;
 		 U_old=U;
-         for (size_t j=0; j<U.size(); ++j)
+         for (uint32_t j=0; j<U.size(); ++j)
 		 {
 			// if (bc[j]!=0)
 			// {
@@ -1077,34 +1103,46 @@
 			 // U[j] = time_function*bc[j];
 		 
 		 F_old=F;
-         for (size_t j=0; j<F.size(); ++j)
+         for (uint32_t j=0; j<F.size(); ++j)
 			 // if (!boundary_face[j])
 				F[j] =  M_ni[j]*(M_mu[j]*F_old[j] - t_step*curl[j]*(U[C[j][0]]-U[C[j][1]]+U[C[j][2]]-U[C[j][3]]));
 		
-		auto num_val = GetElectricField(probe_elem);
-		double current_time = double(i+1)*t_step;
-		auto spp = SpaceTimePoint({probe_point(0),probe_point(1),probe_point(2),current_time});
-		// auto anal_val = analytic_value(spp,sigma[material[probe_elem]],epsilon[material[probe_elem]],mu[material[probe_elem]],freq);
-		double anal_val = 0;
-		numeric_values.push_back(num_val(1));
-		analytic_values.push_back(anal_val);
+		if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
+		{
+
+			
+			for (uint32_t piter=0; piter < probepoints.size(); ++piter)
+			{
+				auto num_val = GetElectricField(probe_elem[piter]);
+				double current_time = double(i+1)*t_step;
+				auto spp = SpaceTimePoint({probepoints[piter](0),probepoints[piter](1),probepoints[piter](2),current_time});
+				auto anal_val = analytic_value(spp,sigma[material[probe_elem[piter]]],epsilon[material[probe_elem[piter]]],mu[material[probe_elem[piter]]],freq);
+				// double anal_val = 0;
+				probe_numeric_xvalues[piter].push_back(num_val(0));
+				probe_numeric_yvalues[piter].push_back(num_val(1));
+				probe_numeric_zvalues[piter].push_back(num_val(2));
+				analytic_values[piter].push_back(anal_val);
+
+			}
+		}
+		
 		numeric_times.push_back(current_time);
 		step_cost.toc();
 		step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 		 
-		if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
-			ExportFields(i);
+		// if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
+			// ExportFields(i);
 		
 		if ((i+1) % 140 == 0)
 			std::cout << "-----------" << "Progress: " << 100*i/N_of_steps << "% done in " << std::setw(7) << step_time_average << "s, " 
 					  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 					  
-		if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
-		{
-			double rel_err = fabs(anal_val - num_val(1))/fabs(anal_val);
-			if (rel_err > max_rel_err)
-				max_rel_err = rel_err;
-		}
+		// if ((current_time - t_step) < 1e-9 && (current_time + t_step) > 1e-9)
+		// {
+			// double rel_err = fabs(anal_val - num_val(1))/fabs(anal_val);
+			// if (rel_err > max_rel_err)
+				// max_rel_err = rel_err;
+		// }
 	  }
 	  
 	  /* Output stats and fields*/
@@ -1112,10 +1150,28 @@
 	  os.open("numeric_FIT.dat");
 	  os_a.open("analytic_FIT.dat");
 	  
-	  for (size_t k=0; k < numeric_values.size(); k++)
+	  for (uint32_t k=0; k<numeric_times.size(); ++k)
 	  {
-		  os << numeric_times[k] << " " << numeric_values[k] << std::endl;
-		  os_a << numeric_times[k] << " " << analytic_values[k] << std::endl;		  
+		  for (uint32_t p=0; p < probepoints.size(); p++)
+		  {
+					os << std::setw(15) << probepoints[p](0) << " ";
+					os << std::setw(15) << probepoints[p](1) << " ";
+					os << std::setw(15) << probepoints[p](2) << " ";
+					os << std::setw(15) << numeric_times[k] << " ";
+					os << std::setw(15) << probe_numeric_xvalues[p][k] << " ";
+					os << std::setw(15) << probe_numeric_yvalues[p][k] << " ";
+					os << std::setw(15) << probe_numeric_zvalues[p][k];
+					os << std::endl;
+					
+					os_a << std::setw(15) << probepoints[p](0) 			<< " ";
+					os_a << std::setw(15) << probepoints[p](1) 			<< " ";
+					os_a << std::setw(15) << probepoints[p](2) 			<< " ";
+					os_a << std::setw(15) << numeric_times[k] 			<< " ";
+					os_a << std::setw(15) <<                          0 << " ";
+					os_a << std::setw(15) << analytic_values[p][k] 		<< " ";
+					os_a << std::setw(15) <<                           0;
+					os_a << std::endl;	  
+		  }
 	  }
 	  
 	  os.close(); os_a.close();
@@ -1201,11 +1257,11 @@
 		coordnames[2] = strdup("Z");
 		/* Give the x coordinates of the mesh */
 		// uint32_t pt_iter=0;
-		for (size_t i=0; i<=Nx; ++i)
+		for (uint32_t i=0; i<=Nx; ++i)
 			nodex.push_back(i*Lx);
-		for (size_t i=0; i<=Ny; ++i)
+		for (uint32_t i=0; i<=Ny; ++i)
 			nodey.push_back(i*Ly);
-		for (size_t i=0; i<=Nz; ++i)
+		for (uint32_t i=0; i<=Nz; ++i)
 			nodez.push_back(i*Lz);
 		
 		/* How many nodes in each direction? */
@@ -1227,20 +1283,21 @@
    private:
    bool output_to_file = false;
    T xmin,xmax,ymin,ymax,zmin,zmax,Lx,Ly,Lz,L,volume;
-   uint32_t probe_elem, tot_E, tot_F, Nx, Ny, Nz;
+   uint32_t  tot_E, tot_F, Nx, Ny, Nz;
    std::vector<bool> is_boundary;
    std::vector<T> M_ni, M_h, M_e, M_mu, U, F, bc;
    std::map<uint32_t,double> epsilon,mu,sigma,mag_sigma;
    double t_step, freq;
+   T xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
    DBfile *_siloDb=NULL;
-   std::vector<uint32_t> material, bc_edges;
+   std::vector<uint32_t> probe_elem, material, bc_edges;
    std::vector<uint8_t> boundary_face;
    std::vector<std::vector<uint32_t>> D/*,Dt*/,C,Ct,G/*,Gt*/;
    std::vector<int32_t> curl, dual_curl;
    Eigen::Vector3d dual_area_z, dual_area_y, dual_area_x;
    Eigen::Vector3d area_z_vec, area_y_vec, area_x_vec;
    Eigen::VectorXd Hvec,Nvec;
-   Eigen::Vector3d probe_point;
+   std::vector<Eigen::Vector3d> probepoints;
    std::vector<Eigen::Vector3d> pts/*, dual_pts, face_bars*/;
    std::vector<std::vector<uint32_t>> E_cluster,P_cluster;
    std::vector<uint8_t> is_ele_lossy, is_mag_lossy;

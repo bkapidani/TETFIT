@@ -1,4 +1,2 @@
-*.mesh
-*.txt
-*.dat
-*.fdtd
+*
+!*.sh

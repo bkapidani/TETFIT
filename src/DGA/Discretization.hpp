@@ -246,6 +246,7 @@ class Discretization
 		FlushMesh();
 		ReadMesh(m);
 		
+		have_analytic = s.HaveAnalytic();
 		loaded_mesh_label = s.MeshLabel();
 
 		//Initialize solutions after loading mesh
@@ -408,22 +409,39 @@ class Discretization
 				Old_F_frac = F_frac;
 				
 				// Magnetic Part:
+				timecounter tc;
+				tc.tic();
 				curl_u     = C*U;
-				
+				tc.toc();
+				// std::cout << "Curl_U takes " << tc << " seconds" << std::endl;
+				tc.tic();
 				F_a       -= t_step*N*curl_u;
 				F_b        = R*Old_F_frac - t_step*Tr*curl_u;
 				F_c        = S*F_c - t_step*Ts*curl_u;
+				tc.toc();
+				// std::cout << "Nonzeros of electric mass matrix: " << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+Ts.nonZeros()+S.nonZeros() << std::endl;
+				// std::cout << "Multiplying by magnetic mass matrix takes " << tc << " seconds" << std::endl;
 				F          = T*F_frac;
+
+				
 				
 				Old_U_frac = U_frac;
 				
 				// Electric Part:			
+				tc.tic();
 				curl_f     = C.transpose()*F-I;
+				tc.toc();
+				// std::cout << "Curl_F takes " << tc << " seconds" << std::endl;
+				// timecounter tc;
+				tc.tic();
 				
 				U_a       += t_step*H*curl_f;
 				U_b        = P_p.cwiseProduct(U_b) + t_step*Mp*curl_f;
 				U_c        = Q*U_c + t_step*Mq*curl_f;
-
+				
+				tc.toc();
+				// std::cout << "Nonzeros of electric mass matrix: " << H.nonZeros()+Mp.nonZeros()+Q.nonZeros()+Mq.nonZeros() << std::endl;
+				// std::cout << "Multiplying by mass matrix takes " << tc << " seconds" << std::endl;
 				
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
@@ -479,7 +497,7 @@ class Discretization
 			{
 				step_cost.tic();
 				current_time = double(i)*t_step;
-				// timecounter t_dbg;
+				timecounter t_dbg;
 				// t_dbg.tic();
 				for (uint32_t ee = 0; ee < edges_size(); ++ee)
 				{
@@ -499,14 +517,24 @@ class Discretization
 				// t_dbg.toc();
 				
 				// std::cout << "bcs take " << t_dbg << " secs" << std::endl;
-				// t_dbg.tic();
+				t_dbg.tic();
+				Eigen::VectorXd curlu= (C*U_old);
+				t_dbg.toc();
+				// std::cout << "Curl_U takes " << t_dbg << " seconds" << std::endl;
+				t_dbg.tic();
+				Eigen::VectorXd nucurl = (N*curlu);
+				t_dbg.toc();
+				// std::cout << "Multiplying by magnetic mass matrix takes " << t_dbg << " seconds" << std::endl;
+				t_dbg.tic();
+				Eigen::VectorXd curlcurl = C.transpose()*nucurl;
+				t_dbg.toc();
+				// std::cout << "Curl_F takes takes " << t_dbg << " seconds" << std::endl;
+				t_dbg.tic();
+				Psi = double(2)*(E*U_old)*(1/t_step/t_step) - curlcurl - (E*U_older)*(1/t_step/t_step) + (0.5/t_step)*(SigMat*U_older) - RHSmat*SrcFld;		
 				
-				Psi = double(2)*(E*U_old)*(1/t_step/t_step) - C.transpose()*(N*(C*U_old)) - 
-				      (E*U_older)*(1/t_step/t_step) + (0.5/t_step)*(SigMat*U_older) - RHSmat*SrcFld;		
+				t_dbg.toc();
 				
-				// t_dbg.toc();
-				
-				// std::cout << "psi takes " << t_dbg << " secs" << std::endl;
+				// std::cout << "Psi takes " << t_dbg << " secs" << std::endl;
 				// t_dbg.tic();
 				
 				//Find solution for U
@@ -516,11 +544,13 @@ class Discretization
 				// t_dbg.toc();
 				
 				// std::cout << "rhs building takes " << t_dbg << " secs" << std::endl;
-				// t_dbg.tic();
+				t_dbg.tic();
 				solution = cg.solveWithGuess(rhs,solution);
-				// t_dbg.toc();
+				t_dbg.toc();
 				
-				// std::cout << "solving takes " << t_dbg << " secs" << std::endl;
+				// std::cout << "Solving takes " << t_dbg << " secs" << std::endl;
+				// std::cout << "Nonzeros of mass matrix: " << (this->A).nonZeros() << std::endl;
+
 				// t_dbg.tic();
 				for (uint32_t k=0; k<compressed_dirichlet.size(); ++k)
 					U[compressed_dirichlet[k]] = solution[k];
@@ -529,7 +559,7 @@ class Discretization
 				// std::cout << "solution building takes " << t_dbg << " secs" << std::endl;
 				// t_dbg.tic();
 				// U = cg.solve(Psi);
-				std::cout << "#iterations:     " << cg.iterations() << std::endl;
+				// std::cout << "#iterations:     " << cg.iterations() << std::endl;
 				// std::cout << "estimated error: " << cg.error()      << std::endl;
 				
 				//Computing losses:
@@ -572,10 +602,11 @@ class Discretization
 			std::ofstream os, os_a, os_l;
 			std::stringstream ss, sa, sl;
 			ss << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe.dat";
-			sa << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe_analytic.dat";
+			sa << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_analytic.dat";
 			sl << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_powerlosses.dat";
 			os.open(ss.str().c_str());
-			os_a.open(sa.str().c_str());
+			if (have_analytic)
+				os_a.open(sa.str().c_str());
 				
 			for (uint32_t k=0; k < probe_numeric_times.size(); k++)
 			{
@@ -591,8 +622,18 @@ class Discretization
 					os << std::setw(15) << probe_numeric_yvalues[p][k] << " ";
 					os << std::setw(15) << probe_numeric_zvalues[p][k];
 					os << std::endl;
-
-					os_a << std::setw(15) << probe_numeric_times[k] << " " << std::setw(15) << analytic_value_vector[p][k] <<  std::endl;
+					
+					if (have_analytic)
+					{
+						os_a << std::setw(15) << (*probe_points[p])(0) << " ";
+						os_a << std::setw(15) << (*probe_points[p])(1) << " ";
+						os_a << std::setw(15) << (*probe_points[p])(2) << " ";
+						os_a << std::setw(15) << probe_numeric_times[k] << " ";
+						os_a << std::setw(15) <<                           0 << " ";
+						os_a << std::setw(15) << analytic_value_vector[p][k] << " ";
+						os_a << std::setw(15) <<                           0;
+						os_a << std::endl;
+					}
 					// if (p == 0)
 						// os_l << std::setw(15) << probe_numeric_times[k] << " " << std::setw(15) << Losses[k] <<  std::endl;
 				}
@@ -604,7 +645,9 @@ class Discretization
 			}
 
 			os.close();
-			os_a.close();
+			
+			if (have_analytic)
+				os_a.close();
 			// os.open("radiator_points.txt");
 			// for (auto ppt : antenna_bnd_pts)
 				// os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
@@ -730,10 +773,13 @@ class Discretization
 				probe_numeric_yvalues[p].push_back(num_ele[1]);
 				probe_numeric_zvalues[p].push_back(num_ele[2]);
 				SpaceTimePoint stp = SpaceTimePoint({(*probe_points[p])[0],(*probe_points[p])[1],(*probe_points[p])[2],t});
-				// double anal_value = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
-				                                       // Materials[vol_material[probe_elem[p]]].Epsilon(),
-													   // Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
 				double anal_value = 0;
+				if (have_analytic)
+				{
+					anal_value = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
+													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+				}
 				analytic_value_vector[p].push_back(anal_value);
 				
 				if ((t - t_step) < 1e-9 && (t + t_step) > 1e-9 && p==0)
@@ -1943,70 +1989,130 @@ class Discretization
 	
 	double ComputeFEMTimeStep(void)
 	{
-
-		class MyMatProd
+		
+		class MyAOp
 		{
 			public:
 			
-			MyMatProd(uint32_t s, Eigen::SparseMatrix<double>& c, Eigen::SparseMatrix<double>& n)
+			MyAOp(uint32_t s, Eigen::SparseMatrix<double>& c, Eigen::SparseMatrix<double>& n)
 			{
+				// std::cout << "almeno qui ci entro?" << std::endl;
 				size = s;
 				this->C = &c;
 				this->N = &n;
+				
+				// std::cout << c.rows() << "----" << n.cols() << std::endl; 
 				// this->Einv = &einv;
 			}
 			
 			int rows() { return size; }
 			int cols() { return size; }
 			
-			void perform_op(double *x_in, double *y_out)
+			void perform_op(const double *x_in, double *y_out)
 			{
-				Eigen::Map<Eigen::VectorXd> X(x_in,size);
+				std::vector<double> xvec(size);
+				// std::cout << "(*C).transpose()*((*N)*((*C)*X))" << std::endl;
+				std::copy(x_in,x_in+size,xvec.begin());
+				// std::cout << "(*C).transpose()*((*N)*((*C)*X))" << std::endl;
+				Eigen::Map<Eigen::VectorXd> X(xvec.data(),size);
 				Eigen::Map<Eigen::VectorXd> Y(y_out,size);
+				
 				
 				Y = (*C).transpose()*((*N)*((*C)*X));
 			}
 			
+			private:
 			Eigen::SparseMatrix<double> *C, *N;
 			uint32_t size;
 		};
 		
-		// Construct matrix operation object using the wrapper class MyMatProd
-		if ((this->E).rows() < 10000)
+		class MyBOp
 		{
-			std::ofstream Bmat("Bmatrix.dat");
-			std::ofstream Amat("Amatrix.dat");
-			Bmat << this->E;
-			Amat << C.transpose()*(N*C);
-			Amat.close();
-			Bmat.close();
-		}
+			public:
+			
+			MyBOp(uint32_t s, Eigen::SparseMatrix<double>& e)
+			{
+				this->size = s;
+				this->E = &e;
+				// this->N = &n;
+				// this->Einv = &einv;
+				// std::cout << e.rows() << "----" << s << std::endl; 
+			}
+			
+			int rows() { return size; }
+			int cols() { return size; }
+			
+			void mat_prod(const double *x_in, double *y_out)
+			{
+				std::vector<double> xvec(size);
+				// std::cout << "Y = (*E)*X" << std::endl;
+				std::copy(x_in,x_in+size,xvec.begin());
+				// std::cout << "Y = (*E)*X" << std::endl;
+				Eigen::Map<Eigen::VectorXd> X(xvec.data(),size);
+				// std::cout << "Y = (*E)*X" << std::endl;
+				Eigen::Map<Eigen::VectorXd> Y(y_out,size);
+				// std::cout << "Y = (*E)*X" << std::endl;
+				
+				Y = (*E)*X;
+			}
+			
+			void solve(const double *x_in, double *y_out)
+			{
+				std::vector<double> xvec(size);
+				std::copy(x_in,x_in+size,xvec.begin());
+				Eigen::Map<Eigen::VectorXd> X(xvec.data(),size);
+				Eigen::Map<Eigen::VectorXd> Y(y_out,size);
+				ConjugateGradientSolver cg;
+				cg.setMaxIterations(100); cg.setTolerance(1e-1);
+				// std::cout << "cg.compute((*E))" << std::endl;
+				cg.compute((*E));
+				// std::cout << "cg.solveWithGuess(X,Y)" << std::endl;
+				Y = cg.solveWithGuess(X,Y);
+			}
+			
+			private:
+			Eigen::SparseMatrix<double> *E;
+			uint32_t size;
+		};	
+		
+		// Construct matrix operation object using the wrapper class MyAOp
+		// if ((this->E).rows() < 5000)
+		// {
+			// std::ofstream Bmat("Bmatrix.dat");
+			// std::ofstream Amat("Amatrix.dat");
+			// Bmat << this->E;
+			// Eigen::SparseMatrix<double> lhs = C.transpose()*(this->N*C);
+			// Amat << lhs;
+			// Amat.close();
+			// Bmat.close();
+		// }
 		
 		timecounter t_dbg;
-		t_dbg.tic();
-		MyMatProd op(this->edges_size(),C,N);
-		t_dbg.toc();
-		std::cout << "constructing aop takes " << t_dbg << std::endl;
-		t_dbg.tic();
-		Spectra::SparseCholesky<double>  Bop(this->E);
-		t_dbg.toc();
-		std::cout << "constructing bop takes " << t_dbg << std::endl;
-		t_dbg.tic();
+		// t_dbg.tic();
+		MyAOp aop(this->edges_size(),this->C,this->N);
+		// t_dbg.toc();
+		// std::cout << "constructing aop takes " << t_dbg << std::endl;
+		// t_dbg.tic();
+		MyBOp bop(this->edges_size(),this->E);
+		// Spectra::SparseCholesky<double>  Bop(this->E);
+		// t_dbg.toc();
+		// std::cout << "constructing bop takes " << t_dbg << std::endl;
+		// t_dbg.tic();
 		
 		// Construct eigen solver object, requesting the largest three eigenvalues
-		Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, MyMatProd, Spectra::SparseCholesky<double>, Spectra::GEIGS_CHOLESKY> geigs(&op, &Bop, 1, 10);
-		t_dbg.toc();
-		std::cout << "constructing geigs_solver takes " << t_dbg << std::endl;
+		Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, MyAOp, MyBOp, Spectra::GEIGS_REGULAR_INVERSE> geigs(&aop, &bop, 1, 10);
+		// t_dbg.toc();
+		// std::cout << "constructing geigs_solver takes " << t_dbg << std::endl;
 		t_dbg.tic();
 		// Initialize and compute
+		// Eigen::VectorXd pippo = Eigen::VectorXd::Random(edges_size());
 		geigs.init();
-		
 		t_dbg.toc();
-		std::cout << "Initializing geigs_solver takes " << t_dbg << std::endl;
-		t_dbg.tic();
+		// std::cout << "Initializing geigs_solver takes " << t_dbg << std::endl;
+		// t_dbg.tic();
 		int nconv = geigs.compute();
-		t_dbg.toc();
-		std::cout << "Solving takes " << t_dbg << std::endl;
+		// t_dbg.toc();
+		// std::cout << "Solving takes " << t_dbg << std::endl;
 		// t_dbg.tic();
 		
 		// Retrieve results
@@ -2024,11 +2130,11 @@ class Discretization
 		// We are going to calculate the eigenvalues of M
 		// Eigen::MatrixXd A = Eigen::MatrixXd::Random(10, 10);
 		// Eigen::MatrixXd M = A + A.transpose();
-		class MyMatProd
+		class MyAOp
 		{
 			public:
 			
-			MyMatProd(uint32_t s, Eigen::SparseMatrix<double>& c, Eigen::SparseMatrix<double>& n, Eigen::SparseMatrix<double>& einv )
+			MyAOp(uint32_t s, Eigen::SparseMatrix<double>& c, Eigen::SparseMatrix<double>& n, Eigen::SparseMatrix<double>& einv )
 			{
 				size = s;
 				this->C = &c;
@@ -2050,11 +2156,11 @@ class Discretization
 			Eigen::SparseMatrix<double> *C, *N, *Einv;
 			uint32_t size;
 		};
-		// Construct matrix operation object using the wrapper class MyMatProd
-		MyMatProd op(this->edges_size(),C,N,Einv);
+		// Construct matrix operation object using the wrapper class MyAOp
+		MyAOp op(this->edges_size(),C,N,Einv);
 
 		// Construct eigen solver object, requesting the largest three eigenvalues
-		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyMatProd > eigs(&op, 1, 10);
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
 
 		// Initialize and compute
 		eigs.init();
@@ -2448,21 +2554,19 @@ class Discretization
 		Ts.setFromTriplets(Ts_trip.begin(),Ts_trip.end(), ass);
 		E.setFromTriplets(E_trip.begin(),E_trip.end(), ass);
 		SigMat.setFromTriplets(Sig_trip.begin(),Sig_trip.end(), ass);
-
-
+		
 		
 		this->E=std::move(E); this->SigMat=std::move(SigMat);
 		this->T=std::move(T); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 		this->N=std::move(N); this->R=std::move(R); this->S=std::move(S);
-		
 		// std::cout << "Before" << std::endl;
 		t_step = 0.98*ComputeFEMTimeStep();
 		
 		Eigen::SparseMatrix<double> SysMat(E.rows(),E.cols());
 		if (SigMat.nonZeros()>0)
-			SysMat = E*(1/t_step/t_step) + (0.5/t_step)*SigMat;
+			SysMat = (this->E)*(1/t_step/t_step) + (0.5/t_step)*(this->SigMat);
 		else 
-			SysMat = E*(1/t_step/t_step);
+			SysMat = (this->E)*(1/t_step/t_step);
 		// std::vector<double_triplet> sysmat_trip, rhsmat_trip;
 		
 		// std::cout << "E.nonZeros() " << E.nonZeros() <<  std::endl;
@@ -2492,6 +2596,7 @@ class Discretization
 		Eigen::SparseMatrix<double> RHSmat(edges_size(),edges_size());
 		RHSmat.setFromTriplets(rhsmat_trip.begin(),rhsmat_trip.end(), ass);
 		this->RHSmat=std::move(RHSmat);
+		
 		// std::cout << "After" << std::endl;
 		
 		// std::ofstream dbg_mat("matrix.dat");
@@ -3618,6 +3723,7 @@ class Discretization
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
 	double                                      t_step, min_h, average_diameter, max_rel_err, max_circum_r;
+	bool										have_analytic;
 	uint32_t									loaded_mesh_label, current_simulation;
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;
