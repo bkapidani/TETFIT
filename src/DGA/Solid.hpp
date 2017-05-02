@@ -28,46 +28,56 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
  
- //file Mesh.hpp
+ //file Solid.hpp
  #include "Utilities.hpp"
  
-class Mesh
+class Solid
 {
 	public:
-	Mesh() 
-	: file("none"), name("none"), type("none"), mesher("none")
+	Solid()
 	{
-		loaded = false;
-		xstep = ystep = zstep = 0;
-		xmin = ymin = zmin = 0;
-		xmax = ymax = zmax = 0;
-		scalefactor = 1;
+		squareradius = 0;
+		material = 0;
+		type = "none";
+		center = Eigen::Vector3d({0,0,0});
+		corner = Eigen::Vector3d({0,0,0});
+		size   = Eigen::Vector3d({0,0,0});
 	}
-
+	
+	//setters
 	void SetParam(uint32_t input_line, std::string param, std::string value)
 	{
-		if (param == "file")
-			file = value;
-		else if (param == "name")
-			name = value;
-		else if (param == "type")
+		if (param == "type")
 		{
-			if (std::find(meshtypes.begin(),meshtypes.end(),value) == meshtypes.end())
-				MyThrow(input_line,mesh_unknown_type);
+			if (std::find(solidtypes.begin(),solidtypes.end(),value) == solidtypes.end())
+			{
+				std::cout << mesh_throw_preamble;
+				MyThrow(input_line,solid_unknown_type);
+			}
 			type = value;
 		}
-		else if (param == "mesher")
+		else if (param == "material")
+			material = std::atoi(value.c_str());
+		else if (param == "radius")
 		{
-			if (std::find(meshers.begin(),meshers.end(),value) == meshers.end())
-				MyThrow(input_line,mesh_unknown_mesher);
-			mesher = value;
+			double r = std::stod(value);
+			
+			if (r <= 0)
+			{
+				std::cout << mesh_throw_preamble;
+				MyThrow(input_line,solid_negative_value);
+			}
+			
+			squareradius = std::pow(r,2);
 		}
-		else if (param == "xgrid")
+		else if (param == "center")
 		{
-			// double xmin,xstep,xmax;
 			auto  i = value.begin();
 			if (*i != '{')
+			{
+				std::cout << mesh_throw_preamble;
 				MyThrow(input_line,coordinates_syntax);
+			}
 			else
 			{
 				uint8_t k=0;
@@ -81,26 +91,22 @@ class Mesh
 						i++;
 					}
 					if (i == value.end())
+					{
+						std::cout << mesh_throw_preamble;
 						MyThrow(input_line,unbalanced_bracket);
+					}
 					else 
 					{
-						if (k == 0)
+						if (k < 3)
 						{
-							xmin = std::stod(coord);
-							k++;
-						}
-						else if (k == 1)
-						{
-							xstep = std::stod(coord);
-							k++;
-						}
-						else if (k == 2)
-						{
-							xmax = std::stod(coord);
+							center(k)= std::stod(coord);
 							k++;
 						}
 						else
+						{
+							std::cout << mesh_throw_preamble;
 							MyThrow(input_line,too_many_coords);
+						}
 						
 						if (*i == ',')
 							i++;
@@ -109,17 +115,20 @@ class Mesh
 				}
 				
 				if (i == value.end())
+				{
+					std::cout << mesh_throw_preamble;
 					MyThrow(input_line,too_few_coords);
+				}
 			}
-			
-			assert(xmin <= xmax);
-			assert(xstep > 0);
 		}
-		else if (param == "ygrid")
+		else if (param == "corner")
 		{
 			auto  i = value.begin();
 			if (*i != '{')
+			{
+				std::cout << mesh_throw_preamble;
 				MyThrow(input_line,coordinates_syntax);
+			}
 			else
 			{
 				uint8_t k=0;
@@ -133,26 +142,22 @@ class Mesh
 						i++;
 					}
 					if (i == value.end())
+					{
+						std::cout << mesh_throw_preamble;
 						MyThrow(input_line,unbalanced_bracket);
+					}
 					else 
 					{
-						if (k == 0)
+						if (k < 3)
 						{
-							ymin = std::stod(coord);
-							k++;
-						}
-						else if (k == 1)
-						{
-							ystep = std::stod(coord);
-							k++;
-						}
-						else if (k == 2)
-						{
-							ymax = std::stod(coord);
+							corner(k)= std::stod(coord);
 							k++;
 						}
 						else
+						{
+							std::cout << mesh_throw_preamble;
 							MyThrow(input_line,too_many_coords);
+						}
 						
 						if (*i == ',')
 							i++;
@@ -161,18 +166,20 @@ class Mesh
 				}
 				
 				if (i == value.end())
+				{
+					std::cout << mesh_throw_preamble;
 					MyThrow(input_line,too_few_coords);
+				}
 			}
-			
-			assert(ymin <= ymax);
-			assert(ystep > 0);
 		}
-		else if (param == "zgrid")
+		else if (param == "size")
 		{
-			// double xmin,xstep,xmax;
 			auto  i = value.begin();
 			if (*i != '{')
+			{
+				std::cout << mesh_throw_preamble;
 				MyThrow(input_line,coordinates_syntax);
+			}
 			else
 			{
 				uint8_t k=0;
@@ -186,26 +193,27 @@ class Mesh
 						i++;
 					}
 					if (i == value.end())
+					{
+						std::cout << mesh_throw_preamble;
 						MyThrow(input_line,unbalanced_bracket);
+					}
 					else 
 					{
-						if (k == 0)
+						if (k < 3)
 						{
-							zmin = std::stod(coord);
-							k++;
-						}
-						else if (k == 1)
-						{
-							zstep = std::stod(coord);
-							k++;
-						}
-						else if (k == 2)
-						{
-							zmax = std::stod(coord);
+							size(k)= std::stod(coord);
+							if (size(k) <= 0)
+							{
+								std::cout << mesh_throw_preamble;
+								MyThrow(input_line,solid_negative_value);
+							}
 							k++;
 						}
 						else
+						{
+							std::cout << mesh_throw_preamble;
 							MyThrow(input_line,too_many_coords);
+						}
 						
 						if (*i == ',')
 							i++;
@@ -214,39 +222,51 @@ class Mesh
 				}
 				
 				if (i == value.end())
+				{
+					std::cout << mesh_throw_preamble;
 					MyThrow(input_line,too_few_coords);
+				}
 			}
-			
-			assert(zmin <= zmax);
-			assert(zstep > 0);
 		}
-		else if (param == "scalefactor")
-			scalefactor = std::stod(value);
 		else
-			MyThrow(input_line,mesh_unknown_parameter);
+			MyThrow(input_line,solid_unknown_parameter);
+	}
+
+	//getters
+	bool Rule(const double& x, const double& y, const double& z)
+	{
+		auto p = Eigen::Vector3d({x,y,z});
+		if (type == "sphere")
+			return SphereRule(p);
+		else if (type == "box")
+			return BoxRule(p);
 	}
 	
-	const std::string& Name() { return name; }
-	const std::string& FileName() { return file; }
-	const std::string& GetMeshType() { return type; }
-	const std::string& GetMesher()   { return mesher; }
-	const double& Scale() { return scalefactor; }
-	const double& GetXmin() { return xmin; }
-	const double& GetYmin() { return ymin; }
-	const double& GetZmin() { return zmin; }
-	const double& GetXstep() { return xstep; }
-	const double& GetYstep() { return ystep; }
-	const double& GetZstep() { return zstep; }
-	const double& GetXmax() { return xmax; }
-	const double& GetYmax() { return ymax; }
-	const double& GetZmax() { return zmax; }
-	bool IsLoaded() { return loaded; }
-	void Switch() { loaded = !loaded; }
+	bool SphereRule(const Eigen::Vector3d& p)
+	{
+		Eigen::Vector3d diff = p - center;
+		if (diff.dot(diff) <= squareradius)
+			return true;
+		return false;
+	}
+	
+	bool BoxRule(const Eigen::Vector3d& p)
+	{
+		auto diff = p - corner;
+		if (diff(0) > size(0) || diff(0) < 0)
+			return false;
+		if (diff(1) > size(1) || diff(1) < 0)
+			return false;
+		if (diff(2) > size(2) || diff(2) < 0)
+			return false;
+		return true;
+	}
+	
+	const uint32_t& Material(void) const { return material; }
 	
 	private:
-	std::string file, name, type;
-	std::string mesher;
-	bool loaded;
-	double scalefactor;
-	double xmin,xmax,ymin,ymax,zmin,zmax,xstep,ystep,zstep,L,volume; //used only when mesh type is cartesian
+	SolidType type;
+	uint32_t material;
+	double squareradius;
+	Eigen::Vector3d center, corner, size;
 };

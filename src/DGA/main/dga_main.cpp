@@ -51,7 +51,13 @@ int main(int argc, char **argv)
 	
 	assert(argc==2);
 	std::string input(argv[1]);
-	Discretization grid(input);
+	Discretization dummy(input);
+	
+	for (auto sym = dummy.Simulations.begin(); sym != dummy.Simulations.end(); ++sym )
+	{
+		Discretization disc(dummy);
+		disc.RunSimulation((*sym).second, (*sym).first);
+	}
 
     // std::cout << "That's all for me!" << std::endl;	
 	

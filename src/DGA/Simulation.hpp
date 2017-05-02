@@ -41,6 +41,8 @@ class Simulation
 		mesh_label=1;
 		output = 0;
 		method = "dga";
+		solver = "none";
+		tol = 1e-8;
 		analytic = false;
 	}
 	
@@ -59,6 +61,10 @@ class Simulation
 			output = std::stod(value);
 		else if (param == "method")
 			SetMethod(input_line,value);
+		else if (param == "solver")
+			SetSolver(input_line,value);
+		else if (param == "tolerance")
+			tol = std::stod(value);
 		else if (param == "analytic")
 		{
 			if (value == "true")
@@ -78,12 +84,16 @@ class Simulation
 	const uint32_t& Output(void) const { return output; }
 	const std::vector<uint32_t>& Src(void) { return sources; }
 	const SimMethod& Method(void) const { return method; }
+	const Solver& GetSolver(void) const { return solver; }
+	const double& Tolerance(void) const { return tol; }
 	// const Eigen::Vector3d& Probe(void) const { return probepoint; }
 	
 	private:
 	Duration d;
 	SimMethod method;
+	Solver solver;
 	bool analytic;
+	double tol;
 	// Eigen::Vector3d probepoint;
 	std::vector<uint32_t> sources; //can combine multiple sources
 	uint32_t mesh_label, output;
@@ -94,5 +104,13 @@ class Simulation
 		else 
 			method = m;
 	}
+	
+	void SetSolver(uint32_t il, Solver m)
+	{
+		if (std::find(solvers.begin(),solvers.end(),m) == solvers.end())
+								MyThrow(il,sim_unknown_solver);
+		else 
+			solver = m;
+	}	
 	
 };
