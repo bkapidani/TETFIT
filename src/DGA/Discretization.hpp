@@ -46,6 +46,7 @@ class Discretization
 	{
 		std::string line;
 		input_line = 1;
+		root = 0;
 		std::ifstream ReadFile;//(inputfile.c_str());
 		ReadFile.open(inputfile.c_str());
 		bool in_definition = false;
@@ -177,6 +178,9 @@ class Discretization
 	
 	Discretization(const Discretization& disc)
 	{
+		root = 0;
+		input_line = 1;
+		
 		this->Materials = disc.Materials;
 		this->BCs = disc.BCs;
 		this->Meshes = disc.Meshes;
@@ -883,7 +887,11 @@ class Discretization
 		{
 			for (uint32_t p=0; p<probe_elem.size(); p++)
 			{
-				auto num_ele = GetWhitneyElectricField(probe_elem[p],(*probe_points[p]));
+				Eigen::Vector3d num_ele;
+				if (Simulations[current_simulation].Method() == "fem")
+					num_ele = GetWhitneyElectricField(probe_elem[p],(*probe_points[p]));
+				else
+					num_ele = GetElectricField(probe_elem[p]);
 				// auto num_ele = GetElectricField(probe_elem[p]);
 				probe_numeric_xvalues[p].push_back(num_ele[0]);
 				probe_numeric_yvalues[p].push_back(num_ele[1]);
@@ -1119,12 +1127,22 @@ class Discretization
 	
 	uint32_t FindFitProbe(const Eigen::Vector3d& pv)
 	{
-		// double dist = (vol_barycenter(0)-probe_vec).norm();
-		// uint32_t ret = 0;
-		uint32_t v;
+		uint32_t v = root;
+		std::vector<uint32_t> colour(volumes_size()), p_queue;
+		uint32_t k, j, qtop;
+		uint32_t  curr_n;
 		
-		for (v=0; v<volumes_size(); v++)
+		p_queue.push_back(root);
+		colour[0]++;
+		k=0;
+		
+		while ( k<p_queue.size() )
 		{
+			qtop=p_queue[k];
+			
+			v = qtop;
+			
+			//check if the probe is in the tetrahedron at the current top of the queue
 			auto pp = pts[P_cluster[v][0]];
 			
 			Eigen::Vector3d diff = pv - pp;
@@ -1134,21 +1152,138 @@ class Discretization
 			
 			if (check1 && check2 && check3)
 			{
-				// std::cout << (pv - vol_barycenter(v)).norm() << std::endl;
+				root = v;  //save root to exploit locality in next probe research
 				return v;
 			}
-		}
+			
+			for (auto curr_e : this->D[qtop])
+			{	
+				curr_n=*(this->Dt[curr_e].begin());
 
-		std::cout << "Probe out of mesh!" << std::endl;
+				if (curr_n==qtop)
+					curr_n=*(this->Dt[curr_e].rbegin());
+
+				if (colour[curr_n]==0)
+				{
+					p_queue.push_back(curr_n);
+					colour[curr_n]++;
+				}
+			}
+			  
+			colour[qtop]++;
+			k++;
+		}
+		
+		/*for (v=0; v<volumes_size(); v++)
+		{
+			auto pp = pts[P_cluster[v][0]];
+			
+			Eigen::Vector3d diff = pv - pp;
+			auto check1 = (diff(0)>=0 && diff(0) < Lx);
+			auto check2 = (diff(1)>=0 && diff(1) < Ly);
+			auto check3 = (diff(2)>=0 && diff(2) < Lz);
+			
+			if (check1 && check2 && check3)
+				return v;
+		}*/
+
+		std::cout << "BEWARE: Probe out of mesh!" << std::endl;
 		return v;
 	}
 	
 	uint32_t FindProbe(const Eigen::Vector3d& pv)
 	{
-		// double dist = (vol_barycenter(0)-probe_vec).norm();
-		// uint32_t ret = 0;
-		uint32_t v;
-		for (v=0; v<volumes_size(); v++)
+		uint32_t v = root;
+		std::vector<uint32_t> colour(volumes_size()), p_queue;
+		uint32_t k, j, qtop;
+		sgnint32_t<int32_t>  curr_n;
+		
+		p_queue.push_back(root);
+		colour[0]++;
+		k=0;
+
+		while ( k<p_queue.size() )
+		{
+			qtop=p_queue[k];
+			
+			v = qtop;
+			
+			//check if the probe is in the tetrahedron at the current top of the queue
+			double vol = CellVolumes[v];
+			auto tet_nodes = std::vector<uint32_t>({std::get<0>(volumes[v]),std::get<1>(volumes[v]),
+														std::get<2>(volumes[v]),std::get<3>(volumes[v])});
+			
+			auto v1 = pts[tet_nodes[0]];
+			auto v2 = pts[tet_nodes[1]];
+			auto v3 = pts[tet_nodes[2]];
+			auto v4 = pts[tet_nodes[3]];
+			Eigen::Matrix4d mat1;
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			double det0 = mat1.determinant();
+			
+			mat1 <<  pv(0), pv(1), pv(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			double det1 = mat1.determinant();
+			
+			auto check1 = (std::signbit(det0) == std::signbit(det1));
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     pv(0), pv(1), pv(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			det1 = mat1.determinant();
+			auto check2 = (std::signbit(det0) == std::signbit(det1));
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     pv(0), pv(1), pv(2), 1,
+				     v4(0), v4(1), v4(2), 1;
+					 
+			det1 = mat1.determinant();
+			auto check3 = (std::signbit(det0) == std::signbit(det1));
+			
+			mat1 <<  v1(0), v1(1), v1(2), 1,
+				     v2(0), v2(1), v2(2), 1,
+				     v3(0), v3(1), v3(2), 1,
+				     pv(0), pv(1), pv(2), 1;
+					 
+			det1 = mat1.determinant();
+			auto check4 = (std::signbit(det0) == std::signbit(det1));
+			
+			if (check1 && check2 && check3 && check4)
+			{
+				root = v; //save root to exploit locality in next probe research
+				return v;
+			}
+
+			for (auto curr_e : this->vtf_list[qtop])
+			{	
+				curr_n=*(this->ftv_list[abs(curr_e)].begin());
+
+				if (abs(curr_n)==qtop)
+					curr_n=*(this->ftv_list[abs(curr_e)].rbegin());
+
+				if (colour[abs(curr_n)]==0)
+				{
+					p_queue.push_back(abs(curr_n));
+					colour[abs(curr_n)]++;
+				}
+			}
+			colour[qtop]++;
+			k++;
+		}
+		
+		
+		/*for (v=0; v<volumes_size(); v++)
 		{
 			double vol = CellVolumes[v];
 			auto tet_nodes = std::vector<uint32_t>({std::get<0>(volumes[v]),std::get<1>(volumes[v]),
@@ -1202,13 +1337,12 @@ class Discretization
 			
 			if (check1 && check2 && check3 && check4)
 			{
-				// std::cout << (pv - vol_barycenter(v)).norm() << std::endl;
 				return v;
 			}
 				
-		}
+		}*/
 
-		std::cout << "Probe out of mesh!" << std::endl;
+		std::cout << "BEWARE: Probe out of mesh!" << std::endl;
 		
 		return v;
 	}
@@ -1818,7 +1952,7 @@ class Discretization
 							
 							for (uint32_t cnt=0; cnt<6; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -1859,7 +1993,7 @@ class Discretization
 							nf+=5;
 							for (uint32_t cnt=0; cnt<5; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -1895,7 +2029,7 @@ class Discretization
 							nf+=5;
 							for (uint32_t cnt=0; cnt<5; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -1929,7 +2063,7 @@ class Discretization
 							nf+=4;
 							for (uint32_t cnt=0; cnt<4; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -1962,7 +2096,7 @@ class Discretization
 							nf+=5;
 							for (uint32_t cnt=0; cnt<5; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -1996,7 +2130,7 @@ class Discretization
 							nf+=4;
 							for (uint32_t cnt=0; cnt<4; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -2029,7 +2163,7 @@ class Discretization
 							nf+=4;
 							for (uint32_t cnt=0; cnt<4; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -2062,7 +2196,7 @@ class Discretization
 							nf+=3;
 							for (uint32_t cnt=0; cnt<3; cnt++)
 							{
-								//Dt.push_back(dummyf);
+								Dt.push_back(dummyf);
 								(this->C_vec).push_back(dummyf);
 								curl.push_back(1);
 								
@@ -2089,12 +2223,12 @@ class Discretization
 					  
 					  
 					  
-					  //Dt[D[nv][0]].push_back( nv); 
-					  //Dt[D[nv][1]].push_back( nv);
-					  //Dt[D[nv][2]].push_back( nv);
-					  //Dt[D[nv][3]].push_back( nv);
-					  //Dt[D[nv][4]].push_back( nv);
-					  //Dt[D[nv][5]].push_back( nv);
+					  Dt[D[nv][0]].push_back( nv); 
+					  Dt[D[nv][1]].push_back( nv);
+					  Dt[D[nv][2]].push_back( nv);
+					  Dt[D[nv][3]].push_back( nv);
+					  Dt[D[nv][4]].push_back( nv);
+					  Dt[D[nv][5]].push_back( nv);
 
 					  // material.push_back(1);
 					
@@ -5017,13 +5151,13 @@ class Discretization
 	double                                      t_step, min_h, average_diameter, max_rel_err, max_circum_r;
 	double										Lx,Ly,Lz;
 	bool										have_analytic;
-	uint32_t									loaded_mesh_label, current_simulation, method_line;
+	uint32_t									loaded_mesh_label, current_simulation, method_line, root;
 	// std::string									method_line;
 	// stuff for cartesian mesh
 	uint32_t									tot_E, tot_F, Nx, Ny, Nz;
 	Eigen::Vector3d 							dual_area_z, dual_area_y, dual_area_x;
 	Eigen::Vector3d 							area_z_vec, area_y_vec, area_x_vec;
-	std::vector<std::vector<uint32_t>> 			D/*,Dt*/,C_vec,Ct_vec,G/*,Gt*/;
+	std::vector<std::vector<uint32_t>> 			D,Dt,C_vec,Ct_vec,G/*,Gt*/;
 	std::vector<std::vector<uint32_t>> 			E_cluster,P_cluster;
 	std::vector<int32_t> 						curl, dual_curl;
 	std::vector<uint32_t> 						src_edges, common_edges, bc_edges;
