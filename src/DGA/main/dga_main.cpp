@@ -31,9 +31,9 @@
 #include <iostream>
 #include <cassert>
 #include "Discretization.hpp"
-// #include "InputParser.hpp"
-#include "sgnint32_t.hpp"
-#include "timecounter.h"
+#include "Utilities.hpp"
+// #include "sgnint32_t.hpp"
+// #include "timecounter.h"
 
 int main(int argc, char **argv)
 {
@@ -49,7 +49,9 @@ int main(int argc, char **argv)
     
     std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
 	
-	assert(argc==2);
+	if (argc != 2)
+		MyThrow(0,main_missing_file);
+	
 	std::string input(argv[1]);
 	Discretization dummy(input);
 	

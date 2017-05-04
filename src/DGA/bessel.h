@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
+const long double PIE = 3.141592653589793238L;
 
 struct my_data
 {

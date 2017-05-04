@@ -180,6 +180,7 @@ const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint"};
 const std::vector<SimMethod>							simmethods		= { "fit", "dga", "fem"};
 const std::vector<Solver>								solvers			= { "cg", "agmg"};
 
+const std::runtime_error main_missing_file(std::string("Input file missing! Correct use is: \"tetfit input_file\" "));
 const std::runtime_error pml_missing(std::string("Sorry, PML not implemented yet, getting there!"));
 const std::runtime_error pmc_missing(std::string("Sorry, PMC not implemented yet, getting there!"));
 const std::runtime_error bc_unknown_type(std::string("Unrecognized boundary condition type! Available: pec, pmc, pml"));
@@ -295,11 +296,12 @@ double analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, dou
 	while (true)
 	{
 		double k = (z + 2 * az * j) / c;
-		if ((t-k) > 1e-6*k)
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
 		{
 			// std::cout << "First set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
 			// std::cout << "k = " << k <<  " time = " << t << std::endl;
-			a1 += sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq,flag);
+			a1 += sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -310,11 +312,12 @@ double analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, dou
 	while (true)
 	{
 		double k = (2*az*j - z) / c;
-		if ((t-k) > 1e-6*k)
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
 		{
 			// std::cout << "Second set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
 			// std::cout << "k = " << k <<  " time = " << t << std::endl;
-			a2 -= sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq,flag);
+			a2 -= sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;

@@ -42,6 +42,7 @@ class Simulation
 		output = 0;
 		method = "dga";
 		solver = "none";
+		courant = 1;
 		tol = 1e-8;
 		analytic = false;
 	}
@@ -57,6 +58,8 @@ class Simulation
 			mesh_label = std::stod(value);
 		else if (param == "duration")
 			d = std::stod(value);
+		else if (param == "courant")
+			courant = std::stod(value);
 		else if (param == "output")
 			output = std::stod(value);
 		else if (param == "method")
@@ -86,6 +89,7 @@ class Simulation
 	const SimMethod& Method(void) const { return method; }
 	const Solver& GetSolver(void) const { return solver; }
 	const double& Tolerance(void) const { return tol; }
+	const double& Courant(void) const { return courant; }
 	// const Eigen::Vector3d& Probe(void) const { return probepoint; }
 	
 	private:
@@ -93,7 +97,7 @@ class Simulation
 	SimMethod method;
 	Solver solver;
 	bool analytic;
-	double tol;
+	double tol, courant;
 	// Eigen::Vector3d probepoint;
 	std::vector<uint32_t> sources; //can combine multiple sources
 	uint32_t mesh_label, output;

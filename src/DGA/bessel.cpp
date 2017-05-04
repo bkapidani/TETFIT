@@ -12,7 +12,7 @@
 		else
 		{
 			// numeric integration
-			gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+			gsl_integration_workspace * w = gsl_integration_workspace_alloc(2000);
 			double result, error;
 			gsl_function F;
 
@@ -38,13 +38,23 @@
 			// printf ("estimated error = % .18f\n", error);
 			// printf ("intervals = %zu\n", w->size);
 			// printf ("Size of interval = %g\n", t-k);
-			gsl_integration_qags(&F, k, t, 0, 1e-7, 1000, w, &result, &error);
+			gsl_integration_qags(&F, k, t, 0, 1e-8, 2000, w, &result, &error);
 			gsl_integration_workspace_free(w);
 			
+			// std::cout << "first term 		= " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;			
+			// std::cout << "second term     	= " << alpha*k*result << std::endl;
+			// std::cout << "integral error	= " << error << std::endl;
+			
 			if (flag)
-				return   exp(-ksi*k)*sin(2*3.141592*freq*(t-k))-alpha*k*result;
+			{
+				// std::cout << "besselj" << std::endl;
+				return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))-alpha*k*result;
+			}
 			else
-				return -(exp(-ksi*k)*sin(2*3.141592*freq*(t-k))-alpha*k*result);
+			{
+				// std::cout << "besseli" << std::endl;
+				return -exp(-ksi*(k))*sin(2*PIE*freq*(t-k))+alpha*k*result;
+			}
 		}
 	}
 	
@@ -67,7 +77,7 @@
 		gsl_sf_result res;
 		double argument = alpha*sqrt( pow(x,2) - pow(k,2) );
 		int status = gsl_sf_bessel_J1_e(argument,&res);
-		double f     = exp(-ksi*x)*res.val*sin(2*3.141592*freq*(t-x))/sqrt( pow(x,2) - pow(k,2));
+		double f     = exp(-ksi*x)*res.val*sin(2*PIE*freq*(t-x))/sqrt( pow(x,2) - pow(k,2));
  
 		// double k     = pt->k;
 		// double alpha = pt->alpha;
@@ -93,7 +103,7 @@
 		gsl_sf_result res;
 		double argument = alpha*sqrt( pow(x,2) - pow(k,2) );
 		int status = gsl_sf_bessel_I1_e(argument,&res);
-		double f     = exp(-ksi*x)*res.val*sin(2*3.141592*freq*(t-x))/sqrt( pow(x,2) - pow(k,2));
+		double f     = exp(-ksi*x)*res.val*sin(2*PIE*freq*(t-x))/sqrt( pow(x,2) - pow(k,2));
  
 		// double k     = pt->k;
 		// double alpha = pt->alpha;

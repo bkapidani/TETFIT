@@ -335,7 +335,7 @@ class Discretization
 		// Actual simulation!
 		if (meth == "dga")
 		{	
-			t_step = estimate_time_step_bound();
+			// t_step = estimate_time_step_bound();
 			ConstructMaterialMatrices();
 			timecounter t_eigs;
 			t_eigs.tic();
@@ -343,8 +343,8 @@ class Discretization
 			t_eigs.toc();
 			// std::cout << "Spectral method took " << t_eigs << "s." << std::endl;
 			
-			auto t_step_geom = t_step;
-			t_step = 0.98*t_step_spectra;
+			// auto t_step_geom = t_step;
+			t_step = s.Courant()*t_step_spectra;
 			ConstructMaterialMatrices();			
 			
 			Eigen::VectorXd curl_u(surfaces_size()), curl_f(edges_size());
@@ -374,7 +374,7 @@ class Discretization
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 			<< std::setw(20)  << max_circum_r 				 << "   m" << std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << average_circum_diameter 	 << "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			// std::cout << std::setw(20) << "Time step geom: "   		<< std::setw(20) << t_step_geom                      << " sec" << std::endl;
 			// std::cout << std::setw(20) << "Time step power: "  		<< std::setw(20) << t_step_power                       << " sec" << std::endl;
@@ -407,7 +407,7 @@ class Discretization
 					else if (edge_src[ee].size()>0)
 					{
 						auto isrc = ComputeCurrentSource(ee,current_time - 0.5*t_step);
-						auto usrc = ComputeEfieldSource(ee, current_time);
+						auto usrc = ComputeEfieldSource(ee, current_time - t_step);
 						I[ee] = isrc;
 						
 						for (auto ii : associated_h_edges[ee])
@@ -433,7 +433,36 @@ class Discretization
 					}
 				}
 				
+				tc.tic();
+				U = M*U_frac;
+				tc.toc();
+				// std::cout << "Multiplying by ele. selection matrix takes " << tc << " seconds" << std::endl;
 				
+				if ((*o).AllowPrint(current_time-t_step))
+					ExportFields(mod_out, current_time-t_step);
+				
+				// Magnetic Part:
+				tc.tic();
+				curl_u     = C*U;
+				tc.toc();
+				// std::cout << "Curl_U takes " << tc << " seconds" << std::endl;
+				tc.tic();
+				F_a       -= t_step*N*curl_u;
+				F_b        = R*Old_F_frac - t_step*Tr*curl_u;
+				F_c        = S*F_c - t_step*Ts*curl_u;
+				tc.toc();
+				
+				F          = T*F_frac;
+				F_old 	   = F;
+				Old_F_frac = F_frac;
+				
+				//Computing losses:
+				double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
+				if (i>1)
+					Losses.push_back(-Joule_L);
+				
+				U_old = U;
+				Old_U_frac = U_frac;
 				
 				// Electric Part:			
 				tc.tic();
@@ -448,38 +477,8 @@ class Discretization
 				U_c        = Q*Old_U_c + t_step*Mq*curl_f;
 				
 				tc.toc();
-				U = M*U_frac;
-				
-				//Computing losses:
-				double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
-				if (i>1)
-					Losses.push_back(-Joule_L);
-				
-				U_old = U;
-				Old_U_frac = U_frac;		
-				
+				// std::cout << "Multiplying by ele. mass matrix takes " << tc << " seconds" << std::endl;
 
-
-				
-				Old_F_frac = F_frac;
-				
-				// Magnetic Part:
-				tc.tic();
-				curl_u     = C*U;
-				tc.toc();
-				// std::cout << "Curl_U takes " << tc << " seconds" << std::endl;
-				tc.tic();
-				F_a       -= t_step*N*curl_u;
-				F_b        = R*Old_F_frac - t_step*Tr*curl_u;
-				F_c        = S*F_c - t_step*Ts*curl_u;
-				tc.toc();
-				// std::cout << "Nonzeros of electric mass matrix: " << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+Ts.nonZeros()+S.nonZeros() << std::endl;
-				// std::cout << "Multiplying by magnetic mass matrix takes " << tc << " seconds" << std::endl;
-				F          = T*F_frac;
-				F_old 	   = F;
-				Old_F_frac = F_frac;	
-				// std::cout << "Nonzeros of electric mass matrix: " << H.nonZeros()+Mp.nonZeros()+Q.nonZeros()+Mq.nonZeros() << std::endl;
-				// std::cout << "Multiplying by mass matrix takes " << tc << " seconds" << std::endl;
 				
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
@@ -489,10 +488,9 @@ class Discretization
 				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
 				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 				
-				if ((*o).AllowPrint(current_time))
-					ExportFields(mod_out, current_time);
 
-				if (i % 140 == 0)
+
+				if (i % 137 == 0) //arbitrary, just a nod at the fine structure constant
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
@@ -505,7 +503,7 @@ class Discretization
 		}
 		else if (meth == "fem")
 		{
-			ConstructFEMaterialMatrices();
+			ConstructFEMaterialMatrices(s.Courant());
 			auto solver_name = s.GetSolver();
 			// Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower> cg;
 			ConjugateGradientSolver cg;
@@ -536,19 +534,41 @@ class Discretization
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 			<< std::setw(20)  << max_circum_r 				 << "   m" << std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << average_circum_diameter 	 << "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;	
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << solution.size()      		 << std::endl;
 			std::cout << std::setw(20) << "Matrix fill in: "        << std::setw(20) << A.nonZeros()      		 	 << std::endl  << std::endl;
 			
+			
+			for (uint32_t ee = 0; ee < edges_size(); ++ee)
+			{
+				if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
+				{
+					U[ee] = ComputeEdgeBC(ee,0);
+					SrcFld[ee] = U[ee];
+				}
+				else if (edge_src[ee].size()>0)
+				{
+					// I[ee] = ComputeCurrentSource(ee,0.5*t_step); //Still don't know what to make of this!
+					U[ee] = ComputeEfieldSource(ee, 0);
+					SrcFld[ee] = U[ee];
+				}
+			}
+				
 			for (i=1; i*t_step <= simulation_time; i++)
 			{
 				step_cost.tic();
 				current_time = double(i)*t_step;
 				timecounter t_dbg;
 				// t_dbg.tic();
+
+				
+				if ((*o).AllowPrint(current_time-t_step))
+					ExportFields(mod_out, current_time-t_step);
+				// t_dbg.toc();
+				
 				for (uint32_t ee = 0; ee < edges_size(); ++ee)
 				{
 					if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
@@ -558,13 +578,11 @@ class Discretization
 					}
 					else if (edge_src[ee].size()>0)
 					{
-						// I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step); //Still don't know what to make of this!
+						// I[ee] = ComputeCurrentSource(ee,current_time + 0.5*t_step); //Still don't know what to make of this!
 						U[ee] = ComputeEfieldSource(ee, current_time);
 						SrcFld[ee] = U[ee];
 					}
 				}
-				
-				// t_dbg.toc();
 				
 				// std::cout << "bcs take " << t_dbg << " secs" << std::endl;
 				t_dbg.tic();
@@ -632,11 +650,8 @@ class Discretization
 				
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
-				
-				if ((*o).AllowPrint(current_time))
-					ExportFields(mod_out, current_time);
 
-				if (i % 140 == 0)
+				if (i % 137 == 0)
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
@@ -649,19 +664,20 @@ class Discretization
 		}
 		else if (meth == "fit")
 		{
-		  const uint32_t N_of_steps=simulation_time/t_step;
+		  
 		  // uint32_t i;
 		  timecounter step_cost;
 		  Eigen::VectorXd U_old(U), F_old(F);
 			 
 			std::vector<double> Lxyz({Lx,Ly,Lz});
 			std::sort(Lxyz.begin(),Lxyz.end());
-			
-			auto mesh_radius = 0.5*std::sqrt(std::pow(std::sqrt(std::pow(Lxyz[2],2)+std::pow(Lxyz[1],2)),2) + std::pow(Lxyz[0],2));
+			average_circum_diameter = std::sqrt(std::pow(std::sqrt(std::pow(Lxyz[2],2)+std::pow(Lxyz[1],2)),2) + std::pow(Lxyz[0],2));
+			// t_step *= s.Courant();
+			const uint32_t N_of_steps=simulation_time/t_step;
 			
 			std::cout << std::endl << "Simulation parameters:" 	    << std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 			<< std::setw(20) << mesh_radius                  << "   m" << std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20) << average_circum_diameter      << "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
@@ -675,18 +691,17 @@ class Discretization
 				 
 				 
 				 for (auto j : bc_edges)
-					 U(j) = ComputeEdgeBC(j,current_time);
+					 U(j) = ComputeEdgeBC(j,current_time-t_step);
 				 for (auto j : src_edges)
 				 {
 					// std::cout << "where does it come" << std::endl;
 					// I(j) = ComputeCurrentSource(j,current_time - 0.5*t_step);
-					U(j) = ComputeEfieldSource(j, current_time);
+					U(j) = ComputeEfieldSource(j, current_time-t_step);
 					// std::cout << "where does it go" << std::endl;
 				 }
 		
-
-				 
-
+				if ((*o).AllowPrint(current_time-t_step))
+					ExportFitFields(mod_out, current_time-t_step);
 
 				 U_old=U;
 				 for (auto j : common_edges) // if (Ct_vec[j].size() > 3)
@@ -703,11 +718,8 @@ class Discretization
 				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
 				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
 				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
-					
-				if ((*o).AllowPrint(current_time))
-					ExportFitFields(mod_out, current_time);
 
-				if (i % 140 == 0)
+				if (i % 137 == 0)
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
@@ -778,8 +790,8 @@ class Discretization
 
 		// }
 		
-		std::ofstream max_error_file("max_rel_err.dat",std::ofstream::out | std::ofstream::app);
-		max_error_file << max_circum_r << " " << max_rel_err << std::endl;
+		// std::ofstream max_error_file("max_rel_err.dat",std::ofstream::out | std::ofstream::app);
+		// max_error_file << average_circum_diameter << " " << max_rel_err << std::endl;
 		
 		std::cout << std::setw(20) << "Time step average cost is "  << step_time_average/(double(i)) 
 		          << " seconds (" << i << " time steps!)" << std::endl;
@@ -888,11 +900,11 @@ class Discretization
 			for (uint32_t p=0; p<probe_elem.size(); p++)
 			{
 				Eigen::Vector3d num_ele;
-				if (Simulations[current_simulation].Method() == "fem")
+				// if (Simulations[current_simulation].Method() == "fem")
 					num_ele = GetWhitneyElectricField(probe_elem[p],(*probe_points[p]));
-				else
-					num_ele = GetElectricField(probe_elem[p]);
-				// auto num_ele = GetElectricField(probe_elem[p]);
+				// else
+					// num_ele = GetElectricField(probe_elem[p]);
+				
 				probe_numeric_xvalues[p].push_back(num_ele[0]);
 				probe_numeric_yvalues[p].push_back(num_ele[1]);
 				probe_numeric_zvalues[p].push_back(num_ele[2]);
@@ -2515,7 +2527,8 @@ class Discretization
 			 previous_layer=std::move(this_layer);
 			 pz+=Lz;
 		}
-		
+	
+	t_step *= Simulations[current_simulation].Courant();
 	std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
 	std::vector<std::vector<uint32_t>> dumb_face(surfaces_size());
 	std::vector<uint32_t> dumb(edges_size(),0);
@@ -2704,7 +2717,7 @@ class Discretization
 		std::vector<bool> bnd_nodes(pts.size(),false);
 		uint32_t my_hack_number = 0;
 		
-		max_circum_r = 0;
+		average_circum_diameter = 0;
 		// new_neutral_file << lines << std::endl;
 		tc.tic();
 		while (linecount < lines)
@@ -2810,8 +2823,8 @@ class Discretization
 			double circum_r;
 			
 			tetrahedron_circumsphere(coords,circum_r, cc);
-			if ( circum_r > max_circum_r)
-				max_circum_r = circum_r;
+			// if ( circum_r > average_circum_diameter)
+				average_circum_diameter += circum_r;
 			
 			auto cross_partial = v2.cross(v3);			
 			double vol_partial = v1.dot(cross_partial);
@@ -2849,6 +2862,7 @@ class Discretization
 				
 			}
 		}
+		average_circum_diameter=2*average_circum_diameter/volumes_size();
 		
 		//std::cout << volumes_size() << std::endl;
 		
@@ -3588,7 +3602,7 @@ class Discretization
 		return ts - tol*ts;
 	}
 	
-	void ConstructFEMaterialMatrices(void)
+	void ConstructFEMaterialMatrices(double courant)
 	{
 		std::cout << "Constructing constitutive matrices...";
 		std::cout.flush();
@@ -3942,7 +3956,7 @@ class Discretization
 		this->T=std::move(T); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 		this->N=std::move(N); this->R=std::move(R); this->S=std::move(S);
 		// std::cout << "Before" << std::endl;
-		t_step = 0.98*ComputeFEMTimeStep();
+		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep();
 		
 		Eigen::SparseMatrix<double> SysMat(E.rows(),E.cols());
 		if (SigMat.nonZeros()>0)
@@ -5148,7 +5162,7 @@ class Discretization
 	std::vector<Eigen::Vector3d*>				probe_points;
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
-	double                                      t_step, min_h, average_diameter, max_rel_err, max_circum_r;
+	double                                      t_step, min_h, average_diameter, max_rel_err, average_circum_diameter;
 	double										Lx,Ly,Lz;
 	bool										have_analytic;
 	uint32_t									loaded_mesh_label, current_simulation, method_line, root;
