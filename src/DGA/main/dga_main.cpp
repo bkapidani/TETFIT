@@ -40,14 +40,14 @@ int main(int argc, char **argv)
     
     const char *splash =
 "    ---------------------------------------------------------------------\n"
-"    |          *** FD-TD Uniud - an FD-TD implementation ***            |\n"
+"    |             *** TetFIT - Time Domain Maxwell Solver ***           |\n"
 "    |    Bernard Kapidani (C) 2017 - kapidani.bernard@spes.uniud.it     |\n"
-"    |        Dept. of Electrical Engineering, University of Udine       |\n"
+"    |                      DPIA, University of Udine                    |\n"
 "    ---------------------------------------------------------------------\n";
-    
+
     std::cout << splash << std::endl;
     
-    std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
+    // std::cout << "Compiler version string: \"" << __VERSION__ << "\"" << std::endl;
 	
 	if (argc != 2)
 		MyThrow(0,main_missing_file);

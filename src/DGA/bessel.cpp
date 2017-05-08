@@ -47,13 +47,21 @@
 			
 			if (flag)
 			{
-				// std::cout << "besselj" << std::endl;
+				// std::cout << "time = " << t << " a = " << k << " b = " << t << std::endl;
+				// std::cout << "ksi = " << ksi << " alpha = " << alpha << " value = " << alpha*k*result << std::endl;
+				// std::cout << "1st term = " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;
 				return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))-alpha*k*result;
 			}
 			else
 			{
 				// std::cout << "besseli" << std::endl;
-				return -exp(-ksi*(k))*sin(2*PIE*freq*(t-k))+alpha*k*result;
+				// if (t>5.9e-10 && t< 6.1e-10)
+				// {
+					// std::cout << "time = " << t << " a = " << k << " b = " << t << std::endl;
+					// std::cout << "ksi = " << ksi << " alpha = " << alpha << " value = " << alpha*k*result << std::endl;
+					// std::cout << "1st term = " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;
+				// }
+				return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))+alpha*k*result;
 			}
 		}
 	}

@@ -1891,7 +1891,7 @@ class Discretization
 
 		typedef Eigen::Triplet<uint32_t> Q;
 
-		Eigen::SparseMatrix<uint32_t> previous_layer(Nx,Ny);
+		// Eigen::SparseMatrix<uint32_t> previous_layer(Nx,Ny);
 		std::vector<double> average_eps(tot_E,0), average_sigma(tot_E,0), edge_len(tot_E); 
 		std::vector<double> average_ni(tot_F,0), average_mag_sigma(tot_F,0), face_area(tot_F);
 		std::vector<uint8_t> is_ele_lossy(tot_E,0), is_mag_lossy(tot_F,0);
@@ -1906,14 +1906,14 @@ class Discretization
 		  for(uint32_t k=0;k<Nz;k++)
 		  {
 			 py=ymin;
-			 std::vector<uint32_t> old_col;
-			 Eigen::SparseMatrix<uint32_t> this_layer(Nx,Ny);
+			 // std::vector<uint32_t> old_col;
+			 // Eigen::SparseMatrix<uint32_t> this_layer(Nx,Ny);
 			 std::vector<Q> tripletList;
 			 tripletList.reserve(Nx*Ny);
 
 			 for (uint32_t j=0;j<Ny;++j)
 			 {
-				std::vector<uint32_t> this_col(Nx,0);
+				// std::vector<uint32_t> this_col(Nx,0);
 				px=xmin;
 				for (uint32_t i=0;i<Nx;++i)
 				{
@@ -1940,12 +1940,21 @@ class Discretization
 					  bottom = left = back = 0;
 					  
 					  if (pz>zmin)
-						 bottom = previous_layer.coeffRef(i,j);
+					  {
+						 // bottom = previous_layer.coeffRef(i,j);
+						 bottom = nv+1-Nx*Ny;
+					  }
 					  if (py>ymin)
-						 left = old_col[i];
+					  {
+						 // left = old_col[i];
+						 left = nv+1-Nx;
+					  }
 					  if (px>xmin)
-						 back = this_col[i-1];
-					 
+					  {
+						 // back = this_col[i-1];
+						 back = nv;
+					  }
+					  
 					  if (bottom)
 						  boxtype++;
 					  if (left)
@@ -2464,12 +2473,15 @@ class Discretization
 					 else
 						boundary_face[D[nv][5]]=0;
 					
-					average_ni[D[nv][0]] += Lz/2/mu_nv;
-					average_ni[D[nv][1]] += Ly/2/mu_nv;
-					average_ni[D[nv][2]] += Lx/2/mu_nv;
-					average_ni[D[nv][3]] += Lx/2/mu_nv;
-					average_ni[D[nv][4]] += Ly/2/mu_nv;
-					average_ni[D[nv][5]] += Lz/2/mu_nv;
+					if (mu_nv != 0)
+					{
+						average_ni[D[nv][0]] += Lz/2/mu_nv;
+						average_ni[D[nv][1]] += Ly/2/mu_nv;
+						average_ni[D[nv][2]] += Lx/2/mu_nv;
+						average_ni[D[nv][3]] += Lx/2/mu_nv;
+						average_ni[D[nv][4]] += Ly/2/mu_nv;
+						average_ni[D[nv][5]] += Lz/2/mu_nv;
+					}
 					
 					if (ch_nv != 0)
 					{
@@ -2481,18 +2493,21 @@ class Discretization
 						average_mag_sigma[D[nv][5]] += Lz/2/ch_nv; is_mag_lossy[D[nv][5]]++;
 					}
 					
-					average_eps[E_cluster[nv][ 0]] += da_x*ep_nv;
-					average_eps[E_cluster[nv][ 1]] += da_y*ep_nv;
-					average_eps[E_cluster[nv][ 2]] += da_z*ep_nv;
-					average_eps[E_cluster[nv][ 3]] += da_y*ep_nv;
-					average_eps[E_cluster[nv][ 4]] += da_z*ep_nv;
-					average_eps[E_cluster[nv][ 5]] += da_x*ep_nv;
-					average_eps[E_cluster[nv][ 6]] += da_z*ep_nv;
-					average_eps[E_cluster[nv][ 7]] += da_z*ep_nv;
-					average_eps[E_cluster[nv][ 8]] += da_x*ep_nv;
-					average_eps[E_cluster[nv][ 9]] += da_y*ep_nv;
-					average_eps[E_cluster[nv][10]] += da_y*ep_nv;
-					average_eps[E_cluster[nv][11]] += da_x*ep_nv;
+					if (ep_nv != 0)
+					{
+						average_eps[E_cluster[nv][ 0]] += da_x*ep_nv;
+						average_eps[E_cluster[nv][ 1]] += da_y*ep_nv;
+						average_eps[E_cluster[nv][ 2]] += da_z*ep_nv;
+						average_eps[E_cluster[nv][ 3]] += da_y*ep_nv;
+						average_eps[E_cluster[nv][ 4]] += da_z*ep_nv;
+						average_eps[E_cluster[nv][ 5]] += da_x*ep_nv;
+						average_eps[E_cluster[nv][ 6]] += da_z*ep_nv;
+						average_eps[E_cluster[nv][ 7]] += da_z*ep_nv;
+						average_eps[E_cluster[nv][ 8]] += da_x*ep_nv;
+						average_eps[E_cluster[nv][ 9]] += da_y*ep_nv;
+						average_eps[E_cluster[nv][10]] += da_y*ep_nv;
+						average_eps[E_cluster[nv][11]] += da_x*ep_nv;
+					}
 					
 					if (si_nv != 0)
 					{
@@ -2512,19 +2527,19 @@ class Discretization
 					
 					// dual_pts.push_back(pp+0.5*inc_x+0.5*inc_y+0.5*inc_z);
 					nv++;
-					tripletList.push_back(Q(i,j,nv));
-					this_col[i]=nv;
+					// tripletList.push_back(Q(i,j,nv));
+					// this_col[i]=nv;
 				   // }
 				   
 				   px+=Lx;
 				}
 				
-				old_col=std::move(this_col);
+				// old_col=std::move(this_col);
 				py+=Ly;
 			 }
 
-			 this_layer.setFromTriplets(tripletList.begin(), tripletList.end());
-			 previous_layer=std::move(this_layer);
+			 // this_layer.setFromTriplets(tripletList.begin(), tripletList.end());
+			 // previous_layer=std::move(this_layer);
 			 pz+=Lz;
 		}
 	
