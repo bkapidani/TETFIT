@@ -372,15 +372,16 @@ class Discretization
 			const uint32_t N_of_steps=simulation_time/t_step;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
-			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
-			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << average_circum_diameter 	 << "   m" << std::endl;
-			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
-			// std::cout << std::setw(20) << "Time step geom: "   		<< std::setw(20) << t_step_geom                      << " sec" << std::endl;
-			// std::cout << std::setw(20) << "Time step power: "  		<< std::setw(20) << t_step_power                       << " sec" << std::endl;
-			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;	
-			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size      << std::endl  << std::endl;
+			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
+			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 			<< std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << average_circum_diameter 	 			<< "   m" << std::endl;
+			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
+			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
+			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
+			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
+			std::cout << std::endl;
 			
 		    timecounter tc;
 			for (i=1; double(i)*t_step <= simulation_time; i++)
@@ -434,7 +435,14 @@ class Discretization
 				}
 				
 				tc.tic();
+				// for (uint32_t j=0; j<U.size(); ++j)
+				// {
+					// double val=0;
+					// for (auto ind : M_vec[j])
+						// val += U_frac[ind];
+					// U(j) = val;
 				U = M*U_frac;
+				// }
 				tc.toc();
 				// std::cout << "Multiplying by ele. selection matrix takes " << tc << " seconds" << std::endl;
 				
@@ -682,14 +690,17 @@ class Discretization
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
-		  
+			
+			timecounter tdbg;
+			double export_time_average,bcs_time_average,mag_time_average,ele_time_average;
+			export_time_average=bcs_time_average=mag_time_average=ele_time_average=0;
 			for (i=1; i*t_step <= simulation_time; ++i)
 			{
 				 step_cost.tic();
 				 // time_function=sin(2*PI*freq*(i)*t_step);
 				 current_time = double(i)*t_step;
 				 
-				 
+				 tdbg.tic();
 				 for (auto j : bc_edges)
 					 U(j) = ComputeEdgeBC(j,current_time-t_step);
 				 for (auto j : src_edges)
@@ -699,17 +710,36 @@ class Discretization
 					U(j) = ComputeEfieldSource(j, current_time-t_step);
 					// std::cout << "where does it go" << std::endl;
 				 }
-		
+				
+				tdbg.toc();
+				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				 tdbg.tic();
+				
 				if ((*o).AllowPrint(current_time-t_step))
 					ExportFitFields(mod_out, current_time-t_step);
-
-				 U_old=U;
-				 for (auto j : common_edges) // if (Ct_vec[j].size() > 3)
-						U(j) = M_h[j]*(M_e[j]*U_old(j) +t_step*(dual_curl[j]*(F(Ct_vec[j][0])-F(Ct_vec[j][1])+F(Ct_vec[j][2])-F(Ct_vec[j][3]))-I(j)));
-
+				 
+				tdbg.toc();
+				export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
+				 
 				 F_old=F;
 				 for (uint32_t j=0; j<F.size(); ++j)
 					 F(j) =  M_ni[j]*(M_mu[j]*F_old(j) - t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
+				 
+				tdbg.toc();
+				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
+				tdbg.tic();
+				 
+				 U_old=U;
+				 // for (uint32_t j=0; j<U.size(); ++j)
+					 // if (Ct_vec[j].size() > 3)
+				 for (auto j : common_edges) 
+						U(j) = M_h[j]*(M_e[j]*U_old(j) +t_step*(dual_curl[j]*(F(Ct_vec[j][0])-F(Ct_vec[j][1])+F(Ct_vec[j][2])-F(Ct_vec[j][3]))-I(j)));
+				 
+				tdbg.toc();
+				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+
 				 
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
@@ -723,6 +753,9 @@ class Discretization
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
+			
+			std::cout << export_time_average/N_of_steps << " " << bcs_time_average/N_of_steps 
+			          << " " << ele_time_average/N_of_steps << " " << mag_time_average/N_of_steps << std::endl;
 		}
 
 		
@@ -4031,7 +4064,8 @@ class Discretization
 		Eigen::MatrixXd local_E, local_S;
 		Eigen::Matrix4d local_M, local_Z;
 		std::vector<double_triplet> H_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
-		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip;  
+		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip; 
+		// std::vector<std::vector<uint32_t>> M_trip(edges_size());
 		uint32_t jj,kk;
 		
 		auto local_mag_Id = Eigen::MatrixXd::Identity(4,4);
@@ -4518,6 +4552,7 @@ class Discretization
 							kk++;
 						}
 						
+						// M_trip[*j].push_back(h_index[*j]);
 						M_trip.push_back(double_triplet(*j,h_index[*j],double(1)));
 						break;
 					}
@@ -4549,17 +4584,19 @@ class Discretization
 							kk++;
 						}
 						
+						// M_trip[*j].push_back(H_size+p_index[*j]);
 						M_trip.push_back(double_triplet(*j,H_size+p_index[*j],double(1)));
 						break;
 					}
 					case 3 :
 					{
+						// M_trip[*j].push_back(H_size+P_size+offset+jj);
 						M_trip.push_back(double_triplet(*j,H_size+P_size+offset+jj,double(1)));
-						
 						break;
 					}
 					case 4 :
 					{
+						// M_trip[*j].push_back(H_size+P_size+Q_size+boundary_index[*j]);
 						M_trip.push_back(double_triplet(*j,H_size+P_size+Q_size+boundary_index[*j],double(1)));
 						break;
 					}
@@ -4611,6 +4648,7 @@ class Discretization
 		F_frac_size = N_size + R_size + S_size;
 		
 		this->P_p=std::move(P_p);
+		// this->M_vec = std::move(M_trip);
 		
 		Eigen::SparseMatrix<double> H(H_size,edges_size()), N(N_size,surfaces_size()), Einv(edges_size(),edges_size());
 		Eigen::SparseMatrix<double> M(edges_size(),U_frac_size), Mq(Q_size,edges_size()), Mp(P_size,edges_size());
@@ -5164,7 +5202,7 @@ class Discretization
 	std::vector<uint32_t> 						vol_material, boundary_index, h_index, p_index, n_index, r_index, edge_bids;
 	std::vector<uint32_t>				        edge_bcs, face_bcs, probe_elem, compressed_dirichlet;
 	std::vector<uint8_t>						classify_edges, classify_surfaces;
-	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets, vol_edges; //tet_nodes;
+	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets, vol_edges, M_vec; //tet_nodes;
 	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
 	std::vector<std::vector<uint32_t>>			edge_src, face_src;
 	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna;
