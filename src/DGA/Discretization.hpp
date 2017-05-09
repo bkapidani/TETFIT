@@ -331,7 +331,11 @@ class Discretization
 		
 		double step_time_average=0;
 		uint64_t i;
-
+		uint32_t N_of_steps;
+		timecounter tdbg;
+		double export_time_average,bcs_time_average,mag_time_average,ele_time_average;
+		export_time_average=bcs_time_average=mag_time_average=ele_time_average=0;
+		
 		// Actual simulation!
 		if (meth == "dga")
 		{	
@@ -369,7 +373,7 @@ class Discretization
 			Eigen::Map<Eigen::VectorXd> Old_U_d(start_of_old_u+H_size+P_size+Q_size,B_size);
 			Eigen::Map<Eigen::VectorXd> F_a(start_of_f,N_size), F_b(start_of_f+N_size,R_size), F_c(start_of_f+N_size+R_size,S_size);
 			
-			const uint32_t N_of_steps=simulation_time/t_step;
+			N_of_steps=simulation_time/t_step;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -383,14 +387,13 @@ class Discretization
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
 			std::cout << std::endl;
 			
-		    timecounter tc;
+		    // timecounter tdbg;
 			for (i=1; double(i)*t_step <= simulation_time; i++)
 			{
 				step_cost.tic();
 				current_time = double(i)*t_step;
 				
-				// std::cout << U_a.lpNorm<Eigen::Infinity>() << '\t' << U_b.lpNorm<Eigen::Infinity>() << '\t'
-						  // << U_c.lpNorm<Eigen::Infinity>() << '\t' << U_d.lpNorm<Eigen::Infinity>() << std::endl;
+				tdbg.tic();
 				
 				for (uint32_t ee = 0; ee < edges_size(); ee++)
 				{
@@ -434,35 +437,31 @@ class Discretization
 					}
 				}
 				
-				tc.tic();
-				// for (uint32_t j=0; j<U.size(); ++j)
-				// {
-					// double val=0;
-					// for (auto ind : M_vec[j])
-						// val += U_frac[ind];
-					// U(j) = val;
 				U = M*U_frac;
-				// }
-				tc.toc();
-				// std::cout << "Multiplying by ele. selection matrix takes " << tc << " seconds" << std::endl;
+				
+				tdbg.toc();
+				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
 				
 				if ((*o).AllowPrint(current_time-t_step))
 					ExportFields(mod_out, current_time-t_step);
 				
-				// Magnetic Part:
-				tc.tic();
+				tdbg.toc();
+				export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
+				
 				curl_u     = C*U;
-				tc.toc();
-				// std::cout << "Curl_U takes " << tc << " seconds" << std::endl;
-				tc.tic();
 				F_a       -= t_step*N*curl_u;
 				F_b        = R*Old_F_frac - t_step*Tr*curl_u;
 				F_c        = S*F_c - t_step*Ts*curl_u;
-				tc.toc();
 				
 				F          = T*F_frac;
 				F_old 	   = F;
 				Old_F_frac = F_frac;
+				
+				tdbg.toc();
+				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
 				
 				//Computing losses:
 				double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
@@ -473,30 +472,18 @@ class Discretization
 				Old_U_frac = U_frac;
 				
 				// Electric Part:			
-				tc.tic();
+				// tc.tic();
 				curl_f     = C.transpose()*F-I;
-				tc.toc();
-				// std::cout << "Curl_F takes " << tc << " seconds" << std::endl;
-				// timecounter tc;
-				tc.tic();
 				
 				U_a       += t_step*H*curl_f;
 				U_b        = P_p.cwiseProduct(Old_U_b) + t_step*Mp*curl_f;
 				U_c        = Q*Old_U_c + t_step*Mq*curl_f;
 				
-				tc.toc();
-				// std::cout << "Multiplying by ele. mass matrix takes " << tc << " seconds" << std::endl;
+				tdbg.toc();
+				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 
-				
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
-
-				// Debug
-				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
-				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
-				
-
 
 				if (i % 137 == 0) //arbitrary, just a nod at the fine structure constant
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
@@ -535,7 +522,7 @@ class Discretization
 			auto U_old = U;
 			auto U_older = U_old;
 			auto SrcFld = U;
-			const uint32_t N_of_steps=simulation_time/t_step;
+			N_of_steps=simulation_time/t_step;
 			Eigen::VectorXd solution = Eigen::VectorXd::Zero(compressed_dirichlet.size()); 
 			Eigen::VectorXd rhs = solution;
 			
@@ -569,13 +556,16 @@ class Discretization
 			{
 				step_cost.tic();
 				current_time = double(i)*t_step;
-				timecounter t_dbg;
-				// t_dbg.tic();
+				// timecounter t_dbg;
+				tdbg.tic();
 
 				
 				if ((*o).AllowPrint(current_time-t_step))
 					ExportFields(mod_out, current_time-t_step);
-				// t_dbg.toc();
+
+				tdbg.toc();
+				export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
 				
 				for (uint32_t ee = 0; ee < edges_size(); ++ee)
 				{
@@ -592,56 +582,32 @@ class Discretization
 					}
 				}
 				
-				// std::cout << "bcs take " << t_dbg << " secs" << std::endl;
-				t_dbg.tic();
+				tdbg.toc();
+				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
+				
 				Eigen::VectorXd curlu= (C*U_old);
-				t_dbg.toc();
-				// std::cout << "Curl_U takes " << t_dbg << " seconds" << std::endl;
-				t_dbg.tic();
 				Eigen::VectorXd nucurl = (N*curlu);
-				t_dbg.toc();
-				// std::cout << "Multiplying by magnetic mass matrix takes " << t_dbg << " seconds" << std::endl;
-				t_dbg.tic();
 				Eigen::VectorXd curlcurl = C.transpose()*nucurl;
-				t_dbg.toc();
-				// std::cout << "Curl_F takes takes " << t_dbg << " seconds" << std::endl;
-				t_dbg.tic();
 				Psi = double(2)*(E*U_old)*(1/t_step/t_step) - curlcurl - (E*U_older)*(1/t_step/t_step) + (0.5/t_step)*(SigMat*U_older) - RHSmat*SrcFld;		
 				
-				t_dbg.toc();
-				
-				// std::cout << "Psi takes " << t_dbg << " secs" << std::endl;
-				// t_dbg.tic();
+
 				
 				//Find solution for U
 				for (uint32_t k=0; k<compressed_dirichlet.size(); ++k)
 					rhs[k] = Psi[compressed_dirichlet[k]];
 				
-				// t_dbg.toc();
-				
-				// std::cout << "rhs building takes " << t_dbg << " secs" << std::endl;
-				t_dbg.tic();
+				tdbg.toc();
+				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
 				
 				if (solver_name == "agmg")
 					solution = agmg.solveWithGuess(rhs,solution);
 				else if (solver_name == "cg")
-					solution = cg.solveWithGuess(rhs,solution);
-				
-				t_dbg.toc();
-				
-				// std::cout << "Solving takes " << t_dbg << " secs" << std::endl;
-				// std::cout << "Nonzeros of mass matrix: " << (this->A).nonZeros() << std::endl;
+					solution =   cg.solveWithGuess(rhs,solution);
 
-				// t_dbg.tic();
 				for (uint32_t k=0; k<compressed_dirichlet.size(); ++k)
 					U[compressed_dirichlet[k]] = solution[k];
-				
-				// t_dbg.toc();
-				// std::cout << "solution building takes " << t_dbg << " secs" << std::endl;
-				// t_dbg.tic();
-				// U = cg.solve(Psi);
-				// std::cout << "#iterations:     " << cg.iterations() << std::endl;
-				// std::cout << "estimated error: " << cg.error()      << std::endl;
 				
 				//Computing losses:
 				double Joule_L = U.transpose()*(SigMat*U);
@@ -651,10 +617,8 @@ class Discretization
 				U_older = U_old;
 				U_old = U;
 				
-				// std::cout << "Time: "      << std::setw(20) << n_iter*del_t << '\t'; 
-				// std::cout << "Maximum Psi: " << std::setw(20) << Psi.lpNorm<Eigen::Infinity>() << '\t';
-				// std::cout << "Maximum Source: " << std::setw(20) << SrcFld.lpNorm<Eigen::Infinity>() << '\t'; 
-				// std::cout << "Maximum U:   " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				tdbg.toc();
+				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
@@ -681,7 +645,7 @@ class Discretization
 			std::sort(Lxyz.begin(),Lxyz.end());
 			average_circum_diameter = std::sqrt(std::pow(std::sqrt(std::pow(Lxyz[2],2)+std::pow(Lxyz[1],2)),2) + std::pow(Lxyz[0],2));
 			// t_step *= s.Courant();
-			const uint32_t N_of_steps=simulation_time/t_step;
+			N_of_steps=simulation_time/t_step;
 			
 			std::cout << std::endl << "Simulation parameters:" 	    << std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -691,9 +655,6 @@ class Discretization
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
 			
-			timecounter tdbg;
-			double export_time_average,bcs_time_average,mag_time_average,ele_time_average;
-			export_time_average=bcs_time_average=mag_time_average=ele_time_average=0;
 			for (i=1; i*t_step <= simulation_time; ++i)
 			{
 				 step_cost.tic();
@@ -713,7 +674,7 @@ class Discretization
 				
 				tdbg.toc();
 				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
-				 tdbg.tic();
+				tdbg.tic();
 				
 				if ((*o).AllowPrint(current_time-t_step))
 					ExportFitFields(mod_out, current_time-t_step);
@@ -754,10 +715,8 @@ class Discretization
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
 			
-			std::cout << export_time_average/N_of_steps << " " << bcs_time_average/N_of_steps 
-			          << " " << ele_time_average/N_of_steps << " " << mag_time_average/N_of_steps << std::endl;
-		}
 
+		}
 		
 		meshlock.unlock(); //unlock the access to the meshes map
 
@@ -778,7 +737,6 @@ class Discretization
 				
 				for (uint32_t p=0; p<probe_elem.size(); p++)
 				{
-					// std::cout << (*probe_points[p]) << std::endl;
 					os << std::setw(15) << (*probe_points[p])(0) << " ";
 					os << std::setw(15) << (*probe_points[p])(1) << " ";
 					os << std::setw(15) << (*probe_points[p])(2) << " ";
@@ -799,14 +757,7 @@ class Discretization
 						os_a << std::setw(15) <<                           0;
 						os_a << std::endl;
 					}
-					// if (p == 0)
-						// os_l << std::setw(15) << probe_numeric_times[k] << " " << std::setw(15) << Losses[k] <<  std::endl;
 				}
-				
-
-				// if (p == 0)
-					// os_l.close();
-				
 			}
 
 			os.close();
@@ -818,18 +769,19 @@ class Discretization
 				// os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
 			// os.close();
 		}
-		// else if (mod_out == "silo")
-		// {
-
-		// }
 		
-		// std::ofstream max_error_file("max_rel_err.dat",std::ofstream::out | std::ofstream::app);
-		// max_error_file << average_circum_diameter << " " << max_rel_err << std::endl;
+		std::cout << std::endl 	   << "Simulation statistics:" 	    																	<< std::endl;
+		std::cout << std::setw(20) << "Average step cost:  "		<< std::setw(20) << step_time_average/double(i)  	<< " sec" 	<< std::endl;
+		std::cout << std::setw(20) << "Total running time: "		<< std::setw(20) << step_time_average              	<< " sec" 	<< std::endl;
+		std::cout << std::setw(20) << "Average export time: "	<< std::setw(20) << export_time_average/double(i)   	<< " sec" 	<< std::endl;
+		std::cout << std::setw(20) << "Average src/bc time: "	<< std::setw(20) << bcs_time_average/double(i)  		<< " sec" 	<< std::endl;
 		
-		std::cout << std::setw(20) << "Time step average cost is "  << step_time_average/(double(i)) 
-		          << " seconds (" << i << " time steps!)" << std::endl;
-		std::cout << std::setw(20) << "Total running time is "      << step_time_average << " seconds" << std::endl;
-		// std::cout << std::setw(20) << "Max relative error is "      << max_rel_err <<  std::endl;
+		if (meth == "fem")
+			std::cout << std::setw(20) << "Average r.h.s. time: "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
+		else
+			std::cout << std::setw(20) << "Average Hfield time: "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
+		
+		std::cout << std::setw(20) << "Average Efield time: "	<< std::setw(20) << ele_time_average/double(i)  		<< " sec" << std::endl;
 
 	}
 	
