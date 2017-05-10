@@ -78,6 +78,8 @@
 #include "strtot.hpp"
 #include "bessel.h"
 #include "burkardt.h"
+#include "Seb.h" // from Fischer
+#include "date.h" //from howard hinnant
 #include "agmg.hpp"
 #include "Efield.hpp"
 #include "Hfield.hpp"
@@ -164,7 +166,10 @@ typedef double 													WaveNumber;
 typedef double													Duration;
 typedef std::array<double,4>									SpaceTimePoint;
 typedef std::array<double,3> 									WaveVector;
-
+typedef Seb::Point<double> 										Point;
+typedef std::vector<Point> 										PointVector;
+typedef Seb::Smallest_enclosing_ball<double> 					Miniball;
+		
 //lists of allowed string constants
 const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry","output"};
 const std::vector<Primitive>							meshdefinables	= {"grid","solid"};

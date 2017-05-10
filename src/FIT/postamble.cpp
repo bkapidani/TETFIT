@@ -941,20 +941,6 @@
 			
 			for (uint32_t j=0; j<nv; ++j)
 			{
-				// if (j==0)
-					// debug_counter.tic();
-				
-				// e1 = E_cluster[j][ 7];
-				// e2 = E_cluster[j][10];
-				// e3 = E_cluster[j][11];
-				// f1 = D[j][3];
-				// f2 = D[j][4];
-				// f3 = D[j][5];
-
-				// if (j==0)
-				// {
-					// debug_counter.tic();
-				// }
 				
 				if (!is_boundary[E_cluster[j][ 7]])
 				{
@@ -978,13 +964,6 @@
 						U[E_cluster[j][11]] += M_h[E_cluster[j][11]]*t_step*(F[D[j][4]]-F[D[j+Nx*Ny][4]]+F[D[j+Nx][5]]-F[D[j][5]]);
 				}
 				
-				// if (j==0)
-				// {
-					// debug_counter.toc();
-					// std::cout << "Electric part takes " << debug_counter << " seconds" << std::endl;
-					// debug_counter.tic();
-				// }
-				
 				if (!boundary_face[D[j][3]])
 				{
 					if (is_mag_lossy[D[j][3]])
@@ -1007,12 +986,6 @@
 						F[D[j][5]] -= t_step*M_ni[D[j][5]]*(U[E_cluster[j][8]]-U[E_cluster[j][11]]+U[E_cluster[j][10]]-U[E_cluster[j][9]]);
 				}
 				
-				// if (j==0)
-				// {
-					// debug_counter.toc();
-					// std::cout << "Magnetic part takes " << debug_counter << " seconds" << std::endl;
-					// debug_counter.tic();
-				// }
 			}
 			
 			// debug_counter.toc();

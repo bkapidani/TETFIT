@@ -242,10 +242,25 @@ class Discretization
 		}
 	}
 	
+	void DateAndTime(void)
+	{
+		using namespace date;
+		using namespace std::chrono;
+		std::cout << "On " << system_clock::now() << '\n';
+	}
+	
 	void RunSimulation(const Simulation& s, const uint32_t& sim_label)
 	{
 		std::cout  << std::endl << std::endl; 
 		std::cout <<"------------------------ Running Time Domain Simulation ------------------------" << std::endl << std::endl;
+		
+		DateAndTime();
+		
+		std::cout << "Preprocessing... ";
+		std::cout.flush();
+		
+		timecounter t_preproc;
+		t_preproc.tic();
 		
 		current_simulation = sim_label;
 		// auto sim_sources = s.Src();
@@ -374,11 +389,13 @@ class Discretization
 			Eigen::Map<Eigen::VectorXd> F_a(start_of_f,N_size), F_b(start_of_f+N_size,R_size), F_c(start_of_f+N_size+R_size,S_size);
 			
 			N_of_steps=simulation_time/t_step;
+			t_preproc.toc();
+			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 			<< std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << average_circum_diameter 	 			<< "   m" << std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 			<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
@@ -523,13 +540,17 @@ class Discretization
 			auto U_older = U_old;
 			auto SrcFld = U;
 			N_of_steps=simulation_time/t_step;
+			
 			Eigen::VectorXd solution = Eigen::VectorXd::Zero(compressed_dirichlet.size()); 
 			Eigen::VectorXd rhs = solution;
+			
+			t_preproc.toc();
+			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << average_circum_diameter 	 << "   m" << std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 << "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;	
@@ -643,17 +664,23 @@ class Discretization
 			 
 			std::vector<double> Lxyz({Lx,Ly,Lz});
 			std::sort(Lxyz.begin(),Lxyz.end());
-			average_circum_diameter = std::sqrt(std::pow(std::sqrt(std::pow(Lxyz[2],2)+std::pow(Lxyz[1],2)),2) + std::pow(Lxyz[0],2));
+			max_circum_diameter = std::sqrt(std::pow(std::sqrt(std::pow(Lxyz[2],2)+std::pow(Lxyz[1],2)),2) + std::pow(Lxyz[0],2));
+			// max_circum_diameter *= 2;
 			// t_step *= s.Courant();
 			N_of_steps=simulation_time/t_step;
+			t_preproc.toc();
+			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 	    << std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
-			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20) << average_circum_diameter      << "   m" << std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20) << max_circum_diameter      << "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
+			
+			uint32_t Nxy = Nx*Ny;
+			
 			
 			for (i=1; i*t_step <= simulation_time; ++i)
 			{
@@ -681,8 +708,54 @@ class Discretization
 				 
 				tdbg.toc();
 				export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
+				//voxelbased
+				// tdbg.tic();
+				 // F_old=F;
+				 // U_old=U;
+				// for (uint32_t j=0; j<volumes_size(); ++j)
+				// {
+					// auto pippo = pts[P_cluster[j][7]];
+					
+					// if (pippo(0)<xmax && pippo(1)<ymax)
+						// U(E_cluster[j][ 7]) = M_h[E_cluster[j][ 7]]*(M_e[E_cluster[j][ 7]]*U_old(E_cluster[j][ 7]) + t_step*(F(D[j][3])-F(D[j+Nx][3])+F(D[j+1][4])-F(D[j][4])));
+					// if (pippo(0)<xmax && pippo(2)<zmax)
+						// U(E_cluster[j][10]) = M_h[E_cluster[j][10]]*(M_e[E_cluster[j][10]]*U_old(E_cluster[j][10]) + t_step*(F(D[j][5])-F(D[j+1][5])+F(D[j+Nxy][3])-F(D[j][3])));
+					// if (pippo(1)<ymax && pippo(2)<zmax)
+						// U(E_cluster[j][11]) = M_h[E_cluster[j][11]]*(M_e[E_cluster[j][11]]*U_old(E_cluster[j][11]) + t_step*(F(D[j][4])-F(D[j+Nxy][4])+F(D[j+Nx][5])-F(D[j][5])));
+					
+					// if (pippo(0)<xmax)
+						// F(D[j][3]) = M_ni[D[j][3]]*(M_mu[D[j][3]]*F_old(D[j][3])-t_step*(U(E_cluster[j][ 7])-U(E_cluster[j][4])+U(E_cluster[j][3])-U(E_cluster[j][10])));
+					// if (pippo(1)<ymax)
+						// F(D[j][4]) = M_ni[D[j][4]]*(M_mu[D[j][4]]*F_old(D[j][4])-t_step*(U(E_cluster[j][6])-U(E_cluster[j][ 7])+U(E_cluster[j][11])-U(E_cluster[j][5])));
+					// if (pippo(2)<zmax)
+						// F(D[j][5]) = M_ni[D[j][5]]*(M_mu[D[j][5]]*F_old(D[j][5])-t_step*(U(E_cluster[j][8])-U(E_cluster[j][11])+U(E_cluster[j][10])-U[E_cluster[j][9]]));
+				// }
+				
+				// tdbg.toc();
+				// mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
+				// tdbg.tic();
+				// U_old=U;
+				// for (uint32_t j=0; j<volumes_size(); ++j)
+				// {
+					// uint32_t res1 = (j+1) / Nx;
+					// uint32_t rem1 = (j+1) % Nx;
+					// uint32_t res2 = (res1+1) / Ny;
+					// uint32_t rem2 = (res1+1) % Ny;
+					// uint32_t res3 = j / Nxy;
+					// uint32_t rem3 = (j+1) % Nxy;
+					// bool not_on_roof = res3<Nz-1;
+					
+
+					
+				// }
+				
+				// tdbg.toc();
+				// ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
+				
 				tdbg.tic();
-				 
 				 F_old=F;
 				 for (uint32_t j=0; j<F.size(); ++j)
 					 F(j) =  M_ni[j]*(M_mu[j]*F_old(j) - t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
@@ -693,8 +766,6 @@ class Discretization
 				tdbg.tic();
 				 
 				 U_old=U;
-				 // for (uint32_t j=0; j<U.size(); ++j)
-					 // if (Ct_vec[j].size() > 3)
 				 for (auto j : common_edges) 
 						U(j) = M_h[j]*(M_e[j]*U_old(j) +t_step*(dual_curl[j]*(F(Ct_vec[j][0])-F(Ct_vec[j][1])+F(Ct_vec[j][2])-F(Ct_vec[j][3]))-I(j)));
 				 
@@ -871,7 +942,7 @@ class Discretization
         stop = high_resolution_clock::now();
         time_span = duration_cast<duration<double>>(stop - start);
         
-        std::cout << "SILO: Mesh export done in " << time_span.count() << " seconds.";
+        // std::cout << "SILO: Mesh export done in " << time_span.count() << " seconds.";
         std::cout << std::endl;
         
         return true;
@@ -958,7 +1029,7 @@ class Discretization
 			DBClose(_siloDb);
 			
 			t_export.toc();
-			std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
+			// std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
 		}
 	}
 
@@ -1045,7 +1116,7 @@ class Discretization
 			DBClose(_siloDb);
 			
 			t_export.toc();
-			std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
+			// std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
 		}
 	}
 
@@ -1831,9 +1902,9 @@ class Discretization
 		Lx	 = msh.GetXstep();
 		Ly   = msh.GetYstep();
 		Lz   = msh.GetZstep();
-		auto xmax = msh.GetXmax();
-		auto ymax = msh.GetYmax();
-		auto zmax = msh.GetZmax();		
+		xmax = msh.GetXmax();
+		ymax = msh.GetYmax();
+		zmax = msh.GetZmax();		
 		
 		
 		auto px = xmin;
@@ -1887,6 +1958,8 @@ class Discretization
 		std::vector<int32_t> cplus=std::vector<int32_t>({1,-1,1,-1});
 		std::vector<int32_t> cminus=std::vector<int32_t>({-1,1,-1,1});
 		std::vector<uint8_t> boundary_face;
+		
+		max_circum_diameter = 0;
 		
 		  for(uint32_t k=0;k<Nz;k++)
 		  {
@@ -1963,9 +2036,8 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							
-							E_cluster.push_back(std::vector<uint32_t>({ne,ne+1,ne+2,ne+3,ne+4,ne+5,
-																ne+6,ne+7,ne+8,ne+9,ne+10,ne+11}));
+							std::array<uint32_t,12> dum12{ {ne,ne+1,ne+2,ne+3,ne+4,ne+5,ne+6,ne+7,ne+8,ne+9,ne+10,ne+11} };
+							E_cluster.push_back(dum12);
 							ne+=12;
 							
 							for (uint32_t cnt=0; cnt<12; cnt++)
@@ -1974,8 +2046,8 @@ class Discretization
 								G.push_back(dummyf);
 							}
 							
-							P_cluster.push_back(std::vector<uint32_t>({np,np+1,np+2,np+3,
-																	   np+4,np+5,np+6,np+7}));
+							std::array<uint32_t,8> dum8{{np,np+1,np+2,np+3,np+4,np+5,np+6,np+7}};
+							P_cluster.push_back(dum8);
 							np+=8;
 							
 							// for (uint32_t cnt=0; cnt<8; cnt++)
@@ -2004,8 +2076,10 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],ne,E_cluster[bottom-1][10],
-																ne+1,E_cluster[bottom-1][11],ne+2,ne+3,ne+4,ne+5,ne+6,ne+7}));
+							
+							std::array<uint32_t,12> dum12{{E_cluster[bottom-1][8],E_cluster[bottom-1][9],ne,E_cluster[bottom-1][10],
+																ne+1,E_cluster[bottom-1][11],ne+2,ne+3,ne+4,ne+5,ne+6,ne+7}};
+							E_cluster.push_back(dum12);
 							ne+=8;
 							
 							for (uint32_t cnt=0; cnt<8; cnt++)
@@ -2014,8 +2088,9 @@ class Discretization
 								G.push_back(dummyf);
 							}
 
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
-																np,np+1,np+2,np+3}));
+							std::array<uint32_t,8> dum8{{P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+																np,np+1,np+2,np+3}};
+							P_cluster.push_back(dum8);
 							np+=4;
 							
 							// for (uint32_t cnt=0; cnt<4; cnt++)
@@ -2040,16 +2115,18 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({E_cluster[left-1][5],ne,E_cluster[left-1][6],ne+1,E_cluster[left-1][7],ne+2,
-																ne+3,ne+4,E_cluster[left-1][11],ne+5,ne+6,ne+7}));
+							std::array<uint32_t,12> dum12{{E_cluster[left-1][5],ne,E_cluster[left-1][6],ne+1,E_cluster[left-1][7],ne+2,
+																ne+3,ne+4,E_cluster[left-1][11],ne+5,ne+6,ne+7}};
+							E_cluster.push_back(dum12);
 							ne+=8;
 							for (uint32_t cnt=0; cnt<8; cnt++)
 							{
 								(this->Ct_vec).push_back(dummyf);
 								G.push_back(dummyf);
 							}
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[left-1][2],P_cluster[left-1][3],np,np+1,
-																P_cluster[left-1][6],P_cluster[left-1][7],np+2,np+3}));
+							std::array<uint32_t,8> dum8{{P_cluster[left-1][2],P_cluster[left-1][3],np,np+1,
+																P_cluster[left-1][6],P_cluster[left-1][7],np+2,np+3}};
+							P_cluster.push_back(dum8);
 							np+=4;
 							
 							// for (uint32_t cnt=0; cnt<4; cnt++)
@@ -2074,17 +2151,19 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
+							std::array<uint32_t,12> dum12{{E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
 																	  E_cluster[left-1][7],E_cluster[bottom-1][11],ne,ne+1,
-																	  E_cluster[left-1][11],ne+2,ne+3,ne+4}));
+																	  E_cluster[left-1][11],ne+2,ne+3,ne+4}};
+							E_cluster.push_back(dum12);
 							ne+=5;
 							for (uint32_t cnt=0; cnt<5; cnt++)
 							{
 								(this->Ct_vec).push_back(dummyf);
 								G.push_back(dummyf);
 							}
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
-																	  P_cluster[left-1][6],P_cluster[left-1][7],np,np+1}));
+							std::array<uint32_t,8> dum8{{P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+																	  P_cluster[left-1][6],P_cluster[left-1][7],np,np+1}};
+							P_cluster.push_back(dum8);
 							np+=2;
 							
 							// for (uint32_t cnt=0; cnt<2; cnt++)
@@ -2107,16 +2186,18 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({ne,E_cluster[back-1][3],E_cluster[back-1][4],ne+1,ne+2,ne+3,
-																E_cluster[back-1][7],ne+4,ne+5,E_cluster[back-1][10],ne+6,ne+7}));
+							std::array<uint32_t,12> dum12{{ne,E_cluster[back-1][3],E_cluster[back-1][4],ne+1,ne+2,ne+3,
+																E_cluster[back-1][7],ne+4,ne+5,E_cluster[back-1][10],ne+6,ne+7}};
+							E_cluster.push_back(dum12);
 							ne+=8;
 							for (uint32_t cnt=0; cnt<8; cnt++)
 							{
 								(this->Ct_vec).push_back(dummyf);
 								G.push_back(dummyf);
 							}
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[back-1][1],np,P_cluster[back-1][3],np+1,
-																P_cluster[back-1][5],np+2,P_cluster[back-1][7],np+3}));
+							std::array<uint32_t,8> dum8{{P_cluster[back-1][1],np,P_cluster[back-1][3],np+1,
+																P_cluster[back-1][5],np+2,P_cluster[back-1][7],np+3}};
+							P_cluster.push_back(dum8);
 							np+=4;
 							
 							// for (uint32_t cnt=0; cnt<4; cnt++)
@@ -2141,17 +2222,19 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[back-1][4],E_cluster[bottom-1][10],
+							std::array<uint32_t,12> dum12{{E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[back-1][4],E_cluster[bottom-1][10],
 																	  ne,E_cluster[bottom-1][11],E_cluster[back-1][7],ne+1,
-																	  ne+2,E_cluster[back-1][10],ne+3,ne+4}));
+																	  ne+2,E_cluster[back-1][10],ne+3,ne+4}};
+							E_cluster.push_back(dum12);
 							ne+=5;
 							for (uint32_t cnt=0; cnt<5; cnt++)
 							{
 								(this->Ct_vec).push_back(dummyf);
 								G.push_back(dummyf);
 							}
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
-																P_cluster[back-1][5],np,P_cluster[back-1][7],np+1}));
+							std::array<uint32_t,8> dum8{{P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+																P_cluster[back-1][5],np,P_cluster[back-1][7],np+1}};
+							P_cluster.push_back(dum8);
 							np+=2;
 							
 							// for (uint32_t cnt=0; cnt<2; cnt++)
@@ -2174,17 +2257,19 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({E_cluster[left-1][5],E_cluster[back-1][3],E_cluster[left-1][6],ne,
+							std::array<uint32_t,12> dum12{{E_cluster[left-1][5],E_cluster[back-1][3],E_cluster[left-1][6],ne,
 																	  E_cluster[left-1][7],ne+1,E_cluster[back-1][7],ne+2,
-																	  E_cluster[left-1][11],E_cluster[back-1][10],ne+3,ne+4}));
+																	  E_cluster[left-1][11],E_cluster[back-1][10],ne+3,ne+4}};
+							E_cluster.push_back(dum12);
 							ne+=5;
 							for (uint32_t cnt=0; cnt<5; cnt++)
 							{
 								(this->Ct_vec).push_back(dummyf);
 								G.push_back(dummyf);
 							}
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[left-1][2],P_cluster[left-1][3],P_cluster[back-1][3],np,
-																P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np+1}));
+							std::array<uint32_t,8> dum8{{P_cluster[left-1][2],P_cluster[left-1][3],P_cluster[back-1][3],np,
+																P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np+1}};
+							P_cluster.push_back(dum8);
 							np+=2;
 							
 							// for (uint32_t cnt=0; cnt<2; cnt++)
@@ -2207,17 +2292,19 @@ class Discretization
 								curl.push_back(1);
 								
 							}
-							E_cluster.push_back(std::vector<uint32_t>({E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
+							std::array<uint32_t,12> dum12{{E_cluster[bottom-1][8],E_cluster[bottom-1][9],E_cluster[left-1][6],E_cluster[bottom-1][10],
 																	  E_cluster[left-1][7],E_cluster[bottom-1][11],E_cluster[back-1][7],ne,
-																	  E_cluster[left-1][11],E_cluster[back-1][10],ne+1,ne+2}));
+																	  E_cluster[left-1][11],E_cluster[back-1][10],ne+1,ne+2}};
+							E_cluster.push_back(dum12);
 							ne+=3;
 							for (uint32_t cnt=0; cnt<3; cnt++)
 							{
 								(this->Ct_vec).push_back(dummyf);
 								G.push_back(dummyf);
 							}
-							P_cluster.push_back(std::vector<uint32_t>({P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
-																P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np}));
+							std::array<uint32_t,8> dum8{{P_cluster[bottom-1][4],P_cluster[bottom-1][5],P_cluster[bottom-1][6],P_cluster[bottom-1][7],
+																P_cluster[left-1][6],P_cluster[left-1][7],P_cluster[back-1][7],np}};
+							P_cluster.push_back(dum8);
 							np+=1;
 							
 							//Gt.push_back(dummyf);
@@ -2225,6 +2312,18 @@ class Discretization
 							pts.push_back(pp+inc_z+inc_x+inc_y);
 							break;
 						 }
+						 
+						 
+							double circum_r;
+							std::vector<Seb::Point<double>> ptset;
+							for (uint8_t nn = 0; nn < 8; ++nn)
+								ptset.push_back(Seb::Point<double>(3,pts[P_cluster[nv][nn]].data()));
+							
+							Miniball mb(3, ptset);
+							circum_r = mb.radius();
+							
+							if ( circum_r > max_circum_diameter)
+								max_circum_diameter = circum_r;
 					  }
 					  
 					  
@@ -2619,7 +2718,7 @@ class Discretization
 	  // this->is_ele_lossy=std::move(is_ele_lossy);
 	  
       t_mesh.toc();
-	  std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
+	  // std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
 	  return true;
 	}
 	
@@ -2676,12 +2775,12 @@ class Discretization
 		
 		while (linecount < lines)
 		{
-			if ( (linecount%100000) == 0 )
-			{
-				std::cout << "Reading points: " << linecount;
-				std::cout << "/" << lines << "\r";
-				std::cout.flush();
-			}
+			// if ( (linecount%100000) == 0 )
+			// {
+				// std::cout << "Reading points: " << linecount;
+				// std::cout << "/" << lines << "\r";
+				// std::cout.flush();
+			// }
 
 			auto t = parser::read_point_line<double>(endptr, &endptr);
 			
@@ -2697,8 +2796,8 @@ class Discretization
 		}
 		tc.toc();
 		
-		std::cout << "Reading points: " << linecount;
-		std::cout << "/" << lines << " - " << tc << " seconds" << std::endl;
+		// std::cout << "Reading points: " << linecount;
+		// std::cout << "/" << lines << " - " << tc << " seconds" << std::endl;
 		
 		/************************ Read tetrahedra ************************/
 		linecount = 0;
@@ -2717,17 +2816,17 @@ class Discretization
 		std::vector<bool> bnd_nodes(pts.size(),false);
 		uint32_t my_hack_number = 0;
 		
-		average_circum_diameter = 0;
+		max_circum_diameter = 0;
 		// new_neutral_file << lines << std::endl;
 		tc.tic();
 		while (linecount < lines)
 		{
-			if ( (linecount%100000) == 0 )
-			{
-				std::cout << "Reading tetrahedra: " << linecount;
-				std::cout << "/" << lines << "\r";
-				std::cout.flush();
-			}
+			// if ( (linecount%100000) == 0 )
+			// {
+				// std::cout << "Reading tetrahedra: " << linecount;
+				// std::cout << "/" << lines << "\r";
+				// std::cout.flush();
+			// }
 			
 			auto t = parser::read_tetrahedron_line<uint32_t>(endptr, &endptr);
 			
@@ -2763,14 +2862,14 @@ class Discretization
 		// new_neutral_file << my_hack_number << std::endl;
 		
 		
-		std::cout << "Reading tetrahedra: " << linecount;
-		std::cout << "/" << lines  << " - " << tc << " seconds" << std::endl;
+		// std::cout << "Reading tetrahedra: " << linecount;
+		// std::cout << "/" << lines  << " - " << tc << " seconds" << std::endl;
 		
 		// std::cout << my_hack_number << std::endl;
 		
 		/************************ Sort ************************/
-		std::cout << "Sorting data...";
-		std::cout.flush();
+		// std::cout << "Sorting data...";
+		// std::cout.flush();
 		
 		tc.tic();
 		
@@ -2813,18 +2912,31 @@ class Discretization
 			Eigen::Vector3d v1 = pts[p1] - pts[p0];
 			Eigen::Vector3d v2 = pts[p2] - pts[p0];
 			Eigen::Vector3d v3 = pts[p3] - pts[p0];		
+			
 
 			double coords[12] = { pts[p0](0), pts[p0](1), pts[p0](2),
                                   pts[p1](0), pts[p1](1), pts[p1](2),
 								  pts[p2](0), pts[p2](1), pts[p2](2),
 								  pts[p3](0), pts[p3](1), pts[p3](2) };
-			
-			double cc[3];
+			// double cc[3];
 			double circum_r;
+			// tetrahedron_circumsphere(coords,circum_r, cc);
 			
-			tetrahedron_circumsphere(coords,circum_r, cc);
-			// if ( circum_r > average_circum_diameter)
-				average_circum_diameter += circum_r;
+			std::vector<Seb::Point<double>> ptset;
+			auto piter = coords;
+			for (uint8_t nn = 0; nn < 4; ++nn)
+			{				
+				ptset.push_back(Seb::Point<double>(3,piter));
+				piter+=3;
+			}
+			
+			Miniball mb(3, ptset);
+			circum_r = mb.radius();
+			
+			if ( circum_r > max_circum_diameter)
+				max_circum_diameter = circum_r;
+			// max_circum_diameter += circum_r;
+			
 			
 			auto cross_partial = v2.cross(v3);			
 			double vol_partial = v1.dot(cross_partial);
@@ -2862,7 +2974,9 @@ class Discretization
 				
 			}
 		}
-		average_circum_diameter=2*average_circum_diameter/volumes_size();
+
+		// max_circum_diameter=2*max_circum_diameter/volumes_size();
+		max_circum_diameter=2*max_circum_diameter;
 		
 		//std::cout << volumes_size() << std::endl;
 		
@@ -3184,7 +3298,7 @@ class Discretization
 		// this->is_source = all_false;
 		tc.toc();
 		
-		std::cout << "done - " << tc << " seconds" << std::endl;
+		// std::cout << "done - " << tc << " seconds" << std::endl;
 		
 		/************************ Read boundary surfaces ************************/
 		linecount = 0;
@@ -3216,12 +3330,12 @@ class Discretization
 				return false;
 			}*/
 			
-			if ( (linecount%50000) == 0 )
-			{
-				std::cout << "Reading triangles: " << linecount;
-				std::cout << "/" << lines << "\r";
-				std::cout.flush();
-			}
+			// if ( (linecount%50000) == 0 )
+			// {
+				// std::cout << "Reading triangles: " << linecount;
+				// std::cout << "/" << lines << "\r";
+				// std::cout.flush();
+			// }
 			
 			auto t = parser::read_triangle_line<uint32_t>(endptr, &endptr);
 
@@ -3314,8 +3428,8 @@ class Discretization
 		// new_neutral_file << my_hack_number << std::endl;
 		// debug_faces.close();
 		
-		std::cout << "Reading triangles: " << linecount;
-		std::cout << "/" << lines  << " - " << tc << " seconds"  << std::endl;
+		// std::cout << "Reading triangles: " << linecount;
+		// std::cout << "/" << lines  << " - " << tc << " seconds"  << std::endl;
 		
 		tctot.toc();
 		// std::cout << my_hack_number << std::endl;
@@ -3604,8 +3718,8 @@ class Discretization
 	
 	void ConstructFEMaterialMatrices(double courant)
 	{
-		std::cout << "Constructing constitutive matrices...";
-		std::cout.flush();
+		// std::cout << "Constructing constitutive matrices...";
+		// std::cout.flush();
 		timecounter t_material;
 		t_material.tic();
 		radiator_center = Eigen::Vector3d({2.85, 2.45, 1});
@@ -4002,13 +4116,13 @@ class Discretization
 		// dbg_mat.close();
 		
 		t_material.toc();
-		std::cout << "done - " << t_material << " seconds" << std::endl;
+		// std::cout << "done - " << t_material << " seconds" << std::endl;
 	}
 	
 	void ConstructMaterialMatrices(void)
 	{
-		std::cout << "Constructing constitutive matrices...";
-		std::cout.flush();
+		// std::cout << "Constructing constitutive matrices...";
+		// std::cout.flush();
 		timecounter t_material;
 		t_material.tic();
 		radiator_center = Eigen::Vector3d({2.85, 2.45, 1});
@@ -4652,7 +4766,7 @@ class Discretization
 		this->R=std::move(R); this->S=std::move(S); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 
 		t_material.toc();
-		std::cout << "done - " << t_material << " seconds" << std::endl;
+		// std::cout << "done - " << t_material << " seconds" << std::endl;
 	}
 
 	// double add_to_sparse (const double& a, const double& b)
@@ -5167,7 +5281,7 @@ class Discretization
 	std::vector<Eigen::Vector3d*>				probe_points;
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;								
-	double                                      t_step, min_h, average_diameter, max_rel_err, average_circum_diameter;
+	double                                      t_step, min_h, average_diameter, max_rel_err, max_circum_diameter;
 	double										Lx,Ly,Lz;
 	bool										have_analytic;
 	uint32_t									loaded_mesh_label, current_simulation, method_line, root;
@@ -5177,11 +5291,14 @@ class Discretization
 	Eigen::Vector3d 							dual_area_z, dual_area_y, dual_area_x;
 	Eigen::Vector3d 							area_z_vec, area_y_vec, area_x_vec;
 	std::vector<std::vector<uint32_t>> 			D,Dt,C_vec,Ct_vec,G/*,Gt*/;
-	std::vector<std::vector<uint32_t>> 			E_cluster,P_cluster;
+	// std::vector<std::vector<uint32_t>> 			E_cluster,P_cluster;
+	std::vector<std::array<uint32_t, 12>>		E_cluster;
+	std::vector<std::array<uint32_t, 8>>		P_cluster;
 	std::vector<int32_t> 						curl, dual_curl;
 	std::vector<uint32_t> 						src_edges, common_edges, bc_edges;
 	std::vector<double> 						M_ni, M_h, M_e, M_mu;
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;
+	double										xmax,ymax,zmax;
 	// std::array<std::vector<uint32_t>,20>		sources_by_label; 						/* Each label has a vector containing all the sources active on that label */
 };
