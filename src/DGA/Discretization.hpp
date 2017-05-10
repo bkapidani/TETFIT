@@ -348,8 +348,8 @@ class Discretization
 		uint64_t i;
 		uint32_t N_of_steps;
 		timecounter tdbg;
-		double export_time_average,bcs_time_average,mag_time_average,ele_time_average;
-		export_time_average=bcs_time_average=mag_time_average=ele_time_average=0;
+		double export_time_average,bcs_time_average,mag_time_average,ele_time_average,iter_time_average;
+		export_time_average=bcs_time_average=mag_time_average=ele_time_average=iter_time_average=0;
 		
 		// Actual simulation!
 		if (meth == "dga")
@@ -555,8 +555,8 @@ class Discretization
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;	
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << solution.size()      		 << std::endl;
-			std::cout << std::setw(20) << "Matrix fill in: "        << std::setw(20) << A.nonZeros()      		 	 << std::endl  << std::endl;
-			
+			std::cout << std::setw(20) << "Matrix fill in: "        << std::setw(20) << A.nonZeros()      		 	 << std::endl;
+			std::cout << std::setw(20) << "Max. rel. res. : "       << std::setw(20) << s.Tolerance()     		 	 << std::endl  << std::endl;
 			
 			for (uint32_t ee = 0; ee < edges_size(); ++ee)
 			{
@@ -626,6 +626,8 @@ class Discretization
 					solution = agmg.solveWithGuess(rhs,solution);
 				else if (solver_name == "cg")
 					solution =   cg.solveWithGuess(rhs,solution);
+				
+				iter_time_average += cg.iterations();
 
 				for (uint32_t k=0; k<compressed_dirichlet.size(); ++k)
 					U[compressed_dirichlet[k]] = solution[k];
@@ -848,7 +850,10 @@ class Discretization
 		std::cout << std::setw(20) << "Average src/bc time: "	<< std::setw(20) << bcs_time_average/double(i)  		<< " sec" 	<< std::endl;
 		
 		if (meth == "fem")
-			std::cout << std::setw(20) << "Average r.h.s. time: "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
+		{
+			std::cout << std::setw(20) << "Average r.h.s. time:        "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Average # of CG iterations: "	<< std::setw(20) << iter_time_average/double(i)  	<< std::endl;
+		}
 		else
 			std::cout << std::setw(20) << "Average Hfield time: "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
 		
