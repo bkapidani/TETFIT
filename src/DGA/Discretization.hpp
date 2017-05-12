@@ -255,6 +255,7 @@ class Discretization
 		std::cout <<"------------------------ Running Time Domain Simulation ------------------------" << std::endl << std::endl;
 		
 		DateAndTime();
+		bool probes_out_of_mesh = false;
 		
 		std::cout << "Preprocessing... ";
 		std::cout.flush();
@@ -327,8 +328,10 @@ class Discretization
 				else
 					elem_index = FindFitProbe(pv);
 				
-				if (elem_index < volumes_size())
+				if (elem_index < volumes_size()) //probe is in mesh
 					probe_elem.push_back(elem_index);
+				else 
+					probes_out_of_mesh = true;
 				probe_numeric_xvalues.push_back(dummy_probe);
 				probe_numeric_yvalues.push_back(dummy_probe);
 				probe_numeric_zvalues.push_back(dummy_probe);
@@ -391,6 +394,9 @@ class Discretization
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
 			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			
+			if (probes_out_of_mesh)
+				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -547,6 +553,9 @@ class Discretization
 			t_preproc.toc();
 			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
 			
+			if (probes_out_of_mesh)
+				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
@@ -673,7 +682,10 @@ class Discretization
 			t_preproc.toc();
 			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
 			
-			std::cout << std::endl << "Simulation parameters:" 	    << std::endl;
+			if (probes_out_of_mesh)
+				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			
+			std::cout << std::endl     << "Simulation parameters:" 	<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
 			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20) << max_circum_diameter      << "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
@@ -682,7 +694,6 @@ class Discretization
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
 			
 			uint32_t Nxy = Nx*Ny;
-			
 			
 			for (i=1; i*t_step <= simulation_time; ++i)
 			{
@@ -804,7 +815,7 @@ class Discretization
 			os.open(ss.str().c_str());
 			if (have_analytic)
 				os_a.open(sa.str().c_str());
-				
+
 			for (uint32_t k=0; k < probe_numeric_times.size(); k++)
 			{
 				
@@ -1260,8 +1271,8 @@ class Discretization
 				return v;
 		}*/
 
-		std::cout << "BEWARE: Probe out of mesh!" << std::endl;
-		return v;
+		// std::cout << "BEWARE: Probe out of mesh!" << std::endl;
+		return volumes_size();
 	}
 	
 	uint32_t FindProbe(const Eigen::Vector3d& pv)
@@ -1306,7 +1317,7 @@ class Discretization
 					 
 			double det1 = mat1.determinant();
 			
-			auto check1 = (std::signbit(det0) == std::signbit(det1));
+			auto check1 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     pv(0), pv(1), pv(2), 1,
@@ -1314,7 +1325,7 @@ class Discretization
 				     v4(0), v4(1), v4(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check2 = (std::signbit(det0) == std::signbit(det1));
+			auto check2 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     v2(0), v2(1), v2(2), 1,
@@ -1322,7 +1333,7 @@ class Discretization
 				     v4(0), v4(1), v4(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check3 = (std::signbit(det0) == std::signbit(det1));
+			auto check3 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     v2(0), v2(1), v2(2), 1,
@@ -1330,7 +1341,7 @@ class Discretization
 				     pv(0), pv(1), pv(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check4 = (std::signbit(det0) == std::signbit(det1));
+			auto check4 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			if (check1 && check2 && check3 && check4)
 			{
@@ -1382,7 +1393,7 @@ class Discretization
 					 
 			double det1 = mat1.determinant();
 			
-			auto check1 = (std::signbit(det0) == std::signbit(det1));
+			auto check1 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     pv(0), pv(1), pv(2), 1,
@@ -1390,7 +1401,7 @@ class Discretization
 				     v4(0), v4(1), v4(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check2 = (std::signbit(det0) == std::signbit(det1));
+			auto check2 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     v2(0), v2(1), v2(2), 1,
@@ -1398,7 +1409,7 @@ class Discretization
 				     v4(0), v4(1), v4(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check3 = (std::signbit(det0) == std::signbit(det1));
+			auto check3 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     v2(0), v2(1), v2(2), 1,
@@ -1406,7 +1417,7 @@ class Discretization
 				     pv(0), pv(1), pv(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check4 = (std::signbit(det0) == std::signbit(det1));
+			auto check4 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
 			
 			if (check1 && check2 && check3 && check4)
 			{
