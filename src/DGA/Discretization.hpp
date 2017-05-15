@@ -358,38 +358,12 @@ class Discretization
 		if (meth == "dga")
 		{	
 			// t_step = estimate_time_step_bound();
-			ConstructMaterialMatrices();
-			timecounter t_eigs;
-			t_eigs.tic();
-			double t_step_spectra = ComputeDGATimeStep();
-			t_eigs.toc();
-			// std::cout << "Spectral method took " << t_eigs << "s." << std::endl;
-			
-			// auto t_step_geom = t_step;
-			t_step = s.Courant()*t_step_spectra;
 			ConstructMaterialMatrices();			
 			
 			Eigen::VectorXd curl_u(surfaces_size()), curl_f(edges_size());
-			Eigen::VectorXd U_frac = Eigen::VectorXd::Zero(U_frac_size);
-			Eigen::VectorXd F_frac = Eigen::VectorXd::Zero(F_frac_size);
-			
-			auto Old_F_frac = F_frac;
-			auto Old_U_frac = U_frac;
-			auto U_old = U;
-			auto F_old = F;
-			
-			// std::cout << M.cols() << " " << U_frac.rows() << std::endl;
-			
-			auto start_of_u = U_frac.data(); //pointer to the start of the big electric vector
-			auto start_of_f = F_frac.data(); //pointer to the start of the big magnetic vector
-			auto start_of_old_u = Old_U_frac.data(); //pointer to the start of the big electric vector
-			auto start_of_old_f = Old_F_frac.data(); //pointer to the start of the big magnetic vector
-			
-			Eigen::Map<Eigen::VectorXd> U_a(start_of_u,H_size), U_b(start_of_u+H_size,P_size), U_c(start_of_u+H_size+P_size,Q_size);
-			Eigen::Map<Eigen::VectorXd> U_d(start_of_u+H_size+P_size+Q_size,B_size);
-			Eigen::Map<Eigen::VectorXd> Old_U_a(start_of_old_u,H_size), Old_U_b(start_of_old_u+H_size,P_size), Old_U_c(start_of_old_u+H_size+P_size,Q_size);
-			Eigen::Map<Eigen::VectorXd> Old_U_d(start_of_old_u+H_size+P_size+Q_size,B_size);
-			Eigen::Map<Eigen::VectorXd> F_a(start_of_f,N_size), F_b(start_of_f+N_size,R_size), F_c(start_of_f+N_size+R_size,S_size);
+
+			// auto U_old = U;
+			// auto F_old = F;
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
@@ -406,108 +380,121 @@ class Discretization
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
-			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
-			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
+			// std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
+			// std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
 			std::cout << std::endl;
 			
 		    // timecounter tdbg;
-			for (i=1; double(i)*t_step <= simulation_time; i++)
+			for (i=1; double(i)*t_step <= simulation_time; ++i)
 			{
 				step_cost.tic();
 				current_time = double(i)*t_step;
-				
+
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 				tdbg.tic();
 				
-				for (uint32_t ee = 0; ee < edges_size(); ee++)
+				for (uint32_t ee = 0; ee < edges_size(); ++ee)
 				{
 					if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
 					{
-						U_d[boundary_index[ee]] = ComputeEdgeBC(ee,current_time); //only boundary edges can have boundary conditions
-						
-						// for (auto ii : associated_h_edges[ee])
-							// U_a[ii] = ubc;
-						// for (auto ii : associated_p_edges[ee])
-							// U_b[ii] = ubc;
-						// for (auto ii : associated_frac_edges[ee])
-							// U_c[ii] = 0.5*ubc;
+						U(ee) = ComputeEdgeBC(ee,current_time-t_step); //only boundary edges can have boundary conditions
+						for (auto ii : frac_edges[ee])
+							U_fracs[ii.first](ii.second) = 0.5*U(ee);
 					}
 					else if (edge_src[ee].size()>0)
 					{
 						auto isrc = ComputeCurrentSource(ee,current_time - 0.5*t_step);
 						auto usrc = ComputeEfieldSource(ee, current_time - t_step);
-						I[ee] = isrc;
 						
-						for (auto ii : associated_h_edges[ee])
-						{
-							U_a[ii] = usrc;
-							// std::cout << "debuggy buggy" << std::endl;
-						}
-						for (auto ii : associated_p_edges[ee])
-						{
-							U_b[ii] = usrc;
-							// std::cout << "debuggy buggy" << std::endl;
-						}
-						for (auto ii : associated_frac_edges[ee])
-						{
-							U_c[ii] = 0.5*usrc;
-							// std::cout << "debuggy buggy" << std::endl;
-						}
-						for (auto ii : associated_bnd_edges[ee])
-						{
-							U_d[ii] = usrc;
-							// std::cout << "debuggy not buggy" << std::endl;
-						}
-					}
+						I(ee) = isrc;
+						// std::cout << U(ee) << "  ";
+						U(ee) = usrc;
+						// std::cout << U(ee) << std::endl;
+						// std::cout << "Maximum U: " << std::setw(20) << (this->U).lpNorm<Eigen::Infinity>() << std::endl;
+						// std::cout << ee << " " << U.size() << std::endl;  
+						for (auto ii : frac_edges[ee])
+							U_fracs[ii.first](ii.second) = 0.5*U(ee);
+					}			
 				}
 				
-				U = M*U_frac;
+				// U = M*U_frac;
 				
 				tdbg.toc();
 				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				tdbg.tic();
 				
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				
 				if ((*o).AllowPrint(current_time-t_step))
 					ExportFields(mod_out, current_time-t_step);
+				
+				Eigen::VectorXd U_new = Eigen::VectorXd::Zero(edges_size());
+				Eigen::VectorXd F_new = Eigen::VectorXd::Zero(surfaces_size());
 				
 				tdbg.toc();
 				export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				tdbg.tic();
 				
+				/* Per Matteo */
+				// ComputeElectricCurl(U,curl_u);
+				/* Per Matteo */
 				curl_u     = C*U;
-				F_a       -= t_step*N*curl_u;
-				F_b        = R*Old_F_frac - t_step*Tr*curl_u;
-				F_c        = S*F_c - t_step*Ts*curl_u;
 				
-				F          = T*F_frac;
-				F_old 	   = F;
-				Old_F_frac = F_frac;
+				// std::cout << "Maximum curl_U: " << std::setw(20) << curl_u.lpNorm<Eigen::Infinity>() << std::endl;
+
+				for (uint32_t j=0; j< volumes_size(); ++j)
+				{
+					Eigen::Vector4d local_curl_U(curl_u(F_maps[j][0]),curl_u(F_maps[j][1]),curl_u(F_maps[j][2]),curl_u(F_maps[j][3]));
+					
+					F_fracs[j] = R_fracs[j]*F_fracs[j] - t_step*N_fracs[j]*local_curl_U;
+					for (uint32_t k=0; k<4; ++k)
+						F_new(F_maps[j][k])+=F_fracs[j](k);
+				}
 				
+				F = std::move(F_new);
 				tdbg.toc();
 				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				tdbg.tic();
 				
 				//Computing losses:
-				double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
-				if (i>1)
-					Losses.push_back(-Joule_L);
+				// double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
+				// if (i>1)
+					// Losses.push_back(-Joule_L);
 				
-				U_old = U;
-				Old_U_frac = U_frac;
+				// Electric Part:
 				
-				// Electric Part:			
-				// tc.tic();
+				/* Per Matteo */
+				// curl_f     = ComputeMagneticCurl(F)-I;
+				/* Per Matteo */
 				curl_f     = C.transpose()*F-I;
 				
-				U_a       += t_step*H*curl_f;
-				U_b        = P_p.cwiseProduct(Old_U_b) + t_step*Mp*curl_f;
-				U_c        = Q*Old_U_c + t_step*Mq*curl_f;
+				for (uint32_t j=0; j< nodes_size(); ++j)
+				{
+					Eigen::VectorXd local_curl_F(nte_list[j].size());
+					for (uint32_t k=0;k<local_curl_F.size(); ++k)
+						local_curl_F(k)=curl_f(U_maps[j][k]);
+					
+					U_fracs[j] = P_fracs[j]*U_fracs[j] + t_step*H_fracs[j]*local_curl_F;
+					
+					for (uint32_t k=0; k<U_maps[j].size(); ++k)
+						U_new(U_maps[j][k])+=U_fracs[j](k);
+				}
 				
+				U=std::move(U_new);
 				tdbg.toc();
 				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				
 				if (i % 137 == 0) //arbitrary, just a nod at the fine structure constant
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
@@ -515,9 +502,9 @@ class Discretization
 			
 			//Computing losses for last time step:
 			
-			double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
-			Losses.push_back(Joule_L);
-			U_old = U;
+			// double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
+			// Losses.push_back(Joule_L);
+			// U_old = U;
 		}
 		else if (meth == "fem")
 		{
@@ -4194,6 +4181,7 @@ class Discretization
 		radiator_center = Eigen::Vector3d({2.85, 2.45, 1});
 		std::vector<bool> mu_computed(volumes_size(),false);
 		
+		U_frac_size = F_frac_size = 0;
 		add_to_sparse ass;
 		overwrite_to_sparse oss;
 		Eigen::MatrixXd local_E, local_S;
@@ -4206,10 +4194,13 @@ class Discretization
 		
 		uint32_t mag_offset=0;
 		uint32_t ele_offset=0;
-		
 		F_maps.resize(volumes_size());
-		auto local_mag_Id = Eigen::MatrixXd::Identity(4,4);
-		for (uint32_t vv=0; vv < volumes.size(); vv++)
+		
+		U_maps.resize(nodes_size());
+		frac_edges.resize(edges_size());	
+		Eigen::Matrix4d local_mag_Id = Eigen::MatrixXd::Identity(4,4);
+		
+		for (uint32_t vv=0; vv < volumes_size(); ++vv)
 		{
 			double mu_vol    = Materials[vol_material[vv]].Mu();
 			double chi_vol	 = Materials[vol_material[vv]].Chi();
@@ -4225,7 +4216,6 @@ class Discretization
 			}
 			
 			double coeff=mu_vol*36.0/(fabs(CellVolumes[vv]));
-			
 			local_M = local_Z = Eigen::Matrix4d::Zero();
 			
 			local_M(0,0)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[3]).dot(face_vecs[3]))*coeff;
@@ -4280,16 +4270,16 @@ class Discretization
 			// auto local_N = (local_M + local_Z).inverse();
 			Eigen::Matrix4d local_N = (local_M).llt().solve(local_mag_Id);
 			// auto local_R = local_N*(local_M - local_Z);
-			
-			Eigen::Vector4d Fdummy(0);
+			Eigen::Vector4d Fdummy(0,0,0,0);
 			F_fracs.push_back(Fdummy);
-			// N_fracs.push_back(local_N);
+			F_frac_size += 4;
+			
 			M_fracs.push_back(local_M);
-			// R_fracs.push_back(local_R);
 			Z_fracs.push_back(local_Z);
 			
 			jj=kk=0;
-			std::array<uint32_t,4> assoc_full_dual_edges;	
+			std::array<uint32_t,4> assoc_full_dual_edges;
+			
 			for (auto j = abs_fids.begin(); j != abs_fids.end(); ++j)
 			{
 				assoc_full_dual_edges[jj] = *j;
@@ -4307,13 +4297,14 @@ class Discretization
 				kk=jj;
 			}
 			
+
 			F_maps[vv] = assoc_full_dual_edges;
 		}
 		
 		Eigen::VectorXd	P_p(P_size);
 		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
 		std::vector<bool> sigma_node(nodes_size(),false);
-		
+		// std::cout << "Ma almeno qui ci arrivo?" << std::endl;
 		for (uint32_t nid=0; nid< pts.size(); ++nid )
 		{
 			// timecounter t_find;
@@ -4540,6 +4531,11 @@ class Discretization
 				}
 				
 			}
+
+			Eigen::VectorXd Udummy = Eigen::VectorXd::Zero(local_E_size);
+			U_fracs.push_back(Udummy);
+			
+			U_frac_size+= Udummy.size();
 			
 			Eigen::MatrixXd local_H = (local_E).llt().solve(local_Id);
 			E_fracs.push_back(local_E.sparseView());
@@ -4550,6 +4546,7 @@ class Discretization
 			for (auto j = global_i.begin(); j != global_i.end(); ++j)
 			{
 				assoc_full_primal_edges[jj] = *j;
+				frac_edges[*j].push_back(std::make_pair(nid,jj));
 				
 				for (auto k = j; k != global_i.end(); ++k)
 				{
@@ -4570,11 +4567,11 @@ class Discretization
 
 		Einv.setFromTriplets(H_trip.begin(),H_trip.end(),ass);
 		
-		t_step = ComputeDGATimeStep(this->C,N,Einv);
+		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
 
-		for (uint32_t vv=0; vv < volumes.size(); vv++)
+		for (uint32_t vv=0; vv < volumes_size(); ++vv)
 		{
-			uint32_t jj,kk;
+			// uint32_t jj,kk;
 			double chi_vol	 = Materials[vol_material[vv]].Chi();
 			auto fids = vtf_list[vv];
 			
@@ -4596,6 +4593,7 @@ class Discretization
 				local_N = M_fracs[vv].llt().solve(local_mag_Id);
 			}
 			
+			// std::cout << local_N << std::endl;
 			N_fracs.push_back(local_N);
 			R_fracs.push_back(local_RS);
 		}
@@ -4606,9 +4604,11 @@ class Discretization
 			std::vector<uint32_t> global_i;
 			for (auto ee : n_star)
 				global_i.push_back(abs(ee));
+			
 			/* Handling pec edges */
 			Eigen::MatrixXd local_E(E_fracs[nid]);
 			Eigen::MatrixXd local_S(S_fracs[nid]);
+			jj=kk=0;
 			for (auto j = global_i.begin(); j != global_i.end(); ++j)
 			{	
 				if (classify_edges[*j] == 4)
@@ -4627,11 +4627,13 @@ class Discretization
 						local_S.col(jj).setZero();
 					}
 				}
+				++jj;
 			}
 			
 			auto local_E_size = n_star.size();
 			Eigen::MatrixXd local_H(local_E_size,local_E_size), local_PQ(local_E_size,local_E_size);
 			auto local_Id = Eigen::MatrixXd::Identity(local_E_size,local_E_size);
+			local_PQ = local_Id;
 			
 			if (sigma_node[nid])
 			{
@@ -4645,8 +4647,8 @@ class Discretization
 			
 			H_fracs.push_back(local_H.sparseView());
 			P_fracs.push_back(local_PQ.sparseView());
+			// std::cout << local_PQ << std::endl;
 		}
-
 		
 		t_material.toc();
 	}
@@ -5168,6 +5170,7 @@ class Discretization
 	std::vector<std::array<uint32_t, 8>>		P_cluster;
 	std::vector<std::array<uint32_t, 4>>		F_maps;
 	std::vector<std::vector<uint32_t>> 			U_maps;
+	std::vector<std::vector<std::pair<uint32_t,uint32_t>>>	frac_edges;
 	std::vector<Eigen::Vector4d> 				F_fracs;
 	std::vector<Eigen::VectorXd> 				U_fracs;
 	std::vector<Eigen::Matrix4d>				N_fracs,M_fracs,R_fracs,Z_fracs;
