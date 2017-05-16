@@ -1756,7 +1756,7 @@ class Discretization
 			return ReadStructuredMesh(msh);
 		else
 		{
-			std::cout << "This was not supposed to happen! Invalid mesh type went undetected" << std::endl;
+			// std::cout << "This was not supposed to happen! Invalid mesh type went undetected" << std::endl;
 			MyThrow(0,mesh_unknown_type);
 		}
 		
@@ -2757,7 +2757,7 @@ class Discretization
 		
 		if ( ((*data) < '0') || ((*data) > '9') )
 		{
-			std::cout << "This was not supposed to happen! Invalid tetrahedral mesh input file" << std::endl;
+			// std::cout << "This was not supposed to happen! Invalid tetrahedral mesh input file" << std::endl;
 			MyThrow(0,mesh_unknown_type);
 		}
 		
@@ -3193,6 +3193,13 @@ class Discretization
 		
 		C.setFromTriplets(tripletList.begin(),tripletList.end());
 		this->C=std::move(C);
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			Eigen::MatrixXd cfull(this->C);
+			std::ofstream c_out("C.dat");
+			c_out << cfull << std::endl;
+			c_out.close();
+		}
 		std::vector<double_triplet>().swap(tripletList);
 		std::vector<std::vector<uint32_t>> associated_frac_edges(edges.size()), associated_p_edges(edges.size()); 
 		std::vector<std::vector<uint32_t>> associated_bnd_edges(edges.size()),  associated_h_edges(edges.size());
@@ -4566,6 +4573,17 @@ class Discretization
 		}
 
 		Einv.setFromTriplets(H_trip.begin(),H_trip.end(),ass);
+		
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			Eigen::MatrixXd nfull(N);
+			Eigen::MatrixXd hfull(Einv);
+			std::ofstream h_out("H.dat"), n_out("N.dat");
+			h_out << hfull << std::endl;
+			n_out << nfull << std::endl;
+			n_out.close();
+			h_out.close();
+		}
 		
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
 
