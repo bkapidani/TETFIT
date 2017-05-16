@@ -3206,6 +3206,13 @@ class Discretization
 		
 		C.setFromTriplets(tripletList.begin(),tripletList.end());
 		this->C=std::move(C);
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			Eigen::MatrixXd cfull(this->C);
+			std::ofstream c_out("C.dat");
+			c_out << cfull << std::endl;
+			c_out.close();
+		}
 		std::vector<double_triplet>().swap(tripletList);
 		std::vector<std::vector<uint32_t>> associated_frac_edges(edges.size()), associated_p_edges(edges.size()); 
 		std::vector<std::vector<uint32_t>> associated_bnd_edges(edges.size()),  associated_h_edges(edges.size());
@@ -4781,6 +4788,17 @@ class Discretization
 		this->Mq=std::move(Mq); this->N=std::move(N); this->P=std::move(P); this->Q=std::move(Q); 
 		this->R=std::move(R); this->S=std::move(S); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			Eigen::MatrixXd nfull(this->N);
+			Eigen::MatrixXd hfull(this->Einv);
+			std::ofstream h_out("H.dat"), n_out("N.dat");
+			h_out << hfull << std::endl;
+			n_out << nfull << std::endl;
+			n_out.close();
+			h_out.close();
+		}
+		
 		t_material.toc();
 		// std::cout << "done - " << t_material << " seconds" << std::endl;
 	}

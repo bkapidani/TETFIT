@@ -44,7 +44,7 @@ class Simulation
 		solver = "none";
 		courant = 1;
 		tol = 1e-8;
-		analytic = false;
+		analytic = debug_mat = false;
 	}
 	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
@@ -77,11 +77,21 @@ class Simulation
 			else
 				MyThrow(input_line,sim_unknown_parameter);
 		}
+		else if (param == "debug")
+		{
+			if (value == "true")
+				debug_mat = true;
+			else if (value == "false")
+				debug_mat = false;
+			else
+				MyThrow(input_line,sim_unknown_parameter);
+		}
 		else
 			MyThrow(input_line,sim_unknown_parameter);
 	}
 	
 	const bool& HaveAnalytic(void) const { return analytic; }
+	const bool& DebugMatrices(void) const { return debug_mat; }
 	const Duration& Time(void) const { return d; } 
 	const uint32_t& MeshLabel(void) const { return mesh_label; }
 	const uint32_t& Output(void) const { return output; }
@@ -96,7 +106,7 @@ class Simulation
 	Duration d;
 	SimMethod method;
 	Solver solver;
-	bool analytic;
+	bool analytic, debug_mat;
 	double tol, courant;
 	// Eigen::Vector3d probepoint;
 	std::vector<uint32_t> sources; //can combine multiple sources
