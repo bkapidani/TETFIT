@@ -173,7 +173,7 @@ typedef Seb::Smallest_enclosing_ball<double> 					Miniball;
 //lists of allowed string constants
 const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry","output"};
 const std::vector<Primitive>							meshdefinables	= {"grid","solid"};
-const std::vector<SolidType>							solidtypes		= {"sphere","box"};
+const std::vector<SolidType>							solidtypes		= {"sphere","box","cylinder"};
 const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j" };
 const std::vector<Profile>   							profiles   		= { "wave", "gaussian", "dc" };
 const std::vector<Direction>    						directions    	= { "x", "y", "z" };
@@ -217,7 +217,7 @@ const std::runtime_error unknown_instruction(std::string("Unknown instruction in
 const std::runtime_error unexpected_end(std::string("File ended unexpectedly before ending definition"));
 const std::runtime_error out_of_bounds_freq(std::string("Output frequency must be a value between 0 and simulation time!"));
 const std::runtime_error solid_unknown_parameter(std::string("Unrecognized solid parameter! Available: type, radius, center, corner, size"));
-const std::runtime_error solid_unknown_type(std::string("Unavailable solid type! Available: sphere, box"));
+const std::runtime_error solid_unknown_type(std::string("Unavailable solid type! Available: sphere, box, cylinder"));
 const std::runtime_error solid_negative_value(std::string("Positive definite quantity forced to negative value!"));
 const std::runtime_error incompatible_meth_mesh(std::string("If mesh type is tetrahedral, method must be fem or dga. If mesh type is cartesian, method must be fit"));
 

@@ -240,6 +240,10 @@ class Solid
 			return SphereRule(p);
 		else if (type == "box")
 			return BoxRule(p);
+		else if (type == "cylinder")
+			return CylRule(p);
+		else 
+			return false;
 	}
 	
 	bool SphereRule(const Eigen::Vector3d& p)
@@ -259,6 +263,26 @@ class Solid
 			return false;
 		if (diff(2) > size(2) || diff(2) < 0)
 			return false;
+		return true;
+	}
+	
+	bool CylRule(const Eigen::Vector3d& p)
+	{
+		if (size.norm() == 0)
+			return false;
+		
+		double dot, dsq;
+		Eigen::Vector3d pd = p - center; 
+		dot = pd.dot(size);
+		
+		if( dot < 0.0 || dot > size.norm() )
+			return false;
+
+		dsq = pd.squaredNorm() - dot*dot/size.norm();
+
+		if( dsq > squareradius )
+			return false;
+		
 		return true;
 	}
 	
