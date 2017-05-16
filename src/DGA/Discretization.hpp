@@ -4563,6 +4563,7 @@ class Discretization
 						if (jj != kk)
 							H_trip.push_back(double_triplet(*k,*j,local_H(jj,kk)));
 					}
+					++kk;
 				}
 				
 				++jj;
