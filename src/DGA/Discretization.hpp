@@ -2770,7 +2770,7 @@ class Discretization
 		
 		if ( ((*data) < '0') || ((*data) > '9') )
 		{
-			std::cout << "This was not supposed to happen! Invalid tetrahedral mesh input file" << std::endl;
+			// std::cout << "This was not supposed to happen! Invalid tetrahedral mesh input file" << std::endl;
 			MyThrow(0,mesh_unknown_type);
 		}
 		
