@@ -155,6 +155,7 @@ typedef std::string												Direction;
 typedef std::string												BaseFunction;
 typedef std::string												BoundaryConditionType;
 typedef std::string												Profile;
+typedef std::string												Carrier;
 typedef std::string												Meshtype;
 typedef std::string												OutputMode;
 typedef std::string												SimMethod;
@@ -175,9 +176,10 @@ const std::vector<Primitive>							definables		= {"material","source","mesh","bc
 const std::vector<Primitive>							meshdefinables	= {"grid","solid"};
 const std::vector<SolidType>							solidtypes		= {"sphere","box","cylinder"};
 const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j" };
-const std::vector<Profile>   							profiles   		= { "wave", "gaussian", "dc" };
+const std::vector<Profile>   							profiles   		= { "wave", "gaussian", "const" };
+const std::vector<Carrier>   							carriers   		= { "sin", "cos", "gaussian", "dc", "ricker" };
 const std::vector<Direction>    						directions    	= { "x", "y", "z" };
-const std::vector<BaseFunction> 						modes 	= { "sin", "cos" };
+const std::vector<BaseFunction> 						modes 			= { "sin", "cos" };
 const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
 const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
@@ -193,7 +195,8 @@ const std::runtime_error bc_unknown_parameter(std::string("Unrecognized boundary
 const std::runtime_error src_unknown_direction(std::string("Unrecognized direction! Available: x, y, z"));
 const std::runtime_error src_unknown_type(std::string("Unrecognized source type!") + 
                                           std::string("Available: e (electric field), b (magnetic field), j (current density)"));
-const std::runtime_error src_unknown_profile(std::string("Unrecognized source profile! Available: dc, wave, gaussian"));
+const std::runtime_error src_unknown_profile(std::string("Unrecognized source profile! Available: const, wave, gaussian"));
+const std::runtime_error src_unknown_carrier(std::string("Unrecognized source carrier! Available: dc, sin, cos, gaussian, ricker"));
 const std::runtime_error coordinates_syntax(std::string("coordinates must be inside braces {...,..,..}"));
 const std::runtime_error unbalanced_bracket(std::string("unbalanced bracket"));
 const std::runtime_error too_many_coords(std::string("Maximum of three coordinates!"));

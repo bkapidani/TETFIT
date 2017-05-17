@@ -37,11 +37,13 @@
 	Source()
 	{
 		is_set  = false;
+		carrier = "sin";
 		prof    = "dc";
 		dir   	= "x";
 		amp   	= 0;
 		freq  	= 0;
-		width   = 0;
+		radius   = 1;
+		width = 1;
 		kvec[0] = kvec[1] = kvec[2] = 0;
 		st      = "j";
 		bfuncs[0] = bfuncs[1] = bfuncs[2] = "cos";
@@ -75,6 +77,13 @@
 				MyThrow(input_line,src_unknown_profile);
 			else
 				this->prof = value;
+		}
+		else if (param == "carrier")
+		{
+			if (std::find(carriers.begin(),carriers.end(),value) == carriers.end())
+				MyThrow(input_line,src_unknown_carrier);
+			else
+				this->carrier = value;
 		}
 		else if (param == "center")
 		{
@@ -226,6 +235,8 @@
 			this->amp = std::stod(value);
 		else if (param == "frequency")
 			this->freq = std::stod(value);
+		else if (param == "radius")
+			this->radius = std::stod(value);
 		else if (param == "width")
 			this->width = std::stod(value);
 		else if (param == "kx")
@@ -251,14 +262,23 @@
 	
 	Eigen::Vector3d Compute(SpaceTimePoint p) //returns a vector, so one can use superposition of sources
 	{
-		double ret = amp*sin(2*PI*freq*p[3]); // if the source is dc, we are already done!
+		double ret=1; // if the source is dc, we are already done!
+		if (carrier == "sin")
+			ret = amp*sin(2*PI*freq*p[3]); 
+		else if (carrier == "cos")
+			ret = amp*cos(2*PI*freq*p[3]);
+		else if (carrier == "gaussian")
+			ret = exp(-std::pow(p[3]-(1/freq),2)/std::pow(width,2));
+		else if (carrier == "ricker")
+			ret = (1 - 2*std::pow(PI*freq*(p[3]-1/freq),2))*exp(-std::pow(PI*freq*(p[3]-(1/freq)),2));
+			
+		
 		// std::cout << ret << std::endl;
 		if (prof == "gaussian")
 		{
-			double exponent = - ((pow(p[0]-center_coords[0],2)+
-			                      pow(p[1]-center_coords[1],2)+
-							      pow(p[2]-center_coords[2],2))/
-								  (2*pow(width,2)));
+			double exponent = - ((std::pow(p[0]-center_coords[0],2)+
+			                      std::pow(p[1]-center_coords[1],2)+
+							      std::pow(p[2]-center_coords[2],2))/std::pow(radius,2));
 			ret *= exp(exponent);
 		}
 		else if (prof == "wave")
@@ -289,9 +309,10 @@
 	private:
 	Sourcetype st;
 	Profile prof;
+	Carrier carrier;
 	Frequency freq;
 	Amplitude amp;
-	double    width;
+	double    radius, width;
 	Direction dir;
 	WaveVector kvec, center_coords;
 	std::array<BaseFunction,3> bfuncs;

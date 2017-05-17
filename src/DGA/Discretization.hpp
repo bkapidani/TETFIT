@@ -284,8 +284,25 @@ class Discretization
 		std::vector<double> numeric_values,numeric_times, Losses;
 		
 		meshlock.lock(); //lock access to the meshes map
-		
-		FlushMesh();
+		if (meth == "fit")
+		{
+			uint32_t maxmatlabel = (*Materials.rbegin()).first;
+			Eigen::MatrixXd material_adj(maxmatlabel+1,maxmatlabel+1);
+			material_adj = Eigen::MatrixXd::Zero(maxmatlabel+1,maxmatlabel+1);
+			uint32_t mlabel=6;
+			
+			for (uint32_t i=0; i<=maxmatlabel; ++i)
+			{
+				for (uint32_t j=i+1; j<=maxmatlabel; ++j)
+				{
+					material_adj(i,j)=++mlabel;
+					material_adj(j,i)=mlabel;
+				}
+			}
+			
+			this->matad = std::move(material_adj);
+		}
+		// FlushMesh();
 		loaded_mesh_label = s.MeshLabel();
 		ReadMesh(m);
 		
@@ -692,6 +709,8 @@ class Discretization
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
+			
+			std::cout << "Materials incidence matrix: " << std::endl << this->matad << std::endl << std::endl;
 			
 			uint32_t Nxy = Nx*Ny;
 			
@@ -2488,8 +2507,13 @@ class Discretization
 						boundary_face.push_back(1); // accordance with netgen
 					 }
 					 else
-						 boundary_face[D[nv][0]]=0;
-						
+					 {
+						 // boundary_face[D[nv][0]]=0;
+						 
+						 auto vv1 = Dt[D[nv][0]][0];
+						 auto vv2 = Dt[D[nv][0]][1];
+						 boundary_face[D[nv][0]]=matad(vol_material[vv1],vol_material[vv2]);
+					 }	
 					 
 					 if (!C_vec[D[nv][1]].size())
 					 {
@@ -2506,7 +2530,13 @@ class Discretization
 						boundary_face.push_back(5); //accordance with netgen
 					 }
 					 else
-						 boundary_face[D[nv][1]]=0;
+					 {
+						 // boundary_face[D[nv][0]]=0;
+						 
+						 auto vv1 = Dt[D[nv][1]][0];
+						 auto vv2 = Dt[D[nv][1]][1];
+						 boundary_face[D[nv][1]]=matad(vol_material[vv1],vol_material[vv2]);
+					 }	
 					 
 					 if (!C_vec[D[nv][2]].size())
 					 {
@@ -2522,7 +2552,13 @@ class Discretization
 						boundary_face.push_back(2); //accordance with netgen
 					 }
 					 else
-						 boundary_face[D[nv][2]]=0;
+					 {
+						 // boundary_face[D[nv][0]]=0;
+						 
+						 auto vv1 = Dt[D[nv][2]][0];
+						 auto vv2 = Dt[D[nv][2]][1];
+						 boundary_face[D[nv][2]]=matad(vol_material[vv1],vol_material[vv2]);
+					 }	
 					 
 					 if (!C_vec[D[nv][3]].size())
 					 {
@@ -2538,7 +2574,13 @@ class Discretization
 						boundary_face.push_back(4); //accordance with netgen
 					 }
 					 else
-						 boundary_face[D[nv][3]]=0;
+					 {
+						 // boundary_face[D[nv][0]]=0;
+						 
+						 auto vv1 = Dt[D[nv][3]][0];
+						 auto vv2 = Dt[D[nv][3]][1];
+						 boundary_face[D[nv][3]]=matad(vol_material[vv1],vol_material[vv2]);
+					 }	
 					 
 					 if (!C_vec[D[nv][4]].size())
 					 {
@@ -2555,7 +2597,13 @@ class Discretization
 						boundary_face.push_back(3); //accordance with netgen
 					 }
 					 else
-						 boundary_face[D[nv][4]]=0;
+					 {
+						 // boundary_face[D[nv][0]]=0;
+						 
+						 auto vv1 = Dt[D[nv][4]][0];
+						 auto vv2 = Dt[D[nv][4]][1];
+						 boundary_face[D[nv][4]]=matad(vol_material[vv1],vol_material[vv2]);
+					 }	
 					 
 					 if (!C_vec[D[nv][5]].size())
 					 {
@@ -2571,7 +2619,13 @@ class Discretization
 						boundary_face.push_back(6); //accordance with netgen
 					 }
 					 else
-						boundary_face[D[nv][5]]=0;
+					 {
+						 // boundary_face[D[nv][0]]=0;
+						 
+						 auto vv1 = Dt[D[nv][5]][0];
+						 auto vv2 = Dt[D[nv][5]][1];
+						 boundary_face[D[nv][5]]=matad(vol_material[vv1],vol_material[vv2]);
+					 }	
 					
 					if (mu_nv != 0)
 					{
@@ -2654,15 +2708,23 @@ class Discretization
 	{
 			// Nvec(i)=average_ni[i]/face_area[i];
 
-		if (is_mag_lossy[i])
+		if (average_ni[i] != 0)
 		{
-			M_ni.push_back(1/(face_area[i]*(1/average_ni[i]+0.5*t_step/average_mag_sigma[i])));
-			M_mu.push_back(face_area[i]*(1/average_ni[i]-0.5*t_step/average_mag_sigma[i]));
+			if (is_mag_lossy[i])
+			{
+				M_ni.push_back(1/(face_area[i]*(1/average_ni[i]+0.5*t_step/average_mag_sigma[i])));
+				M_mu.push_back(face_area[i]*(1/average_ni[i]-0.5*t_step/average_mag_sigma[i]));
+			}
+			else
+			{
+				M_ni.push_back(average_ni[i]/face_area[i]);
+				M_mu.push_back(face_area[i]/average_ni[i]);
+			}
 		}
 		else
 		{
-			M_ni.push_back(average_ni[i]/face_area[i]);
-			M_mu.push_back(face_area[i]/average_ni[i]);
+			M_ni.push_back(0);
+			M_mu.push_back(0);
 		}
 	  }
 	  // uint32_t number_of_lossy=0;
@@ -2670,20 +2732,28 @@ class Discretization
 	  for (uint32_t i=0; i<ne; ++i)
 	  {
 			// Hvec(i)=edge_len[i]/average_eps[i];
-
-		 if (is_ele_lossy[i])
+		 if (average_eps[i] != 0)
 		 {
-			// std::cout << ++number_of_lossy << std::endl;
-			M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
-			M_e.push_back((average_eps[i] - 0.5*t_step*average_sigma[i])/edge_len[i]);
+			 if (is_ele_lossy[i])
+			 {
+				// std::cout << ++number_of_lossy << std::endl;
+				M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
+				M_e.push_back((average_eps[i] - 0.5*t_step*average_sigma[i])/edge_len[i]);
+			 }
+			 else
+			 {
+				M_h.push_back(edge_len[i]/average_eps[i]);
+				M_e.push_back(average_eps[i]/edge_len[i]);
+			 }
 		 }
 		 else
 		 {
-			M_h.push_back(edge_len[i]/average_eps[i]);
-			M_e.push_back(average_eps[i]/edge_len[i]);
+			M_h.push_back(0);
+			M_e.push_back(0);
 		 }
 		 
 		uint32_t in_b = 0;
+		uint32_t break_cond=0;
 		for (auto ff : Ct_vec[i])
 		{
 			auto bid = boundary_face[ff];
@@ -2712,6 +2782,7 @@ class Discretization
 								if (std::find(edge_src[i].begin(),edge_src[i].end(),src_label) == edge_src[i].end())
 								{	
 									edge_src[i].push_back(src_label);
+									break_cond++;
 									if (!src_edges.size() || src_edges.back() != i)
 										src_edges.push_back(i);
 								}
@@ -2721,6 +2792,8 @@ class Discretization
 					if (!src_edges.size() || src_edges.back() != i)
 						common_edges.push_back(i);
 					
+					if (break_cond>0)
+						break;
 				}
 			}
 		}
@@ -4886,30 +4959,50 @@ class Discretization
 			return face_bars[ff];
 		else
 		{
-			for (uint32_t f=0; f < surfaces_size(); f++)
-			{				
-				std::vector<uint32_t> nodes;
-				Eigen::Vector3d bc(0,0,0);
-				
-				for (const auto& signed_ee : fte_list[f])
-				{
-					uint32_t ee = signed_ee.Val();
+			if (Meshes[loaded_mesh_label].GetMeshType() == "tetrahedral")
+			{
+				for (uint32_t f=0; f < surfaces_size(); f++)
+				{				
+					std::vector<uint32_t> nodes;
+					Eigen::Vector3d bc(0,0,0);
 					
-					for (const auto& signed_nn : etn_list[ee])
+					for (const auto& signed_ee : fte_list[f])
 					{
-						uint32_t nn = signed_nn.Val();
+						uint32_t ee = signed_ee.Val();
 						
-						if (!std::binary_search(nodes.begin(),nodes.end(),nn))
+						for (const auto& signed_nn : etn_list[ee])
 						{
-							nodes.push_back(nn);
-							bc += pts[nn];
-						}	
+							uint32_t nn = signed_nn.Val();
+							
+							if (!std::binary_search(nodes.begin(),nodes.end(),nn))
+							{
+								nodes.push_back(nn);
+								bc += pts[nn];
+							}	
+						}
+						
 					}
 					
+					face_bars.push_back(bc/3);
 				}
-				
-				face_bars.push_back(bc/3);
 			}
+			else
+			{
+				for (uint32_t e = 0; e < surfaces_size(); e++)
+				{
+					Eigen::Vector3d bc(0,0,0);
+					
+					for (const auto& ee : C_vec[e])
+					{
+						// uint32_t nn = signed_nn.Val();
+						for (const auto& nn : G[ee])
+							bc += 0.5*pts[nn];
+					}
+					
+					face_bars.push_back(bc/4);
+				}
+			}
+			
 			return face_bars[ff];
 		}
 	}
@@ -5324,6 +5417,7 @@ class Discretization
 	uint32_t									tot_E, tot_F, Nx, Ny, Nz;
 	Eigen::Vector3d 							dual_area_z, dual_area_y, dual_area_x;
 	Eigen::Vector3d 							area_z_vec, area_y_vec, area_x_vec;
+	Eigen::MatrixXd								matad;
 	std::vector<std::vector<uint32_t>> 			D,Dt,C_vec,Ct_vec,G/*,Gt*/;
 	// std::vector<std::vector<uint32_t>> 			E_cluster,P_cluster;
 	std::vector<std::array<uint32_t, 12>>		E_cluster;
