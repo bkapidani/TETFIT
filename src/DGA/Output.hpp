@@ -40,8 +40,9 @@ class Output
 		mode = "none";
 		name = "simulation";
 		output_period = 0;
-		index = 0;
+		nextprint = 1e-15;
 		grid = false;
+		error_norm = false;
 		xstart = ystart = zstart = 0;
 		xstop  = ystop  = zstop  = 0;
 		xstep  = ystep  = zstep  = 0;
@@ -50,7 +51,7 @@ class Output
 	
 	void Initialize(void)
 	{
-		index = 0;
+		nextprint = 0;
 	}
 	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
@@ -282,6 +283,15 @@ class Output
 			else
 				MyThrow(input_line,out_unknown_parameter);
 		}
+		else if (param == "error")
+		{
+			if (value == "on")
+				error_norm = true;
+			else if (value == "off")
+				error_norm = false;
+			else
+				MyThrow(input_line,out_unknown_parameter);
+		}
 		else if (param == "name")
 			name = value;
 		else
@@ -291,16 +301,15 @@ class Output
 	bool AllowPrint(double t)
 	{
 		
-		if (t >= index)
+		if (t >= nextprint)
 		{
-			index+=output_period;
+			nextprint+=output_period;
 			return true;
 		}
 		else
 			return false;
 	}
 	
-		
 	const uint32_t Nprobes(void) const { return probepoints.size(); }
 	const double& Period(void) const { return output_period; }
 	// const double& Instant(void) const { return silo_instant; }
@@ -314,10 +323,10 @@ class Output
 	}
 	
 	private:
-	bool grid;
+	bool grid, error_norm;
 	std::vector<uint32_t> radiating_vol_bnd;
 	std::string name;
-	double index, xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
+	double nextprint, xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
 	double output_period;
 	std::vector<Eigen::Vector3d> probepoints;
 	OutputMode mode;

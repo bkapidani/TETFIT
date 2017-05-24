@@ -175,7 +175,7 @@ typedef Seb::Smallest_enclosing_ball<double> 					Miniball;
 const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry","output"};
 const std::vector<Primitive>							meshdefinables	= {"grid","solid"};
 const std::vector<SolidType>							solidtypes		= {"sphere","box","cylinder"};
-const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j" };
+const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j", "h", "d" };
 const std::vector<Profile>   							profiles   		= { "wave", "gaussian", "const" };
 const std::vector<Carrier>   							carriers   		= { "sin", "cos", "gaussian", "dc", "ricker" };
 const std::vector<Direction>    						directions    	= { "x", "y", "z" };
@@ -261,7 +261,7 @@ void MyThrow(uint32_t input_line, const std::runtime_error& e)
 	throw e;
 }
 
-double analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
+std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
 {
 	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
 	double c = 1/sqrt(eps*mu);
@@ -290,47 +290,100 @@ double analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, dou
 	// std::cout << "Parameters:" << std::endl << "C = " << c << "  ksi = " << ksi 
 											// << "  alpha = " << alpha << std::endl; 
 	
-	int32_t lim1 = floor( (t * c - z) / (2 * az) );
-	int32_t lim2 = floor( (t * c + z) / (2 * az) - 1);
+	// int32_t lim1 = floor( (t * c - z) / (2 * az) );
+	// int32_t lim2 = floor( (t * c + z) / (2 * az) - 1);
 	
 	// std::cout << "At time t = " << t << " limits are : " << lim1 << "\t" << lim2 << std::endl;
 	
-	double a1, a2;
-	int32_t j=0;
+	double a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12;
+	int32_t j;
 	// i=j=0;
-	a1=a2=0;
+	a1=a2=a3=a4=a5=a6=a7=a8=a9=a10=a11=a12=0;
 	
-	
+	/******************************HX******************************************************/
+	j=0;
 	while (true)
 	{
-		double k = (z + 2 * az * j) / c;
+		double k = (z + 4 * az * j) / c;
 		// if ((t-k) > 1e-8*k)
 		if (t > k + 1e-18)
 		{
 			// std::cout << "First set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
 			// std::cout << "k = " << k <<  " time = " << t << std::endl;
-			a1 += sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq, flag);
+			a1 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a5 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			// a9 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
+			a9 -= (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
 		j++;
 	}
 	
-	j=1;
+	j=0;
 	while (true)
 	{
-		double k = (2*az*j - z) / c;
+		double k = (4*az*j + 2*az + z) / c;
 		// if ((t-k) > 1e-8*k)
 		if (t > k + 1e-18)
 		{
 			// std::cout << "Second set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
 			// std::cout << "k = " << k <<  " time = " << t << std::endl;
-			a2 -= sin(PI*x/ax)*inverse_laplace_transform(t,k, alpha, ksi, c, freq, flag);
+			 a2 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			 a6 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			// a10 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
+			a10 += (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
 		j++;
 	}
 	
-	return a1+a2;
+	j=0;
+	while (true)
+	{
+		double k = (4*az*j + 2*az - z) / c;
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
+		{
+			// std::cout << "First set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
+			// std::cout << "k = " << k <<  " time = " << t << std::endl;
+			 a3 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			 a7 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			// a11 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
+			a11 += (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	j=0;
+	while (true)
+	{
+		double k = (4*az*j + 4*az - z) / c;
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
+		{
+			// std::cout << "Second set of waves: integrate from " << k << " to " << t << " seconds" << std::endl;
+			// std::cout << "k = " << k <<  " time = " << t << std::endl;
+			 a4 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			 a8 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			// a12 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
+			a12 -= (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	double hx_double = sin(PI*x/ax)*(a1+a2+a3+a4);
+	double hy_double = 0;
+	double hz_double = (PI/ax)*c*cos(PI*x/ax)*(a5+a6+a7+a8);
+	double ex_double = 0;
+	// double ey_double = std::sqrt(mu/eps)*sin(PI*x/ax)*((a9+a10+a11+a12)-sigma*(a5+a6+a7+a8));
+	double ey_double = std::sqrt(mu/eps)*sin(PI*x/ax)*(a9+a10+a11+a12);
+	double ez_double = 0;
+	
+	return std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({ex_double,ey_double,ez_double}),Eigen::Vector3d({hx_double,hy_double,hz_double}));
 }

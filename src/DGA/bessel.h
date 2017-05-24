@@ -14,9 +14,14 @@ struct my_data
 
 // extern "C" {
 
-double besselj_function(double x, void * params);
-double besseli_function(double x, void * params);
-double inverse_laplace_transform(double t, double k, double alpha, double ksi, double c, double freq, bool flag);
-
+double besselj_function_hx(double x, void * params);
+double besseli_function_hx(double x, void * params);
+double besselj_function_hz(double x, void * params);
+double besseli_function_hz(double x, void * params);
+double besselj_function_ey(double x, void * params);
+double besseli_function_ey(double x, void * params);
+double inverse_laplace_transform_hx(double t, double k, double alpha, double ksi, double c, double freq, bool flag);
+double inverse_laplace_transform_hz(double t, double k, double alpha, double ksi, double c, double freq, bool flag);
+double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi, double c, double freq, bool flag);
 
 // }
