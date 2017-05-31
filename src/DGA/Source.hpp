@@ -263,6 +263,7 @@
 	Eigen::Vector3d Compute(SpaceTimePoint p) //returns a vector, so one can use superposition of sources
 	{
 		double ret=1; // if the source is dc, we are already done!
+		/*Time profile of source*/
 		if (carrier == "sin")
 			ret = amp*sin(2*PI*freq*p[3]); 
 		else if (carrier == "cos")
@@ -273,7 +274,7 @@
 			ret = (1 - 2*std::pow(PI*freq*(p[3]-1/freq),2))*exp(-std::pow(PI*freq*(p[3]-(1/freq)),2));
 			
 		
-		// std::cout << ret << std::endl;
+		/*Spatial profile of source*/
 		if (prof == "gaussian")
 		{
 			double exponent = - ((std::pow(p[0]-center_coords[0],2)+
@@ -298,6 +299,9 @@
 			}
 		}
 		
+		/*One candle one direction of R^3 per source!
+		  For arbitrarily oriented sources, 
+		  use the principle of superposition, i.e. define another source...*/
 		if (dir == "x")
 			return Eigen::Vector3d({ret,0,0});
 		else if (dir == "y")

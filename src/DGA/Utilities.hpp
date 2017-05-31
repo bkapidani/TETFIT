@@ -184,7 +184,7 @@ const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
 const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
 const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint"};
-const std::vector<SimMethod>							simmethods		= { "fit", "dga", "fem"};
+const std::vector<SimMethod>							simmethods		= { "fit", "dga", "fem", "dgao2"};
 const std::vector<Solver>								solvers			= { "cg", "agmg"};
 
 const std::runtime_error main_missing_file(std::string("Input file missing! Correct use is: \"tetfit input_file\" "));
@@ -313,7 +313,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			a1 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			a5 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a9 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a9 -= (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a9 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -332,7 +332,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			 a2 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			 a6 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a10 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a10 += (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a10 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -351,7 +351,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			 a3 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			 a7 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a11 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a11 += (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a11 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -370,7 +370,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			 a4 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			 a8 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a12 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a12 -= (t/k)*inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a12 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
