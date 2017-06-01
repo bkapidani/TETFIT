@@ -325,7 +325,7 @@ class Discretization
 			// is_bnd_of_antenna[bnds] = true;
 		// }
 		
-		if ( mod_out == "probepoint")
+		if ( mod_out == "probepoint" || mod_out == "maxerror")
 		{
 			// std::cout << "ci sono" << std::endl;
 			probe_numeric_times.clear();
@@ -358,22 +358,67 @@ class Discretization
 				{
 					probe_elem.push_back(elem_index);
 					probe_points.push_back(Eigen::Vector3d(pv));
-					probe_numeric_Exvalues.push_back(dummy_probe);
-					probe_numeric_Eyvalues.push_back(dummy_probe);
-					probe_numeric_Ezvalues.push_back(dummy_probe);
-					probe_numeric_Hxvalues.push_back(dummy_probe);
-					probe_numeric_Hyvalues.push_back(dummy_probe);
-					probe_numeric_Hzvalues.push_back(dummy_probe);
-					analytic_e_value_vector.push_back(dummy_analytic_probe);
-					analytic_h_value_vector.push_back(dummy_analytic_probe);
+					if ( mod_out == "probepoint")
+					{
+						probe_numeric_Exvalues.push_back(dummy_probe);
+						probe_numeric_Eyvalues.push_back(dummy_probe);
+						probe_numeric_Ezvalues.push_back(dummy_probe);
+						probe_numeric_Hxvalues.push_back(dummy_probe);
+						probe_numeric_Hyvalues.push_back(dummy_probe);
+						probe_numeric_Hzvalues.push_back(dummy_probe);
+						analytic_e_value_vector.push_back(dummy_analytic_probe);
+						analytic_h_value_vector.push_back(dummy_analytic_probe);
+					}
+
 				}
 				else 
 					probes_out_of_mesh = true;
 
 			}
 			
+			if (mod_out == "maxerror")
+			{
+				probe_numeric_Exvalues.push_back(dummy_probe);
+				probe_numeric_Eyvalues.push_back(dummy_probe);
+				probe_numeric_Ezvalues.push_back(dummy_probe);
+				probe_numeric_Hxvalues.push_back(dummy_probe);
+				probe_numeric_Hyvalues.push_back(dummy_probe);
+				probe_numeric_Hzvalues.push_back(dummy_probe);
+				analytic_e_value_vector.push_back(dummy_analytic_probe);
+				analytic_h_value_vector.push_back(dummy_analytic_probe);
+			}
+			
 			// std::cout << "ci sono" << std::endl;
 		}
+		/*else if ( mod_out == "maxerror")
+		{
+			// std::cout << "ci sono" << std::endl;
+			probe_numeric_times.clear();
+			probe_elem.clear();
+			probe_numeric_Exvalues.resize(0);
+			probe_numeric_Eyvalues.resize(0);
+			probe_numeric_Ezvalues.resize(0);
+			probe_numeric_Hxvalues.resize(0);
+			probe_numeric_Hyvalues.resize(0);
+			probe_numeric_Hzvalues.resize(0);
+			analytic_e_value_vector.resize(0);
+			analytic_h_value_vector.resize(0);
+			probe_points.resize(0);
+			
+			std::vector<double> dummy_probe;
+			std::vector<std::pair<Eigen::Vector3d,Eigen::Vector3d>> dummy_analytic_probe;
+			
+			probe_numeric_Exvalues.push_back(dummy_probe);
+			probe_numeric_Eyvalues.push_back(dummy_probe);
+			probe_numeric_Ezvalues.push_back(dummy_probe);
+			probe_numeric_Hxvalues.push_back(dummy_probe);
+			probe_numeric_Hyvalues.push_back(dummy_probe);
+			probe_numeric_Hzvalues.push_back(dummy_probe);
+			analytic_e_value_vector.push_back(dummy_analytic_probe);
+			analytic_h_value_vector.push_back(dummy_analytic_probe);
+			
+			// std::cout << "ci sono" << std::endl;
+		}*/
 		
 		// for (auto bb : BCs)
 			// std::cout << "Boundary condition: " << bb.first << " of type " << bb.second.Type() << std::endl;
@@ -554,9 +599,9 @@ class Discretization
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 
 				// Debug
-				std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-				std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
-				std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 				
 				if (i % 137 == 0) //arbitrary, just a nod at the fine structure constant
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
@@ -744,9 +789,9 @@ class Discretization
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 
 				// Debug
-				std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-				std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
-				std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 				
 				if (i % 137 == 0) //arbitrary, just a nod at the fine structure constant
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
@@ -912,9 +957,9 @@ class Discretization
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 
 				// Debug
-				std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-				std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
-				std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 				
 				if (i % 137 == 0)
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
@@ -1007,9 +1052,9 @@ class Discretization
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
 
 				// Debug
-				std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-				std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
-				std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 
 				if (i % 137 == 0)
 					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
@@ -1084,6 +1129,82 @@ class Discretization
 						os_ah << std::endl;
 					}
 				}
+			}
+
+			os.close();
+			osh.close();
+			
+			if (have_analytic)
+			{
+				os_a.close();
+				os_ah.close();
+			}// os.open("radiator_points.txt");
+			// for (auto ppt : antenna_bnd_pts)
+				// os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
+			// os.close();
+		}
+		else if (mod_out == "maxerror")
+		{
+			std::ofstream os, osh, os_a, os_ah, os_l;
+			std::stringstream ss, ssh, sa, sah, sl;
+			ss << (*o).Name() << std::setw(5) << std::setfill('0')  << sim_label << "_probe_E.dat";
+			ssh << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_probe_H.dat";
+			sa << (*o).Name() << std::setw(5) << std::setfill('0')  << sim_label << "_analytic_E.dat";
+			sah << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_analytic_H.dat";
+			sl << (*o).Name() << std::setw(5) << std::setfill('0')  << sim_label << "_powerlosses.dat";
+			
+			os.open(ss.str().c_str());
+			osh.open(ssh.str().c_str());
+			
+			if (have_analytic)
+			{
+				os_a.open(sa.str().c_str());
+				os_ah.open(sah.str().c_str());
+			}
+
+			for (uint32_t k=0; k < probe_numeric_times.size(); ++k)
+			{
+				// for (uint32_t p=0; p<probe_elem.size(); p++)
+				// {
+					os << std::setw(15) << error_points[2*k](0) 				<< " ";
+					os << std::setw(15) << error_points[2*k](1) 				<< " ";
+					os << std::setw(15) << error_points[2*k](2) 				<< " ";
+					os << std::setw(15) << probe_numeric_times[k] 				<< " ";
+					os << std::setw(15) << probe_numeric_Exvalues[0][k] 		<< " ";
+					os << std::setw(15) << probe_numeric_Eyvalues[0][k] 		<< " ";
+					os << std::setw(15) << probe_numeric_Ezvalues[0][k];					
+					os << std::endl;
+					
+					osh << std::setw(15) << error_points[2*k+1](0) 				<< " ";
+					osh << std::setw(15) << error_points[2*k+1](1) 				<< " ";
+					osh << std::setw(15) << error_points[2*k+1](2) 				<< " ";
+					osh << std::setw(15) << probe_numeric_times[k]+0.5*t_step 	<< " ";
+					osh << std::setw(15) << probe_numeric_Hxvalues[0][k] 		<< " ";
+					osh << std::setw(15) << probe_numeric_Hyvalues[0][k] 		<< " ";
+					osh << std::setw(15) << probe_numeric_Hzvalues[0][k];			
+					osh << std::endl;
+					
+					if (have_analytic)
+					{
+						os_a << std::setw(15) << error_points[2*k](0) 						<< " ";
+						os_a << std::setw(15) << error_points[2*k](1) 						<< " ";
+						os_a << std::setw(15) << error_points[2*k](2) 						<< " ";
+						os_a << std::setw(15) << probe_numeric_times[k] 					<< " ";
+						os_a << std::setw(15) << (analytic_e_value_vector[0][k].first)[0] 	<< " ";
+						os_a << std::setw(15) << (analytic_e_value_vector[0][k].first)[1] 	<< " ";
+						os_a << std::setw(15) << (analytic_e_value_vector[0][k].first)[2];
+						os_a << std::endl;
+						
+						os_ah << std::setw(15) << error_points[2*k+1](0) 					<< " ";
+						os_ah << std::setw(15) << error_points[2*k+1](1) 					<< " ";
+						os_ah << std::setw(15) << error_points[2*k+1](2) 					<< " ";
+						os_ah << std::setw(15) << probe_numeric_times[k] +0.5*t_step 		<< " ";
+						os_ah << std::setw(15) << (analytic_h_value_vector[0][k].second)[0] 	<< " ";
+						os_ah << std::setw(15) << (analytic_h_value_vector[0][k].second)[1] 	<< " ";
+						os_ah << std::setw(15) << (analytic_h_value_vector[0][k].second)[2];
+						os_ah << std::endl;
+					}
+				// }
 			}
 
 			os.close();
@@ -1218,7 +1339,7 @@ class Discretization
 		// Eigen::Vector3d num_val;
 		if (s == "probepoint")
 		{
-			for (uint32_t p=0; p<probe_elem.size(); p++)
+			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
 				// if (Simulations[current_simulation].Method() == "fem")
@@ -1239,12 +1360,26 @@ class Discretization
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				if (have_analytic)
 				{
-					anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
-				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
-													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
-					anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
-				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
-													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+					if (analsrctype == "h")
+					{
+						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+					else if (analsrctype == "e")
+					{
+						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+
 				}
 				analytic_e_value_vector[p].push_back(anal_value1);
 				analytic_h_value_vector[p].push_back(anal_value2);
@@ -1256,6 +1391,99 @@ class Discretization
 				// }
 			}
 			
+			probe_numeric_times.push_back(t);
+		}
+		else if (s == "maxerror")
+		{
+			Eigen::Vector3d max_vol_error_e, max_vol_error_h, max_vol_anal_e, max_vol_anal_h, probe_max_e, probe_max_h;
+			for (uint32_t p=0; p<probe_elem.size(); ++p)
+			{
+				Eigen::Vector3d num_ele, num_mag;
+			// if (Simulations[current_simulation].Method() == "fem")
+				num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);
+				num_mag = GetMagneticField(probe_elem[p]);
+				// else
+					// num_ele = GetElectricField(probe_elem[p]);
+				
+				// probe_numeric_Exvalues[p].push_back(num_ele[0]);
+				// probe_numeric_Eyvalues[p].push_back(num_ele[1]);
+				// probe_numeric_Ezvalues[p].push_back(num_ele[2]);
+				// probe_numeric_Hxvalues[p].push_back(num_mag[0]);
+				// probe_numeric_Hyvalues[p].push_back(num_mag[1]);
+				// probe_numeric_Hzvalues[p].push_back(num_mag[2]);
+				SpaceTimePoint stp = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t});
+				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
+				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+				if (have_analytic)
+				{
+					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+					if (analsrctype == "h")
+					{
+						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+					else if (analsrctype == "e")
+					{
+						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+					
+					Eigen::Vector3d vol_error_e = (anal_value1.first-num_ele).cwiseAbs();
+					Eigen::Vector3d vol_error_h = (anal_value2.second-num_mag).cwiseAbs();
+					
+					if (p==0)
+					{
+						max_vol_error_e = vol_error_e;
+						max_vol_error_h = vol_error_h;
+						max_vol_anal_e  = (anal_value1.first).cwiseAbs();
+						max_vol_anal_h  = (anal_value2.second).cwiseAbs();
+						probe_max_e     = probe_points[p];
+						probe_max_h     = probe_points[p];
+					}
+					else
+					{
+						if (vol_error_e(1) > max_vol_error_e(1))
+						{
+							max_vol_error_e = vol_error_e;
+							max_vol_anal_e  = (anal_value1.first).cwiseAbs();
+							probe_max_e     = probe_points[p];
+						}
+						if (vol_error_h(0) > max_vol_error_h(0))
+						{
+							max_vol_error_h = vol_error_h;
+							max_vol_anal_h  = (anal_value2.second).cwiseAbs();
+							probe_max_h     = probe_points[p];
+						}
+					}
+				}
+			}
+
+			// std::cout << "Problems with sto cazzo!" << std::endl;
+			auto ciccio1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+			auto ciccio2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+			analytic_e_value_vector[0].push_back(ciccio1);
+			analytic_h_value_vector[0].push_back(ciccio2);
+			(*analytic_e_value_vector[0].rbegin()).first = max_vol_anal_e;
+			(*analytic_h_value_vector[0].rbegin()).second = max_vol_anal_h;
+			
+			probe_numeric_Exvalues[0].push_back(max_vol_error_e(0));
+			probe_numeric_Eyvalues[0].push_back(max_vol_error_e(1));
+			probe_numeric_Ezvalues[0].push_back(max_vol_error_e(2));
+			probe_numeric_Hxvalues[0].push_back(max_vol_error_h(0));
+			probe_numeric_Hyvalues[0].push_back(max_vol_error_h(1));
+			probe_numeric_Hzvalues[0].push_back(max_vol_error_h(2));
+			
+			error_points.push_back(probe_max_e);
+			error_points.push_back(probe_max_h);
 			probe_numeric_times.push_back(t);
 		}
 		else if (s == "silo")
@@ -1323,24 +1551,38 @@ class Discretization
 			for (uint32_t p=0; p<probe_elem.size(); p++)
 			{
 				auto num_ele = GetFitElectricField(probe_elem[p]);
+				auto num_mag = GetFitMagneticField(probe_elem[p]);
 				probe_numeric_Exvalues[p].push_back(num_ele[0]);
 				probe_numeric_Eyvalues[p].push_back(num_ele[1]);
 				probe_numeric_Ezvalues[p].push_back(num_ele[2]);
-				probe_numeric_Hxvalues[p].push_back(0);
-				probe_numeric_Hyvalues[p].push_back(0);
-				probe_numeric_Hzvalues[p].push_back(0);
+				probe_numeric_Hxvalues[p].push_back(num_mag[0]);
+				probe_numeric_Hyvalues[p].push_back(num_mag[1]);
+				probe_numeric_Hzvalues[p].push_back(num_mag[2]);
 				SpaceTimePoint stp = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t});
 				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
 				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				if (have_analytic)
 				{
-					anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
-				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
-													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
-					anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
-				                                       Materials[vol_material[probe_elem[p]]].Epsilon(),
-													   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+					if (analsrctype == "h")
+					{
+						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+					else if (analsrctype == "e")
+					{
+						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
 				}
 				analytic_e_value_vector[p].push_back(anal_value1);
 				analytic_h_value_vector[p].push_back(anal_value2);
@@ -1353,6 +1595,91 @@ class Discretization
 				// }
 			}
 			
+			probe_numeric_times.push_back(t);
+		}
+		else if (s == "maxerror")
+		{
+			Eigen::Vector3d max_vol_error_e, max_vol_error_h, max_vol_anal_e, max_vol_anal_h, probe_max_e, probe_max_h;
+			for (uint32_t p=0; p<probe_elem.size(); ++p)
+			{
+				auto num_ele = GetFitElectricField(probe_elem[p]);
+				auto num_mag = GetFitMagneticField(probe_elem[p]);
+				// probe_numeric_Exvalues[p].push_back(num_ele[0]);
+				// probe_numeric_Eyvalues[p].push_back(num_ele[1]);
+				// probe_numeric_Ezvalues[p].push_back(num_ele[2]);
+				// probe_numeric_Hxvalues[p].push_back(num_mag[0]);
+				// probe_numeric_Hyvalues[p].push_back(num_mag[1]);
+				// probe_numeric_Hzvalues[p].push_back(num_mag[2]);
+				SpaceTimePoint stp = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t});
+				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
+				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+				if (have_analytic)
+				{
+					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+					if (analsrctype == "h")
+					{
+						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+					else if (analsrctype == "e")
+					{
+						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Epsilon(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+					}
+				}
+				
+				Eigen::Vector3d vol_error_e = (anal_value1.first-num_ele).cwiseAbs();
+				Eigen::Vector3d vol_error_h = (anal_value2.second-num_mag).cwiseAbs();
+				
+				if (p==0)
+				{
+					max_vol_error_e = vol_error_e;
+					max_vol_error_h = vol_error_h;
+					max_vol_anal_e  = (anal_value1.first).cwiseAbs();
+					max_vol_anal_h  = (anal_value2.second).cwiseAbs();
+					probe_max_e     = probe_points[p];
+					probe_max_h     = probe_points[p];
+				}
+				else
+				{
+					if (vol_error_e(1) > max_vol_error_e(1))
+					{
+						max_vol_error_e = vol_error_e;
+						max_vol_anal_e  = (anal_value1.first).cwiseAbs();
+						probe_max_e     = probe_points[p];
+					}
+					if (vol_error_h(0) > max_vol_error_h(0))
+					{
+						max_vol_error_h = vol_error_h;
+						max_vol_anal_h  = (anal_value2.second).cwiseAbs();
+						probe_max_h     = probe_points[p];
+					}
+				}
+			}
+			
+			auto ciccio1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+			auto ciccio2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+			analytic_e_value_vector[0].push_back(ciccio1);
+			analytic_h_value_vector[0].push_back(ciccio2);
+			(*analytic_e_value_vector[0].rbegin()).first = max_vol_anal_e;
+			(*analytic_h_value_vector[0].rbegin()).second = max_vol_anal_h;
+			probe_numeric_Exvalues[0].push_back(max_vol_error_e(0));
+			probe_numeric_Eyvalues[0].push_back(max_vol_error_e(1));
+			probe_numeric_Ezvalues[0].push_back(max_vol_error_e(2));
+			probe_numeric_Hxvalues[0].push_back(max_vol_error_h(0));
+			probe_numeric_Hyvalues[0].push_back(max_vol_error_h(1));
+			probe_numeric_Hzvalues[0].push_back(max_vol_error_h(2));
+			error_points.push_back(probe_max_e);
+			error_points.push_back(probe_max_h);
 			probe_numeric_times.push_back(t);
 		}
 		else if (s == "silo")
@@ -5961,7 +6288,7 @@ class Discretization
 	std::vector<uint32_t>                       dual_is_fractured, primal_is_fractured;
 	std::vector<edge_type> 						edges;
 	std::vector<Eigen::Vector3d>	 			pts, edge_bars, face_bars, antenna_bnd_pts;
-	std::vector<Eigen::Vector3d>				probe_points;
+	std::vector<Eigen::Vector3d>				probe_points, error_points;
 	std::vector<Eigen::Vector3d> 				bnd_dual_edge_vectors;
 	std::vector<Eigen::Vector3d> 				bnd_dual_rhomb1_vectors, bnd_dual_rhomb2_vectors;
 	// std::vector<int32_t>						bnd_coeff;

@@ -183,7 +183,7 @@ const std::vector<BaseFunction> 						modes 			= { "sin", "cos" };
 const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
 const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
-const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint"};
+const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint", "maxerror"};
 const std::vector<SimMethod>							simmethods		= { "fit", "dga", "fem", "dgao2"};
 const std::vector<Solver>								solvers			= { "cg", "agmg"};
 
@@ -207,7 +207,7 @@ const std::runtime_error material_unknown_parameter(std::string("Unrecognized ma
 const std::runtime_error mesh_unknown_type(std::string("Undefined mesh type! Available: tetrahedral, cartesian"));
 const std::runtime_error mesh_unknown_mesher(std::string("Undefined mesher! Available: netgen, gmsh"));
 const std::runtime_error mesh_unknown_parameter(std::string("Undefined mesh parameter! Available: file, name, type, mesher, scalefactor"));
-const std::runtime_error sim_unknown_output(std::string("Undefined output mode type! Available: silo, probe"));
+const std::runtime_error sim_unknown_output(std::string("Undefined output mode type! Available: silo, probepoint, maxerror"));
 const std::runtime_error sim_unknown_method(std::string("Undefined simulation method! Available: fit, dga, fem"));
 const std::runtime_error sim_unknown_solver(std::string("Unavailable solver! Available: cg, agmg"));
 const std::runtime_error sim_unknown_parameter(std::string("Undefined simulation parameter! Available: source, mesh, duration, output"));
@@ -383,6 +383,85 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 	double ex_double = 0;
 	// double ey_double = std::sqrt(mu/eps)*sin(PI*x/ax)*((a9+a10+a11+a12)-sigma*(a5+a6+a7+a8));
 	double ey_double = std::sqrt(mu/eps)*sin(PI*x/ax)*(a9+a10+a11+a12);
+	double ez_double = 0;
+	
+	return std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({ex_double,ey_double,ez_double}),Eigen::Vector3d({hx_double,hy_double,hz_double}));
+}
+
+std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_old(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
+{
+	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
+	double c = 1/sqrt(eps*mu);
+	double ax=5e-2;
+	double az=10e-2;
+	double ay=2.5e-2; //momentarily useless
+	double ksi = sigma/eps/2;
+	double alph1 = pow(PI*c/ax,2);
+	double alph2 = 0.25*pow(sigma/eps,2);
+	double alpha;
+	bool flag = true;
+	if (alph1>alph2)
+	{
+		flag = true;
+		alpha =  sqrt(alph1-alph2);
+	}
+	else
+	{
+		flag = false;
+		alpha = sqrt(alph2-alph1);
+	}
+	
+	
+	// std::cout << "Debug: " << pow(3.141592*c/ax,2) << " " << pow(sigma/eps,2)/4 << std::endl;
+	
+	// std::cout << "Parameters:" << std::endl << "C = " << c << "  ksi = " << ksi 
+											// << "  alpha = " << alpha << std::endl; 
+	
+	// int32_t lim1 = floor( (t * c - z) / (2 * az) );
+	// int32_t lim2 = floor( (t * c + z) / (2 * az) - 1);
+	
+	// std::cout << "At time t = " << t << " limits are : " << lim1 << "\t" << lim2 << std::endl;
+	
+	double a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12;
+	int32_t j;
+	// i=j=0;
+	a1=a2=a3=a4=a5=a6=a7=a8=a9=a10=a11=a12=0;
+	
+	/******************************HX******************************************************/
+	j=0;
+	while (true)
+	{
+		double k = (z + 2*az*j) / c;
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
+		{
+			a1 += inverse_laplace_transform_ey_old(t,k, alpha, ksi, c, freq, flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	j=0;
+	while (true)
+	{
+		double k = (2*az*j + 2*az - z) / c;
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
+		{
+			 a2 -= inverse_laplace_transform_ey_old(t,k, alpha, ksi, c, freq, flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	
+	double hx_double = 0;
+	double hy_double = 0;
+	double hz_double = 0;
+	double ex_double = 0;
+	double ey_double = sin(PI*x/ax)*(a1+a2+a3+a4);
 	double ez_double = 0;
 	
 	return std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({ex_double,ey_double,ez_double}),Eigen::Vector3d({hx_double,hy_double,hz_double}));
