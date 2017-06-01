@@ -1639,12 +1639,12 @@ class Discretization
 					Eanal[p]               = (anal_value2.first).dot(edgvec);
 				}
 				
-				num_e_energy.push_back(U.dot((this->E)*U));
-				ana_e_energy.push_back(Eanal.dot((this->E)*Eanal));
-				num_h_energy.push_back(B.dot((this->N)*B));
-				ana_h_energy.push_back(Banal.dot((this->N)*Banal));	
-				del_e_energy.push_back((Eanal-U).dot((this->E)*(Eanal-U))); //E is SPD
-				del_h_energy.push_back((Banal-B).dot((this->N)*(Banal-B))); //N is SPD
+				num_e_energy.push_back(0.5*U.dot((this->E)*U));
+				ana_e_energy.push_back(0.5*Eanal.dot((this->E)*Eanal));
+				num_h_energy.push_back(0.5*B.dot((this->N)*B));
+				ana_h_energy.push_back(0.5*Banal.dot((this->N)*Banal));	
+				del_e_energy.push_back(0.5*(Eanal-U).dot((this->E)*(Eanal-U))); //E is SPD
+				del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
 				probe_numeric_times.push_back(t);
 			}
 			else
@@ -1713,12 +1713,12 @@ class Discretization
 					Eanal[p]               = (anal_value2.first).dot(edgvec);
 				}
 				
-				num_e_energy.push_back(U.dot(Ep_vec.cwiseProduct(U)));
-				ana_e_energy.push_back(Eanal.dot(Ep_vec.cwiseProduct(Eanal)));
-				num_h_energy.push_back(F.dot(Mu_vec.cwiseProduct(F)));
-				ana_h_energy.push_back(Hanal.dot(Mu_vec.cwiseProduct(Hanal)));	
-				del_e_energy.push_back((Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U))); //Epsilon is >0
-				del_h_energy.push_back((Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F))); //Mu is >0
+				num_e_energy.push_back(0.5*U.dot(Ep_vec.cwiseProduct(U)));
+				ana_e_energy.push_back(0.5*Eanal.dot(Ep_vec.cwiseProduct(Eanal)));
+				num_h_energy.push_back(0.5*F.dot(Mu_vec.cwiseProduct(F)));
+				ana_h_energy.push_back(0.5*Hanal.dot(Mu_vec.cwiseProduct(Hanal)));	
+				del_e_energy.push_back(0.5*(Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U))); //Epsilon is >0
+				del_h_energy.push_back(0.5*(Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F))); //Mu is >0
 				probe_numeric_times.push_back(t);
 			}
 			
