@@ -281,7 +281,10 @@ class Discretization
 		simulation_time = s.Time();
 		double current_time;
 		max_rel_err = 0;
-			
+		
+		// if (mod_out == "l2norm" && meth == "dga")
+			// meth = "frac"; //don't need to use fractured grid to correctly account for discrete energy
+		
 		timecounter step_cost;
 		std::vector<double> numeric_values,numeric_times, Losses;
 		
@@ -1219,6 +1222,35 @@ class Discretization
 				// os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
 			// os.close();
 		}
+		else if (mod_out == "l2norm")
+		{
+			std::ofstream os, osh, os_a, os_ah, os_l;
+			std::stringstream ss, ssh, sa, sah, sl;
+			ss << (*o).Name() << std::setw(5) << std::setfill('0')  << sim_label << "_energy_electric.dat";
+			ssh << (*o).Name() << std::setw(5) << std::setfill('0') << sim_label << "_energy_magnetic.dat";
+			sl << (*o).Name() << std::setw(5) << std::setfill('0')  << sim_label << "_powerlosses.dat";
+			
+			os.open(ss.str().c_str());
+			osh.open(ssh.str().c_str());
+
+			for (uint32_t k=0; k < probe_numeric_times.size(); ++k)
+			{
+				os << std::setw(15) << probe_numeric_times[k] 				<< " ";
+				os << std::setw(15) << num_e_energy[k] 						<< " ";
+				os << std::setw(15) << ana_e_energy[k] 						<< " ";
+				os << std::setw(15) << del_e_energy[k];					
+				os << std::endl;
+				
+				osh << std::setw(15) << probe_numeric_times[k]+0.5*t_step 	<< " ";
+				osh << std::setw(15) << num_h_energy[k] 					<< " ";
+				osh << std::setw(15) << ana_h_energy[k] 					<< " ";
+				osh << std::setw(15) << del_h_energy[k];
+				osh << std::endl;
+			}
+
+			os.close();
+			osh.close();
+		}
 		
 		std::cout << std::endl 	   << "Simulation statistics:" 	    																	<< std::endl;
 		std::cout << std::setw(20) << "Average step cost:  "		<< std::setw(20) << step_time_average/double(i)  	<< " sec" 	<< std::endl;
@@ -1232,9 +1264,12 @@ class Discretization
 			std::cout << std::setw(20) << "Average # of CG iterations: "	<< std::setw(20) << iter_time_average/double(i)  	<< std::endl;
 		}
 		else
-			std::cout << std::setw(20) << "Average Hfield time: "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Average Hfield time:    "	<< std::setw(20) << mag_time_average/double(i)  	<< " sec" << std::endl;
 		
-		std::cout << std::setw(20) << "Average Efield time: "	<< std::setw(20) << ele_time_average/double(i)  		<< " sec" << std::endl;
+		std::cout << std::setw(20) <<     "Average Efield time:    "	<< std::setw(20) << ele_time_average/double(i)      << " sec" << std::endl;
+		std::cout << std::setw(20) <<     "Average true step cost: "						<< std::setw(20) 
+		              << (bcs_time_average+mag_time_average+ele_time_average)/double(i)  	<< std::endl;
+
 		
 		// delete this;
 	}
@@ -1342,11 +1377,11 @@ class Discretization
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
-				// if (Simulations[current_simulation].Method() == "fem")
-					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);
-					num_mag = GetMagneticField(probe_elem[p]);
-				// else
-					// num_ele = GetElectricField(probe_elem[p]);
+				if (Simulations[current_simulation].Method() == "fem")
+					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);					
+				else
+					num_ele = GetElectricField(probe_elem[p]);
+				num_mag = GetMagneticField(probe_elem[p]);
 				
 				probe_numeric_Exvalues[p].push_back(num_ele[0]);
 				probe_numeric_Eyvalues[p].push_back(num_ele[1]);
@@ -1399,12 +1434,11 @@ class Discretization
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
-			// if (Simulations[current_simulation].Method() == "fem")
-				num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);
+				if (Simulations[current_simulation].Method() == "fem")
+					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);
+				else
+					num_ele = GetElectricField(probe_elem[p]);
 				num_mag = GetMagneticField(probe_elem[p]);
-				// else
-					// num_ele = GetElectricField(probe_elem[p]);
-				
 				// probe_numeric_Exvalues[p].push_back(num_ele[0]);
 				// probe_numeric_Eyvalues[p].push_back(num_ele[1]);
 				// probe_numeric_Ezvalues[p].push_back(num_ele[2]);
@@ -1540,6 +1574,155 @@ class Discretization
 			
 			t_export.toc();
 			// std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
+		}
+		else if (s == "l2norm")
+		{
+			auto meth = Simulations[current_simulation].Method();
+			if (meth != "fit")
+			{
+				auto Banal = Eigen::VectorXd(surfaces_size());
+				auto Eanal = Eigen::VectorXd(edges_size());
+				
+				for (uint32_t p=0; p<surfaces_size(); ++p)
+				{
+					auto vol_begin = abs(ftv_list[p][0]);
+					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
+					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+					if (have_analytic)
+					{
+						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+						if (analsrctype == "h")
+						{
+							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+						else if (analsrctype == "e")
+						{
+							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+
+					}
+					
+					Eigen::Vector3d facvec = (pts[std::get<1>(surfaces[p])]-pts[std::get<0>(surfaces[p])]).cross(pts[std::get<2>(surfaces[p])]-
+						                          pts[std::get<0>(surfaces[p])]);
+					Banal[p]               = Materials[vol_material[vol_begin]].Mu()*(anal_value2.second).dot(facvec);
+				}
+				
+				for (uint32_t p=0; p<edges_size(); ++p)
+				{
+					auto edg_face = etf_list[p][0];
+					auto vol_begin = abs(ftv_list[abs(edg_face)][0]);
+					SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
+					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+					if (have_analytic)
+					{
+						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+						if (analsrctype == "h")
+						{
+							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+						else if (analsrctype == "e")
+						{
+							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+
+					}
+					
+					Eigen::Vector3d edgvec = pts[std::get<1>(edges[p])]-pts[std::get<0>(edges[p])];
+					Eanal[p]               = (anal_value2.first).dot(edgvec);
+				}
+				
+				num_e_energy.push_back(U.dot((this->E)*U));
+				ana_e_energy.push_back(Eanal.dot((this->E)*Eanal));
+				num_h_energy.push_back(B.dot((this->N)*B));
+				ana_h_energy.push_back(Banal.dot((this->N)*Banal));	
+				del_e_energy.push_back((Eanal-U).dot((this->E)*(Eanal-U))); //E is SPD
+				del_h_energy.push_back((Banal-B).dot((this->N)*(Banal-B))); //N is SPD
+				probe_numeric_times.push_back(t);
+			}
+			else
+			{
+				auto Hanal = Eigen::VectorXd(surfaces_size());
+				auto Eanal = Eigen::VectorXd(edges_size());
+				
+				for (uint32_t p=0; p<surfaces_size(); ++p)
+				{
+					auto vol_begin = abs(Dt[p][0]);
+					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
+					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+					if (have_analytic)
+					{
+						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+						if (analsrctype == "h")
+						{
+							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+						else if (analsrctype == "e")
+						{
+							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+
+					}
+					
+					Eigen::Vector3d facvec(0,0,0);
+					
+					if (Dt[p].size()== 2)
+						facvec = vol_barycenter(abs(Dt[p][1]))-vol_barycenter(vol_begin);
+					else if (Dt[p].size()== 1)
+						facvec = Dt[p][0].Sgn()*(face_barycenter(p)-vol_barycenter(vol_begin));
+					
+					Hanal[p]               = (anal_value2.second).dot(facvec);
+				}
+				
+				for (uint32_t p=0; p<edges_size(); ++p)
+				{
+					auto edg_face = Ct_vec[p][0];
+					auto vol_begin = abs(Dt[abs(edg_face)][0]);
+					SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
+					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+					if (have_analytic)
+					{
+						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+						if (analsrctype == "h")
+						{
+							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+						else if (analsrctype == "e")
+						{
+							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+
+					}
+					
+					Eigen::Vector3d edgvec = pts[G[p][1]]-pts[G[p][0]];
+					Eanal[p]               = (anal_value2.first).dot(edgvec);
+				}
+				
+				num_e_energy.push_back(U.dot(Ep_vec.cwiseProduct(U)));
+				ana_e_energy.push_back(Eanal.dot(Ep_vec.cwiseProduct(Eanal)));
+				num_h_energy.push_back(F.dot(Mu_vec.cwiseProduct(F)));
+				ana_h_energy.push_back(Hanal.dot(Mu_vec.cwiseProduct(Hanal)));	
+				del_e_energy.push_back((Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U))); //Epsilon is >0
+				del_h_energy.push_back((Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F))); //Mu is >0
+				probe_numeric_times.push_back(t);
+			}
+			
+			
 		}
 	}
 
@@ -3389,36 +3572,52 @@ class Discretization
 			 pz+=Lz;
 		}
 	
-	t_step *= Simulations[current_simulation].Courant();
-	std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
-	std::vector<std::vector<uint32_t>> dumb_face(surfaces_size());
-	std::vector<uint32_t> dumb(edges_size(),0);
-	
-	edge_src = dumb_edge; face_src = dumb_face; edge_bcs = dumb;
+		t_step *= Simulations[current_simulation].Courant();
+		std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
+		std::vector<std::vector<uint32_t>> dumb_face(surfaces_size());
+		std::vector<uint32_t> dumb(edges_size(),0);
+		
+		edge_src = dumb_edge; face_src = dumb_face; edge_bcs = dumb;
 
-	for (uint32_t i=0; i<nf; ++i)
-	{
-			// Nvec(i)=average_ni[i]/face_area[i];
-
-		if (average_ni[i] != 0)
+		auto mod_out = Outputs[Simulations[current_simulation].Output()].Mode();
+		bool store_E = (mod_out == "l2norm")? true : false;
+		if (store_E)
 		{
-			if (is_mag_lossy[i])
+			Mu_vec = Eigen::VectorXd::Zero(surfaces_size());
+			Ep_vec = Eigen::VectorXd::Zero(edges_size());
+		}
+		
+		for (uint32_t i=0; i<nf; ++i)
+		{
+				// Nvec(i)=average_ni[i]/face_area[i];
+
+			if (average_ni[i] != 0)
 			{
-				M_ni.push_back(1/(face_area[i]*(1/average_ni[i]+0.5*t_step/average_mag_sigma[i])));
-				M_mu.push_back(face_area[i]*(1/average_ni[i]-0.5*t_step/average_mag_sigma[i]));
+				if (is_mag_lossy[i])
+				{
+					M_ni.push_back(1/(face_area[i]*(1/average_ni[i]+0.5*t_step/average_mag_sigma[i])));
+					M_mu.push_back(face_area[i]*(1/average_ni[i]-0.5*t_step/average_mag_sigma[i]));
+				}
+				else
+				{
+					M_ni.push_back(average_ni[i]/face_area[i]);
+					M_mu.push_back(face_area[i]/average_ni[i]);
+				}
+				
+				if (store_E)
+					Mu_vec(i) = face_area[i]/average_ni[i];
 			}
 			else
 			{
-				M_ni.push_back(average_ni[i]/face_area[i]);
-				M_mu.push_back(face_area[i]/average_ni[i]);
+				M_ni.push_back(0);
+				M_mu.push_back(0);
+				
+				// if (store_E)
+					// Mu_vec(i) = 0;
 			}
+			
+
 		}
-		else
-		{
-			M_ni.push_back(0);
-			M_mu.push_back(0);
-		}
-	}
 	  // uint32_t number_of_lossy=0;
 	  
 	  for (uint32_t i=0; i<ne; ++i)
@@ -3437,13 +3636,19 @@ class Discretization
 				M_h.push_back(edge_len[i]/average_eps[i]);
 				M_e.push_back(average_eps[i]/edge_len[i]);
 			 }
+			 
+			 if (store_E)
+				 Ep_vec(i) = average_eps[i]/edge_len[i];
 		 }
 		 else
 		 {
 			M_h.push_back(0);
 			M_e.push_back(0);
+			
+			// if (store_E)
+				// Ep_vec(i) = 0;
 		 }
-		 
+		
 		uint32_t in_b = 0;
 		uint32_t break_cond=0;
 		for (auto ff : Ct_vec[i])
@@ -5096,10 +5301,13 @@ class Discretization
 		std::vector<bool> mu_computed(volumes_size(),false);
 		Eigen::MatrixXd local_E, local_S;
 		Eigen::Matrix4d local_M, local_Z;
-		std::vector<double_triplet> H_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
+		std::vector<double_triplet> H_trip, Einv_trip, E_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
 		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip; 
 		// std::vector<std::vector<uint32_t>> M_trip(edges_size());
 		uint32_t jj,kk;
+		
+		auto mod_out = Outputs[Simulations[current_simulation].Output()].Mode();
+		bool store_E = (mod_out == "l2norm")? true : false;
 		
 		auto local_mag_Id = Eigen::MatrixXd::Identity(4,4);
 		for (uint32_t vv=0; vv < volumes.size(); vv++)
@@ -5275,6 +5483,7 @@ class Discretization
 		}
 		
 		Eigen::VectorXd	P_p(P_size);
+
 		
 		for (uint32_t nid=0; nid< pts.size(); nid++ )
 		{
@@ -5663,9 +5872,16 @@ class Discretization
 					}
 				}
 				
-				for (uint32_t ll=0; ll < local_E_size; ll++)
+				for (uint32_t ll=0; ll < local_E_size; ++ll)
+				{
+					if (store_E && local_E_nondirichlet(jj,ll) != 0)
+					{
+						E_trip.push_back(double_triplet(global_i[jj],global_i[ll],local_E_nondirichlet(jj,ll)));
+					}
+						
 					if (local_E_inv(jj,ll) != 0)
 						Einv_trip.push_back(double_triplet(global_i[jj],global_i[ll],local_E_inv(jj,ll)));
+				}
 				
 				jj++;
 				kk=0;
@@ -5683,7 +5899,7 @@ class Discretization
 		this->P_p=std::move(P_p);
 		// this->M_vec = std::move(M_trip);
 		
-		Eigen::SparseMatrix<double> H(H_size,edges_size()), N(N_size,surfaces_size()), Einv(edges_size(),edges_size());
+		Eigen::SparseMatrix<double> H(H_size,edges_size()), N(N_size,surfaces_size()), Einv(edges_size(),edges_size()), E(edges_size(),edges_size());
 		Eigen::SparseMatrix<double> M(edges_size(),U_frac_size), Mq(Q_size,edges_size()), Mp(P_size,edges_size());
 		Eigen::SparseMatrix<double> T(surfaces_size(),F_frac_size),Tr(R_size,surfaces_size()),Ts(S_size,surfaces_size());
 		Eigen::SparseMatrix<double> /*P(P_size,U_frac_size),*/Q(Q_size,Q_size);
@@ -5719,6 +5935,11 @@ class Discretization
 		Ts.setFromTriplets(Ts_trip.begin(),Ts_trip.end(), ass);
 		// std::cout << "13" << std::endl;
 		Einv.setFromTriplets(Einv_trip.begin(),Einv_trip.end(), ass);
+		if (store_E)
+		{
+			E.setFromTriplets(E_trip.begin(),E_trip.end(), ass);
+			this->E = std::move(E);
+		}
 		// std::cout << "14" << std::endl;
 		SigMat.setFromTriplets(Sig_trip.begin(),Sig_trip.end(), ass);
 		// std::cout << "15" << std::endl;
@@ -6258,7 +6479,7 @@ class Discretization
 	std::map<uint32_t,Output>					Outputs;
 	std::map<uint32_t,Simulation>				Simulations;
 	std::map<uint32_t,Source>					Sources;		/* a std::map works because every time I use the [] operator on an undefined material */
-	std::map<uint32_t,Material>					Materials; 		/* (or source), the default constructor makes it empty space (or null source) */
+	std::map<uint32_t,Material>					Materials; 		/* (or source, or whatever), the default constructor makes it empty space (or null source) */
 	std::map<uint32_t,BoundaryCondition>		BCs;
 	std::map<uint32_t,Mesh>						Meshes;
 	std::map<uint32_t,Solid>					Solids;
@@ -6266,10 +6487,10 @@ class Discretization
 	private:
 	uint32_t									input_line, H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
 	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv, SigMat, A, E, RHSmat,Ctb;
-	Eigen::VectorXd								U,F,Fb,I,P_p,B;
+	Eigen::VectorXd								U,F,Fb,I,P_p,B,Mu_vec,Ep_vec;
 	std::mutex									meshlock;
-
 	std::vector<double>                         CellVolumes, probe_numeric_times;
+	std::vector<double>                         num_e_energy, num_h_energy, ana_e_energy, ana_h_energy, del_e_energy, del_h_energy;
 	std::vector<std::vector<double>>			probe_numeric_Exvalues, probe_numeric_Eyvalues, probe_numeric_Ezvalues;
 	std::vector<std::vector<double>>			probe_numeric_Hxvalues, probe_numeric_Hyvalues, probe_numeric_Hzvalues;
 	std::vector<std::vector<std::pair<Eigen::Vector3d,Eigen::Vector3d>>> analytic_e_value_vector, analytic_h_value_vector;
