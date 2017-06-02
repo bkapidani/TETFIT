@@ -1647,82 +1647,6 @@ class Discretization
 				del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
 				probe_numeric_times.push_back(t);
 			}
-			else
-			{
-				auto Hanal = Eigen::VectorXd(surfaces_size());
-				auto Eanal = Eigen::VectorXd(edges_size());
-				
-				for (uint32_t p=0; p<surfaces_size(); ++p)
-				{
-					auto vol_begin = abs(Dt[p][0]);
-					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
-					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-					if (have_analytic)
-					{
-						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
-						if (analsrctype == "h")
-						{
-							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
-															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
-						}
-						else if (analsrctype == "e")
-						{
-							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
-																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
-						}
-
-					}
-					
-					Eigen::Vector3d facvec(0,0,0);
-					
-					if (Dt[p].size()== 2)
-						facvec = vol_barycenter(abs(Dt[p][1]))-vol_barycenter(vol_begin);
-					else if (Dt[p].size()== 1)
-						facvec = Dt[p][0].Sgn()*(face_barycenter(p)-vol_barycenter(vol_begin));
-					
-					Hanal[p]               = (anal_value2.second).dot(facvec);
-				}
-				
-				for (uint32_t p=0; p<edges_size(); ++p)
-				{
-					auto edg_face = Ct_vec[p][0];
-					auto vol_begin = abs(Dt[abs(edg_face)][0]);
-					SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
-					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-					if (have_analytic)
-					{
-						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
-						if (analsrctype == "h")
-						{
-							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
-															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
-						}
-						else if (analsrctype == "e")
-						{
-							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
-																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
-						}
-
-					}
-					
-					Eigen::Vector3d edgvec = pts[G[p][1]]-pts[G[p][0]];
-					Eanal[p]               = (anal_value2.first).dot(edgvec);
-				}
-				
-				num_e_energy.push_back(0.5*U.dot(Ep_vec.cwiseProduct(U)));
-				ana_e_energy.push_back(0.5*Eanal.dot(Ep_vec.cwiseProduct(Eanal)));
-				num_h_energy.push_back(0.5*F.dot(Mu_vec.cwiseProduct(F)));
-				ana_h_energy.push_back(0.5*Hanal.dot(Mu_vec.cwiseProduct(Hanal)));	
-				del_e_energy.push_back(0.5*(Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U))); //Epsilon is >0
-				del_h_energy.push_back(0.5*(Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F))); //Mu is >0
-				probe_numeric_times.push_back(t);
-			}
-			
-			
 		}
 	}
 
@@ -1918,6 +1842,87 @@ class Discretization
 			
 			t_export.toc();
 			// std::cout << "SILO: Output to file done in " << std::setw(7) << t_export << std::setw(8) << " seconds" << std::endl;
+		}
+		else if (s == "l2norm")
+		{
+			auto Hanal = Eigen::VectorXd(surfaces_size());
+			auto Eanal = Eigen::VectorXd(edges_size());
+			
+			for (uint32_t p=0; p<surfaces_size(); ++p)
+			{
+				
+				auto vol_begin = abs(Dt[p][0]);
+				SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
+				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+				if (have_analytic)
+				{
+					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+					if (analsrctype == "h")
+					{
+						anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+														  Materials[vol_material[vol_begin]].Epsilon(),
+														  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+					}
+					else if (analsrctype == "e")
+					{
+						anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+					}
+
+				}
+				
+				
+				Eigen::Vector3d facvec(0,0,0);
+				
+				if (Dt[p].size() == 2)
+				{
+					facvec = vol_barycenter(abs(Dt[p][1]))-vol_barycenter(vol_begin);
+				}
+				else if (Dt[p].size()== 1)
+				{
+					facvec = double(Dt[p][0].Sgn())*(face_barycenter(p)-vol_barycenter(vol_begin));
+				}
+				
+				Hanal[p]               = (anal_value2.second).dot(facvec);
+				
+			}
+
+			for (uint32_t p=0; p<edges_size(); ++p)
+			{
+				auto edg_face = Ct_vec[p][0];
+				auto vol_begin = abs(Dt[abs(edg_face)][0]);
+				SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
+				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+				if (have_analytic)
+				{
+					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+					if (analsrctype == "h")
+					{
+						anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+														  Materials[vol_material[vol_begin]].Epsilon(),
+														  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+					}
+					else if (analsrctype == "e")
+					{
+						anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+					}
+
+				}
+				
+				Eigen::Vector3d edgvec = pts[G[p][1]]-pts[G[p][0]];
+				Eanal[p]               = (anal_value2.first).dot(edgvec);
+			}
+			
+			num_e_energy.push_back(0.5*U.dot(Ep_vec.cwiseProduct(U)));
+			ana_e_energy.push_back(0.5*Eanal.dot(Ep_vec.cwiseProduct(Eanal)));
+			num_h_energy.push_back(0.5*F.dot(Mu_vec.cwiseProduct(F)));
+			ana_h_energy.push_back(0.5*Hanal.dot(Mu_vec.cwiseProduct(Hanal)));	
+			del_e_energy.push_back(0.5*(Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U))); //Epsilon is >0
+			del_h_energy.push_back(0.5*(Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F))); //Mu is >0
+			probe_numeric_times.push_back(t);
 		}
 	}
 
@@ -4476,11 +4481,10 @@ class Discretization
 				// boundary_index[k] = B_size++;
 				// associated_bnd_edges[k].push_back(boundary_index[k]);
 			// }
-			// std::cout << "ciccio1" << std::endl;
+			
 			bool treated = false;
 			if (edge_bcs[k] != 0 && BCs[edge_bcs[k]].Type() == "pec") 
 			{
-				// std::cout << "ciccio2" << std::endl;
 				classify_edges.push_back(4);
 				boundary_index[k] = B_size++;
 				associated_bnd_edges[k].push_back(boundary_index[k]);
@@ -4488,11 +4492,9 @@ class Discretization
 			}
 			else if (edge_src[k].size() !=0 )
 			{
-				// std::cout << "ciccio2" << std::endl;
 				bool is_dirich=false;
 				for (auto esrc : edge_src[k] )
 				{
-					// std::cout << "ciccio3" << std::endl;
 					if (Sources[esrc].Type() == "e")
 					{
 						is_dirich = true;
@@ -4573,7 +4575,6 @@ class Discretization
 					associated_p_edges[k].push_back(p_index[k]);
 				}
 			}
-			// std::cout << "ciccio3" << std::endl;
 		}
 		
 		
@@ -6106,7 +6107,17 @@ class Discretization
 	
 	Eigen::Vector3d vol_barycenter(const uint32_t& v)
 	{
-		return (pts[std::get<0>(volumes[v])]+pts[std::get<1>(volumes[v])]+pts[std::get<2>(volumes[v])]+pts[std::get<3>(volumes[v])])/4;
+		if (Meshes[loaded_mesh_label].GetMeshType() == "tetrahedral")
+		{
+			return (pts[std::get<0>(volumes[v])]+pts[std::get<1>(volumes[v])]+pts[std::get<2>(volumes[v])]+pts[std::get<3>(volumes[v])])/4;
+		}
+		else
+		{
+			Eigen::Vector3d bc(0,0,0);
+			for (uint32_t pt=0; pt<8; ++pt)
+				bc += pts[P_cluster[v][pt]];
+			return (1/8)*bc;
+		}
 	}
 
 	Eigen::Vector3d edge_barycenter(const uint32_t& ee)
