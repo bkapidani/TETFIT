@@ -434,7 +434,7 @@ class Discretization
 		timecounter tdbg;
 		double export_time_average,bcs_time_average,mag_time_average,ele_time_average,iter_time_average;
 		export_time_average=bcs_time_average=mag_time_average=ele_time_average=iter_time_average=0;
-		
+		bool store_E = (mod_out == "l2norm")? true : false;
 		// Actual simulation!
 		if (meth == "dga")
 		{	
@@ -556,7 +556,11 @@ class Discretization
 				
 				
 				curl_u     = C*U;
+				
 				B -= t_step*curl_u;
+				Psi = this->E*U;
+				// if (store_E)
+					
 				
 				if ((*o).AllowPrint(current_time-t_step))
 					ExportFields(mod_out, current_time-t_step, uint32_t(i-1));
@@ -829,7 +833,7 @@ class Discretization
 				cg.compute(this->A);
 			}
 			
-			auto Psi = U; //r.h.s. vector
+			Psi = U; //r.h.s. vector
 			auto U_old = U;
 			auto U_older = U_old;
 			auto SrcFld = U;
@@ -1637,14 +1641,28 @@ class Discretization
 					
 					Eigen::Vector3d edgvec = pts[std::get<1>(edges[p])]-pts[std::get<0>(edges[p])];
 					Eanal[p]               = (anal_value2.first).dot(edgvec);
+					// if (meth == "dga")
+						// Eanal[p] = Materials[vol_material[vol_begin]].Epsilon()*Eanal[p];
 				}
 				
-				num_e_energy.push_back(0.5*U.dot((this->E)*U));
-				ana_e_energy.push_back(0.5*Eanal.dot((this->E)*Eanal));
-				num_h_energy.push_back(0.5*B.dot((this->N)*B));
-				ana_h_energy.push_back(0.5*Banal.dot((this->N)*Banal));	
-				del_e_energy.push_back(0.5*(Eanal-U).dot((this->E)*(Eanal-U))); //E is SPD
-				del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
+				// if (meth == "fem")
+				// {
+					num_e_energy.push_back(0.5*U.dot((this->E)*U));
+					ana_e_energy.push_back(0.5*Eanal.dot((this->E)*Eanal));
+					num_h_energy.push_back(0.5*B.dot((this->N)*B));
+					ana_h_energy.push_back(0.5*Banal.dot((this->N)*Banal));	
+					del_e_energy.push_back(0.5*(Eanal-U).dot((this->E)*(Eanal-U))); //E is SPD
+					del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
+				// }
+				// else
+				// {
+					// num_e_energy.push_back(0.5*Psi.dot((this->Einv)*Psi));
+					// ana_e_energy.push_back(0.5*Eanal.dot((this->Einv)*Eanal));
+					// num_h_energy.push_back(0.5*B.dot((this->N)*B));
+					// ana_h_energy.push_back(0.5*Banal.dot((this->N)*Banal));	
+					// del_e_energy.push_back(0.5*(Eanal-Psi).dot((this->Einv)*(Eanal-Psi))); //E is SPD
+					// del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
+				// }
 				probe_numeric_times.push_back(t);
 			}
 		}
@@ -6498,7 +6516,7 @@ class Discretization
 	private:
 	uint32_t									input_line, H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
 	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv, SigMat, A, E, RHSmat,Ctb;
-	Eigen::VectorXd								U,F,Fb,I,P_p,B,Mu_vec,Ep_vec;
+	Eigen::VectorXd								U,Psi,F,Fb,I,P_p,B,Mu_vec,Ep_vec;
 	std::mutex									meshlock;
 	std::vector<double>                         CellVolumes, probe_numeric_times;
 	std::vector<double>                         num_e_energy, num_h_energy, ana_e_energy, ana_h_energy, del_e_energy, del_h_energy;
