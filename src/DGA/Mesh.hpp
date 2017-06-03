@@ -47,7 +47,19 @@ class Mesh
 	void SetParam(uint32_t input_line, std::string param, std::string value)
 	{
 		if (param == "file")
-			file = value;
+		{
+			std::ifstream test_msh_file(value.c_str());
+			if (test_msh_file.is_open())
+			{
+				test_msh_file.close();
+				file = value;
+			}
+			else
+			{
+				test_msh_file.close();
+				MyThrow(input_line,mesh_inexistent_file);
+			}
+		}
 		else if (param == "name")
 			name = value;
 		else if (param == "type")

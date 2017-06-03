@@ -97,6 +97,7 @@ class Simulation
 	const uint32_t& Output(void) const { return output; }
 	const std::vector<uint32_t>& Src(void) { return sources; }
 	const SimMethod& Method(void) const { return method; }
+	void ForceMethod(const SimMethod& m){ SetMethod(0,m); }
 	const Solver& GetSolver(void) const { return solver; }
 	const double& Tolerance(void) const { return tol; }
 	const double& Courant(void) const { return courant; }

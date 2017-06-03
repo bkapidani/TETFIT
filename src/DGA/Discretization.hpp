@@ -390,43 +390,7 @@ class Discretization
 				analytic_e_value_vector.push_back(dummy_analytic_probe);
 				analytic_h_value_vector.push_back(dummy_analytic_probe);
 			}
-			
-			// std::cout << "ci sono" << std::endl;
 		}
-		/*else if ( mod_out == "maxerror")
-		{
-			// std::cout << "ci sono" << std::endl;
-			probe_numeric_times.clear();
-			probe_elem.clear();
-			probe_numeric_Exvalues.resize(0);
-			probe_numeric_Eyvalues.resize(0);
-			probe_numeric_Ezvalues.resize(0);
-			probe_numeric_Hxvalues.resize(0);
-			probe_numeric_Hyvalues.resize(0);
-			probe_numeric_Hzvalues.resize(0);
-			analytic_e_value_vector.resize(0);
-			analytic_h_value_vector.resize(0);
-			probe_points.resize(0);
-			
-			std::vector<double> dummy_probe;
-			std::vector<std::pair<Eigen::Vector3d,Eigen::Vector3d>> dummy_analytic_probe;
-			
-			probe_numeric_Exvalues.push_back(dummy_probe);
-			probe_numeric_Eyvalues.push_back(dummy_probe);
-			probe_numeric_Ezvalues.push_back(dummy_probe);
-			probe_numeric_Hxvalues.push_back(dummy_probe);
-			probe_numeric_Hyvalues.push_back(dummy_probe);
-			probe_numeric_Hzvalues.push_back(dummy_probe);
-			analytic_e_value_vector.push_back(dummy_analytic_probe);
-			analytic_h_value_vector.push_back(dummy_analytic_probe);
-			
-			// std::cout << "ci sono" << std::endl;
-		}*/
-		
-		// for (auto bb : BCs)
-			// std::cout << "Boundary condition: " << bb.first << " of type " << bb.second.Type() << std::endl;
-		// for (auto bb : Sources)
-			// std::cout << "Source: " << bb.second.Surface() << " of type " << bb.second.Type() << std::endl;
 		
 		double step_time_average=0;
 		uint64_t i;
@@ -435,6 +399,12 @@ class Discretization
 		double export_time_average,bcs_time_average,mag_time_average,ele_time_average,iter_time_average;
 		export_time_average=bcs_time_average=mag_time_average=ele_time_average=iter_time_average=0;
 		bool store_E = (mod_out == "l2norm")? true : false;
+		
+		if (store_E && meth == "dga")
+		{
+			meth = "frac"; //to get the actual energy norm, we need to use the fully fractured grid
+			Simulations[current_simulation].ForceMethod(meth); //little hack
+		}
 		// Actual simulation!
 		if (meth == "dga")
 		{	
@@ -620,6 +590,152 @@ class Discretization
 			double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
 			Losses.push_back(Joule_L);
 			U_old = U;
+		}
+		else if (meth == "frac")
+		{	
+			// t_step = estimate_time_step_bound();
+			ConstructFracMaterialMatrices();
+			
+			Eigen::VectorXd curl_u(surfaces_size()), curl_f(edges_size());
+
+			// auto U_old = U;
+			// auto F_old = F;
+			
+			N_of_steps=simulation_time/t_step;
+			t_preproc.toc();
+			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			
+			if (probes_out_of_mesh)
+				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			
+			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
+			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
+			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 			<< std::endl;
+			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 			<< "   m" << std::endl;
+			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
+			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
+			// std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
+			// std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
+			std::cout << std::endl;
+			
+		    // timecounter tdbg;
+			for (i=1; double(i)*t_step <= simulation_time; ++i)
+			{
+				step_cost.tic();
+				current_time = double(i)*t_step;
+
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				tdbg.tic();
+				
+				for (uint32_t ee = 0; ee < edges_size(); ++ee)
+				{
+					if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
+					{
+						U(ee) = ComputeEdgeBC(ee,current_time-t_step); //only boundary edges can have boundary conditions
+						for (auto ii : frac_edges[ee])
+							U_fracs[ii.first](ii.second) = 0.5*U(ee);
+					}
+					else if (edge_src[ee].size()>0)
+					{
+						auto isrc = ComputeCurrentSource(ee,current_time - 0.5*t_step);
+						auto usrc = ComputeEfieldSource(ee, current_time - t_step);
+						
+						I(ee) = isrc;
+						// std::cout << U(ee) << "  ";
+						U(ee) = usrc;
+						// std::cout << U(ee) << std::endl;
+						// std::cout << "Maximum U: " << std::setw(20) << (this->U).lpNorm<Eigen::Infinity>() << std::endl;
+						// std::cout << ee << " " << U.size() << std::endl;  
+						for (auto ii : frac_edges[ee])
+							U_fracs[ii.first](ii.second) = 0.5*U(ee);
+					}			
+				}
+				
+				// U = M*U_frac;
+				Eigen::VectorXd F_new = Eigen::VectorXd::Zero(surfaces_size());
+				tdbg.toc();
+				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
+				
+				/* Per Matteo */
+				// ComputeElectricCurl(U,curl_u);
+				/* Per Matteo */
+				curl_u     = C*U;
+				
+				// std::cout << "Maximum curl_U: " << std::setw(20) << curl_u.lpNorm<Eigen::Infinity>() << std::endl;
+				
+				for (uint32_t j=0; j< volumes_size(); ++j)
+				{
+					Eigen::Vector4d local_curl_U(curl_u(F_maps[j][0]),curl_u(F_maps[j][1]),curl_u(F_maps[j][2]),curl_u(F_maps[j][3]));
+					
+					B_fracs[j] -= t_step*local_curl_U;
+					F_fracs[j]  = R_fracs[j]*F_fracs[j] - t_step*N_fracs[j]*local_curl_U;
+					
+					for (uint32_t k=0; k<4; ++k)
+					{
+						B(F_maps[j][k])     =B_fracs[j](k);
+						F_new(F_maps[j][k])+=F_fracs[j](k);
+					}
+				}
+				
+				F = std::move(F_new);
+				tdbg.toc();
+				
+				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
+				tdbg.tic();
+				// std::cout << "ciccio1" << std::endl;
+				if ((*o).AllowPrint(current_time-t_step))
+					ExportFields(mod_out, current_time-t_step,uint32_t(i-1));
+				// std::cout << "ciccio2" << std::endl;
+				tdbg.toc();
+				export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				tdbg.tic();
+				
+				// Electric Part:
+				
+				/* Per Matteo */
+				// curl_f     = ComputeMagneticCurl(F)-I;
+				/* Per Matteo */
+				curl_f     = C.transpose()*F-I;
+				Eigen::VectorXd U_new = Eigen::VectorXd::Zero(edges_size());
+				
+				for (uint32_t j=0; j< nodes_size(); ++j)
+				{
+					Eigen::VectorXd local_curl_F(nte_list[j].size());
+					for (uint32_t k=0;k<local_curl_F.size(); ++k)
+						local_curl_F(k)=curl_f(U_maps[j][k]);
+					
+					U_fracs[j] = P_fracs[j]*U_fracs[j] + t_step*H_fracs[j]*local_curl_F;
+					
+					for (uint32_t k=0; k<U_maps[j].size(); ++k)
+						U_new(U_maps[j][k])+=U_fracs[j](k);
+				}
+				U=std::move(U_new);
+				tdbg.toc();
+				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+
+				step_cost.toc();
+				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
+
+				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
+				// std::cout << "Maximum F: " << std::setw(20) << F.lpNorm<Eigen::Infinity>() << '\t'; 
+				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
+				
+				if (i % 137 == 0) //arbitrary, just a nod at the fine structure constant
+					std::cout << "-----------" << "Progress: " << std::setw(2) << 100*i/N_of_steps << "% done in " << std::setw(9) << step_time_average << "s, " 
+							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
+			}
+			
+			//Computing losses for last time step:
+			
+			// double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
+			// Losses.push_back(Joule_L);
+			// U_old = U;
 		}
 		else if (meth == "dgao2")
 		{	
@@ -1582,7 +1698,7 @@ class Discretization
 		else if (s == "l2norm")
 		{
 			auto meth = Simulations[current_simulation].Method();
-			if (meth != "fit")
+			if (meth != "frac")
 			{
 				auto Banal = Eigen::VectorXd(surfaces_size());
 				auto Eanal = Eigen::VectorXd(edges_size());
@@ -1663,6 +1779,105 @@ class Discretization
 					// del_e_energy.push_back(0.5*(Eanal-Psi).dot((this->Einv)*(Eanal-Psi))); //E is SPD
 					// del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
 				// }
+				probe_numeric_times.push_back(t);
+			}
+			else
+			{
+				// std::cout << "ciccio" << std::endl;
+				auto Banal = Eigen::VectorXd(surfaces_size());
+				auto Eanal = Eigen::VectorXd(edges_size());
+				
+				for (uint32_t p=0; p<surfaces_size(); ++p)
+				{
+					auto vol_begin = abs(ftv_list[p][0]);
+					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
+					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+					if (have_analytic)
+					{
+						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+						if (analsrctype == "h")
+						{
+							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+						else if (analsrctype == "e")
+						{
+							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+
+					}
+					
+					Eigen::Vector3d facvec = (pts[std::get<1>(surfaces[p])]-pts[std::get<0>(surfaces[p])]).cross(pts[std::get<2>(surfaces[p])]-
+						                          pts[std::get<0>(surfaces[p])]);
+					Banal[p]               = Materials[vol_material[vol_begin]].Mu()*(anal_value2.second).dot(facvec);
+				}
+				
+				for (uint32_t p=0; p<edges_size(); ++p)
+				{
+					auto edg_face = etf_list[p][0];
+					auto vol_begin = abs(ftv_list[abs(edg_face)][0]);
+					SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
+					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
+					if (have_analytic)
+					{
+						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
+						if (analsrctype == "h")
+						{
+							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+						else if (analsrctype == "e")
+						{
+							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+						}
+
+					}
+					
+					Eigen::Vector3d edgvec = pts[std::get<1>(edges[p])]-pts[std::get<0>(edges[p])];
+					Eanal[p]               = (anal_value2.first).dot(edgvec);
+					// if (meth == "dga")
+						// Eanal[p] = Materials[vol_material[vol_begin]].Epsilon()*Eanal[p];
+				}
+				
+				double We, Wh, We_a, Wh_a, We_d, Wh_d;
+				We=Wh=We_a=Wh_a=We_d=Wh_d=0;
+				
+				for (uint32_t p = 0; p< nodes_size(); ++p)
+				{
+					Eigen::VectorXd Uanalfracs(U_maps[p].size());
+					for (uint32_t j=0; j<U_maps[p].size(); ++j)
+						Uanalfracs(j) = 0.5*Eanal[U_maps[p][j]];
+					
+					We   += U_fracs[p].dot(E_fracs[p]*U_fracs[p]);
+					We_a += Uanalfracs.dot(E_fracs[p]*Uanalfracs);
+					We_d += (Uanalfracs-U_fracs[p]).dot(E_fracs[p]*(Uanalfracs-U_fracs[p]));
+				}
+				
+				for (uint32_t p = 0; p< volumes_size(); ++p)
+				{
+					Eigen::Vector4d Banalfracs;
+					for (uint32_t j=0; j<4; ++j)
+						Banalfracs(j) = Banal[F_maps[p][j]];
+					
+					Wh   += B_fracs[p].dot(N_fracs[p]*B_fracs[p]);
+					Wh_a += Banalfracs.dot(N_fracs[p]*Banalfracs);
+					Wh_d += (Banalfracs-B_fracs[p]).dot(N_fracs[p]*(Banalfracs-B_fracs[p]));
+				}
+				
+
+				num_e_energy.push_back(0.5*We);
+				ana_e_energy.push_back(0.5*We_a);
+				num_h_energy.push_back(0.5*Wh);
+				ana_h_energy.push_back(0.5*Wh_a);
+				del_e_energy.push_back(0.5*We_d); //E is SPD
+				del_h_energy.push_back(0.5*Wh_d); //N is SPD
+
 				probe_numeric_times.push_back(t);
 			}
 		}
@@ -4782,7 +4997,7 @@ class Discretization
 		// std::cout << "constructing bop takes " << t_dbg << std::endl;
 		// t_dbg.tic();
 		
-		// Construct eigen solver object, requesting the largest three eigenvalues
+		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
 		Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, MyAOp, MyBOp, Spectra::GEIGS_REGULAR_INVERSE> geigs(&aop, &bop, 1, 10);
 		// t_dbg.toc();
 		// std::cout << "constructing geigs_solver takes " << t_dbg << std::endl;
@@ -4803,6 +5018,57 @@ class Discretization
 		if (geigs.info() == Spectra::SUCCESSFUL)
 		{
 			auto eig_vec = geigs.eigenvalues();
+			lambda = eig_vec(0);
+		}
+		return double(2)/sqrt(lambda);
+	}
+	
+	double ComputeDGATimeStep(Eigen::SparseMatrix<double>& C, Eigen::SparseMatrix<double>& N, Eigen::SparseMatrix<double>& Einv ) //use spectra
+	{
+		// We are going to calculate the eigenvalues of M
+		// Eigen::MatrixXd A = Eigen::MatrixXd::Random(10, 10);
+		// Eigen::MatrixXd M = A + A.transpose();
+		class MyAOp
+		{
+			public:
+			
+			MyAOp(uint32_t s, Eigen::SparseMatrix<double>& c, Eigen::SparseMatrix<double>& n, Eigen::SparseMatrix<double>& einv )
+			{
+				size = s;
+				this->C = &c;
+				this->N = &n;
+				this->Einv = &einv;
+			}
+			
+			int rows() { return size; }
+			int cols() { return size; }
+			
+			void perform_op(double *x_in, double *y_out)
+			{
+				Eigen::Map<Eigen::VectorXd> X(x_in,size);
+				Eigen::Map<Eigen::VectorXd> Y(y_out,size);
+				
+				Y = (*Einv)*((*C).transpose()*((*N)*((*C)*X)));
+			}
+			
+			Eigen::SparseMatrix<double> *C, *N, *Einv;
+			uint32_t size;
+		};
+		// Construct matrix operation object using the wrapper class MyAOp
+		MyAOp op(this->edges_size(),C,N,Einv);
+
+		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
+
+		// Initialize and compute
+		eigs.init();
+		int nconv = eigs.compute();
+
+		// Retrieve results
+		double lambda;
+		if(eigs.info() == Spectra::SUCCESSFUL)
+		{
+			auto eig_vec = eigs.eigenvalues();
 			lambda = eig_vec(0);
 		}
 		return double(2)/sqrt(lambda);
@@ -4842,7 +5108,7 @@ class Discretization
 		// Construct matrix operation object using the wrapper class MyAOp
 		MyAOp op(this->edges_size(),C,N,Einv);
 
-		// Construct eigen solver object, requesting the largest three eigenvalues
+		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
 		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
 
 		// Initialize and compute
@@ -5987,6 +6253,498 @@ class Discretization
 		// std::cout << "done - " << t_material << " seconds" << std::endl;
 	}
 
+	void ConstructFracMaterialMatrices(void)
+	{
+		timecounter t_material;
+		t_material.tic();
+		radiator_center = Eigen::Vector3d({2.85, 2.45, 1});
+		std::vector<bool> mu_computed(volumes_size(),false);
+		
+		U_frac_size = F_frac_size = 0;
+		add_to_sparse ass;
+		overwrite_to_sparse oss;
+		Eigen::MatrixXd local_E, local_S;
+		Eigen::Matrix4d local_M, local_Z;
+		std::vector<double_triplet> H_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
+		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip; 
+		Eigen::SparseMatrix<double> Einv(edges_size(),edges_size()), N(surfaces_size(),surfaces_size());
+		// std::vector<std::vector<uint32_t>> M_trip(edges_size());
+		uint32_t jj,kk;
+		
+		uint32_t mag_offset=0;
+		uint32_t ele_offset=0;
+		F_maps.resize(volumes_size());
+		
+		U_maps.resize(nodes_size());
+		frac_edges.resize(edges_size());	
+		Eigen::Matrix4d local_mag_Id = Eigen::MatrixXd::Identity(4,4);
+		
+		for (uint32_t vv=0; vv < volumes_size(); ++vv)
+		{
+			double mu_vol    = Materials[vol_material[vv]].Mu();
+			double chi_vol	 = Materials[vol_material[vv]].Chi();
+			uint32_t jj,kk;
+			auto face_vecs = dual_area_vectors(vv);
+			auto fids = vtf_list[vv];
+			std::vector<uint32_t> abs_fids;			
+			
+			bool break_cond=false;
+			for (auto ff : fids)
+			{
+				abs_fids.push_back(abs(ff));
+			}
+			
+			double coeff=mu_vol*36.0/(fabs(CellVolumes[vv]));
+			local_M = local_Z = Eigen::Matrix4d::Zero();
+			
+			local_M(0,0)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[3]).dot(face_vecs[3]))*coeff;
+			local_M(1,1)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[1]).dot(face_vecs[1])+(face_vecs[4]).dot(face_vecs[4]))*coeff;
+			local_M(2,2)=((face_vecs[1]).dot(face_vecs[1])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[5]).dot(face_vecs[5]))*coeff;
+			local_M(3,3)=((face_vecs[3]).dot(face_vecs[3])+(face_vecs[4]).dot(face_vecs[4])+(face_vecs[5]).dot(face_vecs[5]))*coeff;
+
+			local_M(0,1)=(-(face_vecs[1]).dot(face_vecs[2])-(face_vecs[3]).dot(face_vecs[4]))*coeff;
+			local_M(0,2)=(-(face_vecs[0]).dot(face_vecs[1])+(face_vecs[3]).dot(face_vecs[5]))*coeff;
+			local_M(0,3)=( (face_vecs[0]).dot(face_vecs[4])+(face_vecs[2]).dot(face_vecs[5]))*coeff;
+
+			local_M(1,0)=local_M(0,1);
+			local_M(1,2)=(-(face_vecs[0]).dot(face_vecs[2])-(face_vecs[4]).dot(face_vecs[5]))*coeff;
+			local_M(1,3)=( (face_vecs[0]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[5]))*coeff;
+			
+			local_M(2,0)=local_M(0,2);
+			local_M(2,1)=local_M(1,2);
+			local_M(2,3)=(-(face_vecs[2]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[4]))*coeff;
+			
+			local_M(3,0)=local_M(0,3);
+			local_M(3,1)=local_M(1,3);
+			local_M(3,2)=local_M(2,3);
+			
+			if (chi_vol != 0)
+			{
+				double coeff2 = 36.0*chi_vol/(fabs(CellVolumes[vv]));
+				
+				local_Z(0,0)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[3]).dot(face_vecs[3]))*coeff2;
+				local_Z(1,1)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[1]).dot(face_vecs[1])+(face_vecs[4]).dot(face_vecs[4]))*coeff2;
+				local_Z(2,2)=((face_vecs[1]).dot(face_vecs[1])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[5]).dot(face_vecs[5]))*coeff2;
+				local_Z(3,3)=((face_vecs[3]).dot(face_vecs[3])+(face_vecs[4]).dot(face_vecs[4])+(face_vecs[5]).dot(face_vecs[5]))*coeff2;
+
+				local_Z(0,1)=(-(face_vecs[1]).dot(face_vecs[2])-(face_vecs[3]).dot(face_vecs[4]))*coeff2;
+				local_Z(0,2)=(-(face_vecs[0]).dot(face_vecs[1])+(face_vecs[3]).dot(face_vecs[5]))*coeff2;
+				local_Z(0,3)=( (face_vecs[0]).dot(face_vecs[4])+(face_vecs[2]).dot(face_vecs[5]))*coeff2;
+
+				local_Z(1,0)=local_Z(0,1);
+				local_Z(1,2)=(-(face_vecs[0]).dot(face_vecs[2])-(face_vecs[4]).dot(face_vecs[5]))*coeff2;
+				local_Z(1,3)=( (face_vecs[0]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[5]))*coeff2;
+				
+				local_Z(2,0)=local_Z(0,2);
+				local_Z(2,1)=local_Z(1,2);
+				local_Z(2,3)=(-(face_vecs[2]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[4]))*coeff2;
+				
+				local_Z(3,0)=local_Z(0,3);
+				local_Z(3,1)=local_Z(1,3);
+				local_Z(3,2)=local_Z(2,3);
+				
+				// local_Z *= 0.5*t_step;
+			}
+				
+			// auto local_N = (local_M + local_Z).inverse();
+			Eigen::Matrix4d local_N = (local_M).llt().solve(local_mag_Id);
+			// auto local_R = local_N*(local_M - local_Z);
+			Eigen::Vector4d Fdummy(0,0,0,0);
+			F_fracs.push_back(Fdummy);
+			B_fracs.push_back(Fdummy);
+			F_frac_size += 4;
+			
+			M_fracs.push_back(local_M);
+			Z_fracs.push_back(local_Z);
+			
+			jj=kk=0;
+			std::array<uint32_t,4> assoc_full_dual_edges;
+			
+			for (auto j = abs_fids.begin(); j != abs_fids.end(); ++j)
+			{
+				assoc_full_dual_edges[jj] = *j;
+				for (auto k = j; k != abs_fids.end(); ++k)
+				{
+					if (local_N(jj,kk) != 0)
+					{
+						N_trip.push_back(double_triplet(*j,*k,local_N(jj,kk)));
+						if (jj != kk)
+							N_trip.push_back(double_triplet(*k,*j,local_N(jj,kk)));
+					}
+					++kk;
+				}
+				++jj;
+				kk=jj;
+			}
+			
+
+			F_maps[vv] = assoc_full_dual_edges;
+		}
+		
+		Eigen::VectorXd	P_p(P_size);
+		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
+		std::vector<bool> sigma_node(nodes_size(),false);
+		// std::cout << "Ma almeno qui ci arrivo?" << std::endl;
+		for (uint32_t nid=0; nid< pts.size(); ++nid )
+		{
+			// timecounter t_find;
+			// t_find.tic();
+			auto n_star = nte_list[nid];
+			auto local_E_size = n_star.size();
+			auto local_Id = Eigen::MatrixXd::Identity(local_E_size,local_E_size);
+			std::vector<uint32_t> global_i;
+			
+			for (auto ee : n_star)
+				global_i.push_back(abs(ee));
+			
+			local_S = local_E = Eigen::MatrixXd::Zero(local_E_size,local_E_size);
+			
+			auto vols = associated_volumes[nid];
+			
+			for (auto vv : vols)
+			{
+				auto vol_nodes = std::vector<uint32_t>({std::get<0>(volumes[vv]),std::get<1>(volumes[vv]),
+														std::get<2>(volumes[vv]),std::get<3>(volumes[vv])});
+					
+				std::vector<uint32_t> edgs_l2g;
+				for (auto ff : vtf_list[vv])
+					for (auto ee : fte_list[abs(ff)])
+						edgs_l2g.push_back(abs(ee));	
+				sort_unique(edgs_l2g);
+				std::swap(edgs_l2g[1],edgs_l2g[2]);
+				std::swap(edgs_l2g[1],edgs_l2g[3]);
+				
+				// auto vol_edges = edges(vv);
+				auto vol_domain = vol_material[vv];
+				auto face_vecs = primal_area_vectors(vv);
+			
+				auto elem_volume = fabs(CellVolumes[vv]);
+				
+				double eps_vol   = Materials[vol_domain].Epsilon();
+				// std::cout << eps_vol << std::endl;
+				double sigma_vol = Materials[vol_domain].Sigma();
+	
+				
+				if (sigma_vol != 0)
+					sigma_node[nid]=true;
+				// eps_vol = 1;
+				
+				auto D = vtf_list[vv];
+				
+				uint32_t e1,e2,e3;
+				
+				uint32_t k=0;
+				for (auto vn : vol_nodes)
+				{
+					if (vn == nid)
+						break;
+					else
+						k++;
+				}
+				
+				std::vector<uint32_t>::iterator it_gi;
+				
+				if (k==0)
+				{	
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[0]);							
+					e1    = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[2]);
+					e2    = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[3]);						
+					e3    = std::distance(global_i.begin(),it_gi);
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+												  (-2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+										
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+													  (-2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+													  
+					}
+				}
+				else if (k==1)
+				{
+					
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[0]);						
+					e1 = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[1]);
+					e2 = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[4]);
+					e3 = std::distance(global_i.begin(),it_gi);				
+					
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+												  (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+							
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[0]*( 2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+													  (2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[0]*( 2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+					}
+				}
+				else if (k==2)
+				{
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[1]);							
+					e1 = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[2]);
+					e2 = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[5]);							
+					e3 = std::distance(global_i.begin(),it_gi);
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+												 (2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+												 (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+												 (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[0]*
+																 (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+																 (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+																 (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+																 
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[1]*( 2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+													  (2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[0]*( 2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+													  (2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[0]*
+																	 ( 2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+																	 (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+																	 (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+					}
+				}
+				else if (k==3)
+				{
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[3]);						
+					e1 = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[4]);
+					e2 = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[5]);							
+					e3 = std::distance(global_i.begin(),it_gi);				
+					
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+												  (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+												  (2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+												  (2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[1]*
+												  (2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+												  (2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+												  (2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+													  (2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+													  (2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+													  (2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[1]*
+													  (2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+													  (2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+													  (2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+					}
+				}
+				
+			}
+
+			Eigen::VectorXd Udummy = Eigen::VectorXd::Zero(local_E_size);
+			U_fracs.push_back(Udummy);
+			
+			U_frac_size+= Udummy.size();
+			
+			Eigen::MatrixXd local_H = (local_E).llt().solve(local_Id);
+			E_fracs.push_back(local_E.sparseView());
+			S_fracs.push_back(local_S.sparseView());
+
+			jj=kk=0;
+			std::vector<uint32_t> assoc_full_primal_edges(global_i.size());	
+			for (auto j = global_i.begin(); j != global_i.end(); ++j)
+			{
+				assoc_full_primal_edges[jj] = *j;
+				frac_edges[*j].push_back(std::make_pair(nid,jj));
+				
+				for (auto k = j; k != global_i.end(); ++k)
+				{
+					if (local_H(jj,kk) != 0)
+					{
+						H_trip.push_back(double_triplet(*j,*k,local_H(jj,kk)));
+						if (jj != kk)
+							H_trip.push_back(double_triplet(*k,*j,local_H(jj,kk)));
+					}
+					++kk;
+				}
+				
+				++jj;
+				kk=jj;
+			}
+			
+			U_maps[nid] = assoc_full_primal_edges;
+		}
+
+		Einv.setFromTriplets(H_trip.begin(),H_trip.end(),ass);
+		
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			Eigen::MatrixXd nfull(N);
+			Eigen::MatrixXd hfull(Einv);
+			std::ofstream h_out("H.dat"), n_out("N.dat");
+			h_out << hfull << std::endl;
+			n_out << nfull << std::endl;
+			n_out.close();
+			h_out.close();
+		}
+		
+		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+
+		for (uint32_t vv=0; vv < volumes_size(); ++vv)
+		{
+			// uint32_t jj,kk;
+			double chi_vol	 = Materials[vol_material[vv]].Chi();
+			auto fids = vtf_list[vv];
+			
+			// Eigen::Matrix4d local_M(M_fracs[vv]);
+			// Eigen::Matrix4d local_Z(Z_fracs[vv]);
+			
+			auto local_N_size = fids.size();
+			// Eigen::Matrix4d local_Id = Eigen::MatrixXd::Identity(4,4);
+			Eigen::Matrix4d local_RS  = local_mag_Id;
+			Eigen::Matrix4d local_N   = local_mag_Id;
+			
+			if (chi_vol != 0)
+			{
+				local_N = (M_fracs[vv]+0.5*t_step*Z_fracs[vv]).llt().solve(local_mag_Id);
+				local_RS = local_N*(M_fracs[vv]-0.5*t_step*Z_fracs[vv]);
+			}
+			else
+			{
+				local_N = M_fracs[vv].llt().solve(local_mag_Id);
+			}
+			
+			// std::cout << local_N << std::endl;
+			N_fracs.push_back(local_N);
+			R_fracs.push_back(local_RS);
+		}
+		
+		for (uint32_t nid=0; nid< pts.size(); ++nid )
+		{
+			auto n_star = nte_list[nid];
+			std::vector<uint32_t> global_i;
+			for (auto ee : n_star)
+				global_i.push_back(abs(ee));
+			
+			/* Handling pec edges */
+			Eigen::MatrixXd local_E(E_fracs[nid]);
+			Eigen::MatrixXd local_S(S_fracs[nid]);
+			jj=kk=0;
+			for (auto j = global_i.begin(); j != global_i.end(); ++j)
+			{	
+				if (classify_edges[*j] == 4)
+				{
+					// std::cout << "ci entri o no?" << std::endl;
+					local_E.row(jj).setZero();
+					local_E.col(jj).setZero();
+					local_E.coeffRef(jj,jj)=1; //
+					
+					// if (nid==0)
+						// std::cout << std::endl << local_E << std::endl << std::endl;
+					
+					if (sigma_node[nid])
+					{
+						local_S.row(jj).setZero();
+						local_S.col(jj).setZero();
+					}
+				}
+				++jj;
+			}
+			
+			auto local_E_size = n_star.size();
+			Eigen::MatrixXd local_H(local_E_size,local_E_size), local_PQ(local_E_size,local_E_size);
+			auto local_Id = Eigen::MatrixXd::Identity(local_E_size,local_E_size);
+			local_PQ = local_Id;
+			
+			if (sigma_node[nid])
+			{
+				local_H  = (local_E+0.5*t_step*local_S).llt().solve(local_Id);
+				local_PQ = local_H*(local_E-0.5*t_step*local_S);
+			}
+			else
+			{
+				local_H = local_E.llt().solve(local_Id);
+			}
+			
+			H_fracs.push_back(local_H.sparseView());
+			P_fracs.push_back(local_PQ.sparseView());
+			// std::cout << local_PQ << std::endl;
+		}
+		
+		t_material.toc();
+	}
+	
 	// double add_to_sparse (const double& a, const double& b)
 	// {
 		// return a+b;
@@ -6566,5 +7324,14 @@ class Discretization
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;
 	double										xmax,ymax,zmax;
+	//fractured formulation stuff
+	std::vector<std::array<uint32_t, 4>>		F_maps;
+	std::vector<std::vector<uint32_t>> 			U_maps;
+	std::vector<std::vector<std::pair<uint32_t,uint32_t>>>	frac_edges;
+	std::vector<Eigen::Vector4d> 				F_fracs, B_fracs;
+	std::vector<Eigen::VectorXd> 				U_fracs;
+	std::vector<Eigen::Matrix4d>				N_fracs,M_fracs,R_fracs,Z_fracs;
+	std::vector<Eigen::SparseMatrix<double>>	E_fracs,H_fracs,S_fracs,P_fracs;
+	
 	// std::array<std::vector<uint32_t>,20>		sources_by_label; 						/* Each label has a vector containing all the sources active on that label */
 };
