@@ -285,17 +285,6 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 		alpha = sqrt(alph2-alph1);
 	}
 	
-	
-	// std::cout << "Debug: " << pow(3.141592*c/ax,2) << " " << pow(sigma/eps,2)/4 << std::endl;
-	
-	// std::cout << "Parameters:" << std::endl << "C = " << c << "  ksi = " << ksi 
-											// << "  alpha = " << alpha << std::endl; 
-	
-	// int32_t lim1 = floor( (t * c - z) / (2 * az) );
-	// int32_t lim2 = floor( (t * c + z) / (2 * az) - 1);
-	
-	// std::cout << "At time t = " << t << " limits are : " << lim1 << "\t" << lim2 << std::endl;
-	
 	double a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12;
 	int32_t j;
 	// i=j=0;

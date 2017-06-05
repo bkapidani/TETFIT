@@ -342,6 +342,7 @@ class Discretization
 			analytic_e_value_vector.resize(0);
 			analytic_h_value_vector.resize(0);
 			probe_points.resize(0);
+			probe_elem.resize(0);
 			
 			std::vector<double> dummy_probe;
 			std::vector<std::pair<Eigen::Vector3d,Eigen::Vector3d>> dummy_analytic_probe;
@@ -528,7 +529,7 @@ class Discretization
 				curl_u     = C*U;
 				
 				B -= t_step*curl_u;
-				Psi = this->E*U;
+				// Psi = this->E*U;
 				// if (store_E)
 					
 				
@@ -1266,7 +1267,7 @@ class Discretization
 				// os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
 			// os.close();
 		}
-		else if (mod_out == "maxerror")
+		/*else if (mod_out == "maxerror")
 		{
 			std::ofstream os, osh, os_a, os_ah, os_l;
 			std::stringstream ss, ssh, sa, sah, sl;
@@ -1341,8 +1342,8 @@ class Discretization
 			// for (auto ppt : antenna_bnd_pts)
 				// os << ppt[0] << " " << ppt[1] << " " << ppt[2] << std::endl;
 			// os.close();
-		}
-		else if (mod_out == "l2norm")
+		}*/
+		else if (mod_out == "l2norm" || mod_out == "maxerror")
 		{
 			std::ofstream os, osh, os_a, os_ah, os_l;
 			std::stringstream ss, ssh, sa, sah, sl;
@@ -1556,14 +1557,15 @@ class Discretization
 		}
 		else if (s == "maxerror")
 		{
-			Eigen::Vector3d max_vol_error_e, max_vol_error_h, max_vol_anal_e, max_vol_anal_h, probe_max_e, probe_max_h;
+			Eigen::Vector3d max_vol_error_e, max_vol_error_h, max_vol_num_e, max_vol_anal_e, max_vol_num_h, max_vol_anal_h;;
+			uint32_t probe_max_e, probe_max_h;
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
-				if (Simulations[current_simulation].Method() == "fem")
+				// if (Simulations[current_simulation].Method() == "fem")
 					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);
-				else
-					num_ele = GetElectricField(probe_elem[p]);
+				// else
+					// num_ele = GetElectricField(probe_elem[p]);
 				num_mag = GetMagneticField(probe_elem[p]);
 				// probe_numeric_Exvalues[p].push_back(num_ele[0]);
 				// probe_numeric_Eyvalues[p].push_back(num_ele[1]);
@@ -1604,47 +1606,72 @@ class Discretization
 					{
 						max_vol_error_e = vol_error_e;
 						max_vol_error_h = vol_error_h;
-						max_vol_anal_e  = (anal_value1.first).cwiseAbs();
-						max_vol_anal_h  = (anal_value2.second).cwiseAbs();
-						probe_max_e     = probe_points[p];
-						probe_max_h     = probe_points[p];
+						max_vol_num_e  = num_ele;
+						max_vol_num_h  = num_mag;
+						max_vol_anal_e  = (anal_value1.first);
+						max_vol_anal_h  = (anal_value2.second);
+						probe_max_e     = probe_elem[p];
+						probe_max_h     = probe_elem[p];
 					}
 					else
 					{
 						if (vol_error_e(1) > max_vol_error_e(1))
 						{
 							max_vol_error_e = vol_error_e;
-							max_vol_anal_e  = (anal_value1.first).cwiseAbs();
-							probe_max_e     = probe_points[p];
+							max_vol_num_e  = num_ele;
+							max_vol_anal_e  = (anal_value1.first);
+							probe_max_e     = probe_elem[p];
 						}
 						if (vol_error_h(0) > max_vol_error_h(0))
 						{
 							max_vol_error_h = vol_error_h;
-							max_vol_anal_h  = (anal_value2.second).cwiseAbs();
-							probe_max_h     = probe_points[p];
+							max_vol_num_h  = num_mag;
+							max_vol_anal_h  = (anal_value2.second);
+							probe_max_h     = probe_elem[p];
 						}
 					}
 				}
 			}
+			
+			if (probe_elem.size() > 0)
+			{
+				double We, Wh, We_a, Wh_a, We_d, Wh_d;
+			
+				We   = 0.5*max_vol_num_e.dot(Materials[vol_material[probe_max_e]].Epsilon()*max_vol_num_e);
+				We_a = 0.5*max_vol_anal_e.dot(Materials[vol_material[probe_max_e]].Epsilon()*max_vol_anal_e);
+				Wh   = 0.5*max_vol_num_h.dot(Materials[vol_material[probe_max_h]].Mu()*max_vol_num_h);
+				Wh_a = 0.5*max_vol_anal_h.dot(Materials[vol_material[probe_max_h]].Mu()*max_vol_anal_h);
+				We_d = 0.5*(max_vol_error_e).dot(Materials[vol_material[probe_max_e]].Epsilon()*(max_vol_error_e));
+				Wh_d = 0.5*(max_vol_error_h).dot(Materials[vol_material[probe_max_h]].Mu()*(max_vol_error_h));
 
-			// std::cout << "Problems with sto cazzo!" << std::endl;
-			auto ciccio1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-			auto ciccio2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-			analytic_e_value_vector[0].push_back(ciccio1);
-			analytic_h_value_vector[0].push_back(ciccio2);
-			(*analytic_e_value_vector[0].rbegin()).first = max_vol_anal_e;
-			(*analytic_h_value_vector[0].rbegin()).second = max_vol_anal_h;
-			
-			probe_numeric_Exvalues[0].push_back(max_vol_error_e(0));
-			probe_numeric_Eyvalues[0].push_back(max_vol_error_e(1));
-			probe_numeric_Ezvalues[0].push_back(max_vol_error_e(2));
-			probe_numeric_Hxvalues[0].push_back(max_vol_error_h(0));
-			probe_numeric_Hyvalues[0].push_back(max_vol_error_h(1));
-			probe_numeric_Hzvalues[0].push_back(max_vol_error_h(2));
-			
-			error_points.push_back(probe_max_e);
-			error_points.push_back(probe_max_h);
-			probe_numeric_times.push_back(t);
+				if (i > 0)
+				{
+					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_e_energy.back()+We) );
+					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_e_energy.back()+We_a) );
+					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_h_energy.back()+Wh) );
+					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_h_energy.back()+Wh_a) );	
+					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_e_energy.back()+We_d) ); //E is SPD
+					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_h_energy.back()+Wh_d) ); //N is SPD
+				}
+				else
+				{
+					cum_num_e_energy.push_back(0);
+					cum_ana_e_energy.push_back(0);
+					cum_num_h_energy.push_back(0);
+					cum_ana_h_energy.push_back(0);	
+					cum_del_e_energy.push_back(0); //E is SPD
+					cum_del_h_energy.push_back(0); //N is SPD
+				}
+
+				num_e_energy.push_back(We);
+				ana_e_energy.push_back(We_a);
+				num_h_energy.push_back(Wh);
+				ana_h_energy.push_back(Wh_a);	
+				del_e_energy.push_back(We_d); //E is SPD
+				del_h_energy.push_back(Wh_d); //N is SPD
+
+				probe_numeric_times.push_back(t);
+			}
 		}
 		else if (s == "silo")
 		{
@@ -1777,12 +1804,12 @@ class Discretization
 				Wh_d = 0.5*(Banal-B).dot((this->N)*(Banal-B));
 				if (i > 0)
 				{
-					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*t_step*(num_e_energy.back()+We) );
-					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*t_step*(ana_e_energy.back()+We_a) );
-					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*t_step*(num_h_energy.back()+Wh) );
-					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*t_step*(ana_h_energy.back()+Wh_a) );	
-					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*t_step*(del_e_energy.back()+We_d) ); //E is SPD
-					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*t_step*(del_h_energy.back()+Wh_d) ); //N is SPD
+					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_e_energy.back()+We) );
+					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_e_energy.back()+We_a) );
+					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_h_energy.back()+Wh) );
+					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_h_energy.back()+Wh_a) );	
+					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_e_energy.back()+We_d) ); //E is SPD
+					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_h_energy.back()+Wh_d) ); //N is SPD
 				}
 				else
 				{
@@ -1884,25 +1911,25 @@ class Discretization
 				std::vector<double> treated(edges_size(),false);
 				for (uint32_t p = 0; p< nodes_size(); ++p)
 				{
-					if (!bnd_nodes[p])
+					// if (!bnd_nodes[p])
+					// {
+					Eigen::VectorXd Uanalfracs(U_maps[p].size());
+					for (uint32_t j=0; j<U_maps[p].size(); ++j)
 					{
-						Eigen::VectorXd Uanalfracs(U_maps[p].size());
-						for (uint32_t j=0; j<U_maps[p].size(); ++j)
+						if (!treated[U_maps[p][j]])
 						{
-							if (!treated[U_maps[p][j]])
-							{
-								Uanalfracs(j) = Eanal[U_maps[p][j]].first;
-								treated[U_maps[p][j]]=true;
-							}
-							else
-								Uanalfracs(j) = Eanal[U_maps[p][j]].second;
+							Uanalfracs(j) = Eanal[U_maps[p][j]].first;
+							treated[U_maps[p][j]]=true;
 						}
-					
-
-						We   += U_fracs[p].dot(E_fracs[p]*U_fracs[p]);
-						We_a += Uanalfracs.dot(E_fracs[p]*Uanalfracs);
-						We_d += (Uanalfracs-U_fracs[p]).dot(E_fracs[p]*(Uanalfracs-U_fracs[p]));
+						else
+							Uanalfracs(j) = Eanal[U_maps[p][j]].second;
 					}
+				
+
+					We   += U_fracs[p].dot(E_fracs[p]*U_fracs[p]);
+					We_a += Uanalfracs.dot(E_fracs[p]*Uanalfracs);
+					We_d += (Uanalfracs-U_fracs[p]).dot(E_fracs[p]*(Uanalfracs-U_fracs[p]));
+					// }
 				}
 				
 				// std::cout << "ciccio2" << std::endl;
@@ -1920,12 +1947,12 @@ class Discretization
 				We = 0.5*We; Wh = 0.5*Wh; We_a = 0.5*We_a; Wh_a = 0.5*Wh_a; We_d = 0.5*We_d; Wh_d = 0.5*Wh_d;
 				if (i > 0)
 				{
-					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*t_step*(num_e_energy.back()+We) );
-					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*t_step*(ana_e_energy.back()+We_a) );
-					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*t_step*(num_h_energy.back()+Wh) );
-					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*t_step*(ana_h_energy.back()+Wh_a) );	
-					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*t_step*(del_e_energy.back()+We_d) ); //E is SPD
-					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*t_step*(del_h_energy.back()+Wh_d) ); //N is SPD
+					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_e_energy.back()+We) );
+					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_e_energy.back()+We_a) );
+					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_h_energy.back()+Wh) );
+					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_h_energy.back()+Wh_a) );	
+					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_e_energy.back()+We_d) ); //E is SPD
+					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_h_energy.back()+Wh_d) ); //N is SPD
 				}
 				else
 				{
@@ -1947,6 +1974,7 @@ class Discretization
 				probe_numeric_times.push_back(t);
 			}
 		}
+
 	}
 
 	void ExportFitFields(const std::string s, double t, uint32_t i)
@@ -2005,17 +2033,12 @@ class Discretization
 		}
 		else if (s == "maxerror")
 		{
-			Eigen::Vector3d max_vol_error_e, max_vol_error_h, max_vol_anal_e, max_vol_anal_h, probe_max_e, probe_max_h;
+			Eigen::Vector3d max_vol_error_e, max_vol_error_h, max_vol_num_e, max_vol_anal_e, max_vol_num_h, max_vol_anal_h;
+			uint32_t probe_max_e, probe_max_h;
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				auto num_ele = GetFitElectricField(probe_elem[p]);
 				auto num_mag = GetFitMagneticField(probe_elem[p]);
-				// probe_numeric_Exvalues[p].push_back(num_ele[0]);
-				// probe_numeric_Eyvalues[p].push_back(num_ele[1]);
-				// probe_numeric_Ezvalues[p].push_back(num_ele[2]);
-				// probe_numeric_Hxvalues[p].push_back(num_mag[0]);
-				// probe_numeric_Hyvalues[p].push_back(num_mag[1]);
-				// probe_numeric_Hzvalues[p].push_back(num_mag[2]);
 				SpaceTimePoint stp = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t});
 				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
 				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
@@ -2046,47 +2069,76 @@ class Discretization
 				Eigen::Vector3d vol_error_e = (anal_value1.first-num_ele).cwiseAbs();
 				Eigen::Vector3d vol_error_h = (anal_value2.second-num_mag).cwiseAbs();
 				
-				if (p==0)
+					if (p==0)
+					{
+						max_vol_error_e = vol_error_e;
+						max_vol_error_h = vol_error_h;
+						max_vol_num_e  = num_ele;
+						max_vol_num_h  = num_mag;
+						max_vol_anal_e  = (anal_value1.first);
+						max_vol_anal_h  = (anal_value2.second);
+						probe_max_e     = probe_elem[p];
+						probe_max_h     = probe_elem[p];
+					}
+					else
+					{
+						if (vol_error_e(1) > max_vol_error_e(1))
+						{
+							max_vol_error_e = vol_error_e;
+							max_vol_num_e  = num_ele;
+							max_vol_anal_e  = (anal_value1.first);
+							probe_max_e     = probe_elem[p];
+						}
+						if (vol_error_h(0) > max_vol_error_h(0))
+						{
+							max_vol_error_h = vol_error_h;
+							max_vol_num_h  = num_mag;
+							max_vol_anal_h  = (anal_value2.second);
+							probe_max_h     = probe_elem[p];
+						}
+					}
+			}
+			
+			if (probe_elem.size() > 0)
+			{
+				double We, Wh, We_a, Wh_a, We_d, Wh_d;
+			
+				We   = 0.5*max_vol_num_e.dot(Materials[vol_material[probe_max_e]].Epsilon()*max_vol_num_e);
+				We_a = 0.5*max_vol_anal_e.dot(Materials[vol_material[probe_max_e]].Epsilon()*max_vol_anal_e);
+				Wh   = 0.5*max_vol_num_h.dot(Materials[vol_material[probe_max_h]].Mu()*max_vol_num_h);
+				Wh_a = 0.5*max_vol_anal_h.dot(Materials[vol_material[probe_max_h]].Mu()*max_vol_anal_h);
+				We_d = 0.5*(max_vol_error_e).dot(Materials[vol_material[probe_max_e]].Epsilon()*(max_vol_error_e));
+				Wh_d = 0.5*(max_vol_error_h).dot(Materials[vol_material[probe_max_h]].Mu()*(max_vol_error_h));
+
+				if (i > 0)
 				{
-					max_vol_error_e = vol_error_e;
-					max_vol_error_h = vol_error_h;
-					max_vol_anal_e  = (anal_value1.first).cwiseAbs();
-					max_vol_anal_h  = (anal_value2.second).cwiseAbs();
-					probe_max_e     = probe_points[p];
-					probe_max_h     = probe_points[p];
+					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_e_energy.back()+We) );
+					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_e_energy.back()+We_a) );
+					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_h_energy.back()+Wh) );
+					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_h_energy.back()+Wh_a) );	
+					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_e_energy.back()+We_d) ); //E is SPD
+					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_h_energy.back()+Wh_d) ); //N is SPD
 				}
 				else
 				{
-					if (vol_error_e(1) > max_vol_error_e(1))
-					{
-						max_vol_error_e = vol_error_e;
-						max_vol_anal_e  = (anal_value1.first).cwiseAbs();
-						probe_max_e     = probe_points[p];
-					}
-					if (vol_error_h(0) > max_vol_error_h(0))
-					{
-						max_vol_error_h = vol_error_h;
-						max_vol_anal_h  = (anal_value2.second).cwiseAbs();
-						probe_max_h     = probe_points[p];
-					}
+					cum_num_e_energy.push_back(0);
+					cum_ana_e_energy.push_back(0);
+					cum_num_h_energy.push_back(0);
+					cum_ana_h_energy.push_back(0);	
+					cum_del_e_energy.push_back(0); //E is SPD
+					cum_del_h_energy.push_back(0); //N is SPD
 				}
+
+				num_e_energy.push_back(We);
+				ana_e_energy.push_back(We_a);
+				num_h_energy.push_back(Wh);
+				ana_h_energy.push_back(Wh_a);	
+				del_e_energy.push_back(We_d); //E is SPD
+				del_h_energy.push_back(Wh_d); //N is SPD
+
+				probe_numeric_times.push_back(t);
 			}
-			
-			auto ciccio1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-			auto ciccio2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-			analytic_e_value_vector[0].push_back(ciccio1);
-			analytic_h_value_vector[0].push_back(ciccio2);
-			(*analytic_e_value_vector[0].rbegin()).first = max_vol_anal_e;
-			(*analytic_h_value_vector[0].rbegin()).second = max_vol_anal_h;
-			probe_numeric_Exvalues[0].push_back(max_vol_error_e(0));
-			probe_numeric_Eyvalues[0].push_back(max_vol_error_e(1));
-			probe_numeric_Ezvalues[0].push_back(max_vol_error_e(2));
-			probe_numeric_Hxvalues[0].push_back(max_vol_error_h(0));
-			probe_numeric_Hyvalues[0].push_back(max_vol_error_h(1));
-			probe_numeric_Hzvalues[0].push_back(max_vol_error_h(2));
-			error_points.push_back(probe_max_e);
-			error_points.push_back(probe_max_h);
-			probe_numeric_times.push_back(t);
+
 		}
 		else if (s == "silo")
 		{
@@ -2226,12 +2278,12 @@ class Discretization
 			
 			if (i > 0)
 			{
-				cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*t_step*(num_e_energy.back()+We) );
-				cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*t_step*(ana_e_energy.back()+We_a) );
-				cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*t_step*(num_h_energy.back()+Wh) );
-				cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*t_step*(ana_h_energy.back()+Wh_a) );	
-				cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*t_step*(del_e_energy.back()+We_d) ); //E is SPD
-				cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*t_step*(del_h_energy.back()+Wh_d) ); //N is SPD
+				cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_e_energy.back()+We) );
+				cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_e_energy.back()+We_a) );
+				cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_h_energy.back()+Wh) );
+				cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_h_energy.back()+Wh_a) );	
+				cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_e_energy.back()+We_d) ); //E is SPD
+				cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*(t-probe_numeric_times.back())*(del_h_energy.back()+Wh_d) ); //N is SPD
 			}
 			else
 			{
