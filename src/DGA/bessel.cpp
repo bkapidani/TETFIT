@@ -12,8 +12,9 @@ double inverse_laplace_transform_hx(double t, double k, double alpha, double ksi
 	else
 	{
 		// numeric integration
-		gsl_integration_workspace * w = gsl_integration_workspace_alloc(2000);
+		gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
 		double result, error;
+		size_t nevals;
 		gsl_function F;
 
 		// double c_o = 1/sqrt(3*8.854187817e-12*4e-7*3.141592);
@@ -36,9 +37,10 @@ double inverse_laplace_transform_hx(double t, double k, double alpha, double ksi
 		
 		// printf ("result = % .18f\n", result);
 		// printf ("estimated error = % .18f\n", error);
-		// printf ("intervals = %zu\n", w->size);
+		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-14, 1e-8, 2000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
 		// std::cout << "first term 		= " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;			
@@ -127,8 +129,9 @@ double inverse_laplace_transform_hz(double t, double k, double alpha, double ksi
 	else
 	{
 		// numeric integration
-		gsl_integration_workspace * w = gsl_integration_workspace_alloc(2000);
+		gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
 		double result, error;
+		size_t nevals;
 		gsl_function F;
 
 		// double c_o = 1/sqrt(3*8.854187817e-12*4e-7*3.141592);
@@ -151,9 +154,10 @@ double inverse_laplace_transform_hz(double t, double k, double alpha, double ksi
 		
 		// printf ("result = % .18f\n", result);
 		// printf ("estimated error = % .18f\n", error);
-		// printf ("intervals = %zu\n", w->size);
+		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-14, 1e-8, 2000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
 		// std::cout << "first term 		= " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;			
@@ -225,8 +229,9 @@ double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi
 	else
 	{
 		// numeric integration
-		gsl_integration_workspace * w = gsl_integration_workspace_alloc(2000);
+		gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
 		double result, error;
+		size_t nevals;
 		gsl_function F;
 
 		// double c_o = 1/sqrt(3*8.854187817e-12*4e-7*3.141592);
@@ -249,9 +254,10 @@ double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi
 		
 		// printf ("result = % .18f\n", result);
 		// printf ("estimated error = % .18f\n", error);
-		// printf ("intervals = %zu\n", w->size);
+		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-14, 1e-8, 2000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
 		// std::cout << "first term 		= " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;			
@@ -325,8 +331,9 @@ double inverse_laplace_transform_ey_old(double t, double k, double alpha, double
 	else
 	{
 		// numeric integration
-		gsl_integration_workspace * w = gsl_integration_workspace_alloc(2000);
+		gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
 		double result, error;
+		size_t nevals;
 		gsl_function F;
 
 		// double c_o = 1/sqrt(3*8.854187817e-12*4e-7*3.141592);
@@ -349,9 +356,10 @@ double inverse_laplace_transform_ey_old(double t, double k, double alpha, double
 		
 		// printf ("result = % .18f\n", result);
 		// printf ("estimated error = % .18f\n", error);
-		// printf ("intervals = %zu\n", w->size);
+		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-14, 1e-8, 2000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
 		// std::cout << "first term 		= " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;			

@@ -1358,13 +1358,19 @@ class Discretization
 				os << std::setw(15) << probe_numeric_times[k] 				<< " ";
 				os << std::setw(15) << num_e_energy[k] 						<< " ";
 				os << std::setw(15) << ana_e_energy[k] 						<< " ";
-				os << std::setw(15) << del_e_energy[k];					
+				os << std::setw(15) << del_e_energy[k] 						<< " ";
+				os << std::setw(15) << cum_num_e_energy[k] 					<< " ";
+				os << std::setw(15) << cum_ana_e_energy[k] 					<< " ";
+				os << std::setw(15) << cum_del_e_energy[k];				
 				os << std::endl;
 				
 				osh << std::setw(15) << probe_numeric_times[k]+0.5*t_step 	<< " ";
 				osh << std::setw(15) << num_h_energy[k] 					<< " ";
 				osh << std::setw(15) << ana_h_energy[k] 					<< " ";
-				osh << std::setw(15) << del_h_energy[k];
+				osh << std::setw(15) << del_h_energy[k] 					<< " ";
+				osh << std::setw(15) << cum_num_h_energy[k] 					<< " ";
+				osh << std::setw(15) << cum_ana_h_energy[k] 					<< " ";
+				osh << std::setw(15) << cum_del_h_energy[k];
 				osh << std::endl;
 			}
 
@@ -1761,31 +1767,47 @@ class Discretization
 						// Eanal[p] = Materials[vol_material[vol_begin]].Epsilon()*Eanal[p];
 				}
 				
-				// if (meth == "fem")
-				// {
-					num_e_energy.push_back(0.5*U.dot((this->E)*U));
-					ana_e_energy.push_back(0.5*Eanal.dot((this->E)*Eanal));
-					num_h_energy.push_back(0.5*B.dot((this->N)*B));
-					ana_h_energy.push_back(0.5*Banal.dot((this->N)*Banal));	
-					del_e_energy.push_back(0.5*(Eanal-U).dot((this->E)*(Eanal-U))); //E is SPD
-					del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
-				// }
-				// else
-				// {
-					// num_e_energy.push_back(0.5*Psi.dot((this->Einv)*Psi));
-					// ana_e_energy.push_back(0.5*Eanal.dot((this->Einv)*Eanal));
-					// num_h_energy.push_back(0.5*B.dot((this->N)*B));
-					// ana_h_energy.push_back(0.5*Banal.dot((this->N)*Banal));	
-					// del_e_energy.push_back(0.5*(Eanal-Psi).dot((this->Einv)*(Eanal-Psi))); //E is SPD
-					// del_h_energy.push_back(0.5*(Banal-B).dot((this->N)*(Banal-B))); //N is SPD
-				// }
+				double We, Wh, We_a, Wh_a, We_d, Wh_d;
+				
+				We   = 0.5*U.dot((this->E)*U);
+				We_a = 0.5*Eanal.dot((this->E)*Eanal);
+				Wh   = 0.5*B.dot((this->N)*B);
+				Wh_a = 0.5*Banal.dot((this->N)*Banal);
+				We_d = 0.5*(Eanal-U).dot((this->E)*(Eanal-U));
+				Wh_d = 0.5*(Banal-B).dot((this->N)*(Banal-B));
+				if (i > 0)
+				{
+					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*t_step*(num_e_energy.back()+We) );
+					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*t_step*(ana_e_energy.back()+We_a) );
+					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*t_step*(num_h_energy.back()+Wh) );
+					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*t_step*(ana_h_energy.back()+Wh_a) );	
+					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*t_step*(del_e_energy.back()+We_d) ); //E is SPD
+					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*t_step*(del_h_energy.back()+Wh_d) ); //N is SPD
+				}
+				else
+				{
+					cum_num_e_energy.push_back(0);
+					cum_ana_e_energy.push_back(0);
+					cum_num_h_energy.push_back(0);
+					cum_ana_h_energy.push_back(0);	
+					cum_del_e_energy.push_back(0); //E is SPD
+					cum_del_h_energy.push_back(0); //N is SPD
+				}
+
+				num_e_energy.push_back(We);
+				ana_e_energy.push_back(We_a);
+				num_h_energy.push_back(Wh);
+				ana_h_energy.push_back(Wh_a);	
+				del_e_energy.push_back(We_d); //E is SPD
+				del_h_energy.push_back(Wh_d); //N is SPD
+
 				probe_numeric_times.push_back(t);
 			}
 			else
 			{
 				// std::cout << "ciccio" << std::endl;
 				auto Banal = Eigen::VectorXd(surfaces_size());
-				auto Eanal = Eigen::VectorXd(edges_size());
+				std::vector<std::pair<double,double>> Eanal(edges_size());
 				
 				for (uint32_t p=0; p<surfaces_size(); ++p)
 				{
@@ -1819,28 +1841,38 @@ class Discretization
 				{
 					auto edg_face = etf_list[p][0];
 					auto vol_begin = abs(ftv_list[abs(edg_face)][0]);
-					SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
+					Eigen::Vector3d pt1 = 0.25*(3*pts[std::get<0>(edges[p])]+pts[std::get<1>(edges[p])]);
+					Eigen::Vector3d pt2 = 0.25*(pts[std::get<0>(edges[p])]+3*pts[std::get<1>(edges[p])]);
+					SpaceTimePoint stp1 = SpaceTimePoint({pt1(0),pt1(1),pt1(2),t});
+					SpaceTimePoint stp2 = SpaceTimePoint({pt2(0),pt2(1),pt2(2),t});
+					auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 					if (have_analytic)
 					{
 						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 						if (analsrctype == "h")
 						{
+							anal_value1 = analytic_value(stp1,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Epsilon(),
+															  Materials[vol_material[vol_begin]].Mu(),5e9);
 							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
 															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
 						}
 						else if (analsrctype == "e")
 						{
+							anal_value1 = analytic_value_old(stp1,Materials[vol_material[vol_begin]].Sigma(),
+																  Materials[vol_material[vol_begin]].Epsilon(),
+															      Materials[vol_material[vol_begin]].Mu(),5e9);
 							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 																  Materials[vol_material[vol_begin]].Epsilon(),
 															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
 						}
-
 					}
 					
 					Eigen::Vector3d edgvec = pts[std::get<1>(edges[p])]-pts[std::get<0>(edges[p])];
-					Eanal[p]               = (anal_value2.first).dot(edgvec);
+					Eanal[p].first          = 0.5*(anal_value1.first).dot(edgvec);
+					Eanal[p].second		 	= 0.5*(anal_value2.first).dot(edgvec);
 					// if (meth == "dga")
 						// Eanal[p] = Materials[vol_material[vol_begin]].Epsilon()*Eanal[p];
 				}
@@ -1848,17 +1880,32 @@ class Discretization
 				double We, Wh, We_a, Wh_a, We_d, Wh_d;
 				We=Wh=We_a=Wh_a=We_d=Wh_d=0;
 				
+				// std::cout << "ciccio1" << std::endl;
+				std::vector<double> treated(edges_size(),false);
 				for (uint32_t p = 0; p< nodes_size(); ++p)
 				{
-					Eigen::VectorXd Uanalfracs(U_maps[p].size());
-					for (uint32_t j=0; j<U_maps[p].size(); ++j)
-						Uanalfracs(j) = 0.5*Eanal[U_maps[p][j]];
+					if (!bnd_nodes[p])
+					{
+						Eigen::VectorXd Uanalfracs(U_maps[p].size());
+						for (uint32_t j=0; j<U_maps[p].size(); ++j)
+						{
+							if (!treated[U_maps[p][j]])
+							{
+								Uanalfracs(j) = Eanal[U_maps[p][j]].first;
+								treated[U_maps[p][j]]=true;
+							}
+							else
+								Uanalfracs(j) = Eanal[U_maps[p][j]].second;
+						}
 					
-					We   += U_fracs[p].dot(E_fracs[p]*U_fracs[p]);
-					We_a += Uanalfracs.dot(E_fracs[p]*Uanalfracs);
-					We_d += (Uanalfracs-U_fracs[p]).dot(E_fracs[p]*(Uanalfracs-U_fracs[p]));
+
+						We   += U_fracs[p].dot(E_fracs[p]*U_fracs[p]);
+						We_a += Uanalfracs.dot(E_fracs[p]*Uanalfracs);
+						We_d += (Uanalfracs-U_fracs[p]).dot(E_fracs[p]*(Uanalfracs-U_fracs[p]));
+					}
 				}
 				
+				// std::cout << "ciccio2" << std::endl;
 				for (uint32_t p = 0; p< volumes_size(); ++p)
 				{
 					Eigen::Vector4d Banalfracs;
@@ -1870,13 +1917,32 @@ class Discretization
 					Wh_d += (Banalfracs-B_fracs[p]).dot(N_fracs[p]*(Banalfracs-B_fracs[p]));
 				}
 				
+				We = 0.5*We; Wh = 0.5*Wh; We_a = 0.5*We_a; Wh_a = 0.5*Wh_a; We_d = 0.5*We_d; Wh_d = 0.5*Wh_d;
+				if (i > 0)
+				{
+					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*t_step*(num_e_energy.back()+We) );
+					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*t_step*(ana_e_energy.back()+We_a) );
+					cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*t_step*(num_h_energy.back()+Wh) );
+					cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*t_step*(ana_h_energy.back()+Wh_a) );	
+					cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*t_step*(del_e_energy.back()+We_d) ); //E is SPD
+					cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*t_step*(del_h_energy.back()+Wh_d) ); //N is SPD
+				}
+				else
+				{
+					cum_num_e_energy.push_back(0);
+					cum_ana_e_energy.push_back(0);
+					cum_num_h_energy.push_back(0);
+					cum_ana_h_energy.push_back(0);	
+					cum_del_e_energy.push_back(0); //E is SPD
+					cum_del_h_energy.push_back(0); //N is SPD
+				}
 
-				num_e_energy.push_back(0.5*We);
-				ana_e_energy.push_back(0.5*We_a);
-				num_h_energy.push_back(0.5*Wh);
-				ana_h_energy.push_back(0.5*Wh_a);
-				del_e_energy.push_back(0.5*We_d); //E is SPD
-				del_h_energy.push_back(0.5*Wh_d); //N is SPD
+				num_e_energy.push_back(We);
+				ana_e_energy.push_back(We_a);
+				num_h_energy.push_back(Wh);
+				ana_h_energy.push_back(Wh_a);
+				del_e_energy.push_back(We_d); //E is SPD
+				del_h_energy.push_back(Wh_d); //N is SPD
 
 				probe_numeric_times.push_back(t);
 			}
@@ -2148,13 +2214,41 @@ class Discretization
 				Eigen::Vector3d edgvec = pts[G[p][1]]-pts[G[p][0]];
 				Eanal[p]               = (anal_value2.first).dot(edgvec);
 			}
+		
+			double We, Wh, We_a, Wh_a, We_d, Wh_d;
 			
-			num_e_energy.push_back(0.5*U.dot(Ep_vec.cwiseProduct(U)));
-			ana_e_energy.push_back(0.5*Eanal.dot(Ep_vec.cwiseProduct(Eanal)));
-			num_h_energy.push_back(0.5*F.dot(Mu_vec.cwiseProduct(F)));
-			ana_h_energy.push_back(0.5*Hanal.dot(Mu_vec.cwiseProduct(Hanal)));	
-			del_e_energy.push_back(0.5*(Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U))); //Epsilon is >0
-			del_h_energy.push_back(0.5*(Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F))); //Mu is >0
+			We   = 0.5*U.dot(Ep_vec.cwiseProduct(U));
+			We_a = 0.5*Eanal.dot(Ep_vec.cwiseProduct(Eanal));
+			Wh   = 0.5*F.dot(Mu_vec.cwiseProduct(F));
+			Wh_a = 0.5*Hanal.dot(Mu_vec.cwiseProduct(Hanal));
+			We_d = 0.5*(Eanal-U).dot(Ep_vec.cwiseProduct(Eanal-U));
+			Wh_d = 0.5*(Hanal-F).dot(Mu_vec.cwiseProduct(Hanal-F));
+			
+			if (i > 0)
+			{
+				cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*t_step*(num_e_energy.back()+We) );
+				cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*t_step*(ana_e_energy.back()+We_a) );
+				cum_num_h_energy.push_back( cum_num_h_energy.back() + 0.5*t_step*(num_h_energy.back()+Wh) );
+				cum_ana_h_energy.push_back( cum_ana_h_energy.back() + 0.5*t_step*(ana_h_energy.back()+Wh_a) );	
+				cum_del_e_energy.push_back( cum_del_e_energy.back() + 0.5*t_step*(del_e_energy.back()+We_d) ); //E is SPD
+				cum_del_h_energy.push_back( cum_del_h_energy.back() + 0.5*t_step*(del_h_energy.back()+Wh_d) ); //N is SPD
+			}
+			else
+			{
+				cum_num_e_energy.push_back(0);
+				cum_ana_e_energy.push_back(0);
+				cum_num_h_energy.push_back(0);
+				cum_ana_h_energy.push_back(0);	
+				cum_del_e_energy.push_back(0); //E is SPD
+				cum_del_h_energy.push_back(0); //N is SPD
+			}
+
+			num_e_energy.push_back(We);
+			ana_e_energy.push_back(We_a);
+			num_h_energy.push_back(Wh);
+			ana_h_energy.push_back(Wh_a);	
+			del_e_energy.push_back(We_d); //Epsilon is >0
+			del_h_energy.push_back(Wh_d); //Mu is >0
 			probe_numeric_times.push_back(t);
 		}
 	}
@@ -4817,7 +4911,7 @@ class Discretization
 		this->associated_h_edges = std::move(associated_h_edges);
 		this->dual_is_fractured   = std::move(dual_is_fractured);
 		this->primal_is_fractured = std::move(primal_is_fractured);
-		// this->bnd_nodes = std::move(bnd_nodes);
+		this->bnd_nodes = std::move(bnd_nodes);
 		
 		tctot.toc();
 		// std::cout << my_hack_number << std::endl;
@@ -6252,7 +6346,599 @@ class Discretization
 		t_material.toc();
 		// std::cout << "done - " << t_material << " seconds" << std::endl;
 	}
+	
+	/*void NewConstructMaterialMatrices(void)
+	{
+		timecounter t_material;
+		t_material.tic();
+		radiator_center = Eigen::Vector3d({2.85, 2.45, 1});
+		std::vector<bool> mu_computed(volumes_size(),false);
+		
+		U_frac_size = F_frac_size = 0;
+		add_to_sparse ass;
+		overwrite_to_sparse oss;
+		Eigen::MatrixXd local_E, local_S;
+		Eigen::Matrix4d local_M, local_Z;
+		std::vector<double_triplet> H_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip;
+		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip; 
+		Eigen::SparseMatrix<double> Einv(edges_size(),edges_size()), N(surfaces_size(),surfaces_size());
+		// std::vector<std::vector<uint32_t>> M_trip(edges_size());
+		uint32_t jj,kk;
+		
+		uint32_t mag_offset=0;
+		uint32_t ele_offset=0;
+		F_maps.resize(volumes_size());
+		
+		U_maps.resize(nodes_size());
+		frac_edges.resize(edges_size());	
+		Eigen::Matrix4d local_mag_Id = Eigen::MatrixXd::Identity(4,4);
+		
+		for (uint32_t vv=0; vv < volumes_size(); ++vv)
+		{
+			double mu_vol    = Materials[vol_material[vv]].Mu();
+			double chi_vol	 = Materials[vol_material[vv]].Chi();
+			uint32_t jj,kk;
+			auto face_vecs = dual_area_vectors(vv);
+			auto fids = vtf_list[vv];
+			std::vector<uint32_t> abs_fids;			
+			
+			bool break_cond=false;
+			for (auto ff : fids)
+			{
+				abs_fids.push_back(abs(ff));
+			}
+			
+			double coeff=mu_vol*36.0/(fabs(CellVolumes[vv]));
+			local_M = local_Z = Eigen::Matrix4d::Zero();
+			
+			local_M(0,0)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[3]).dot(face_vecs[3]))*coeff;
+			local_M(1,1)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[1]).dot(face_vecs[1])+(face_vecs[4]).dot(face_vecs[4]))*coeff;
+			local_M(2,2)=((face_vecs[1]).dot(face_vecs[1])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[5]).dot(face_vecs[5]))*coeff;
+			local_M(3,3)=((face_vecs[3]).dot(face_vecs[3])+(face_vecs[4]).dot(face_vecs[4])+(face_vecs[5]).dot(face_vecs[5]))*coeff;
 
+			local_M(0,1)=(-(face_vecs[1]).dot(face_vecs[2])-(face_vecs[3]).dot(face_vecs[4]))*coeff;
+			local_M(0,2)=(-(face_vecs[0]).dot(face_vecs[1])+(face_vecs[3]).dot(face_vecs[5]))*coeff;
+			local_M(0,3)=( (face_vecs[0]).dot(face_vecs[4])+(face_vecs[2]).dot(face_vecs[5]))*coeff;
+
+			local_M(1,0)=local_M(0,1);
+			local_M(1,2)=(-(face_vecs[0]).dot(face_vecs[2])-(face_vecs[4]).dot(face_vecs[5]))*coeff;
+			local_M(1,3)=( (face_vecs[0]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[5]))*coeff;
+			
+			local_M(2,0)=local_M(0,2);
+			local_M(2,1)=local_M(1,2);
+			local_M(2,3)=(-(face_vecs[2]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[4]))*coeff;
+			
+			local_M(3,0)=local_M(0,3);
+			local_M(3,1)=local_M(1,3);
+			local_M(3,2)=local_M(2,3);
+			
+			if (chi_vol != 0)
+			{
+				double coeff2 = 36.0*chi_vol/(fabs(CellVolumes[vv]));
+				
+				local_Z(0,0)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[3]).dot(face_vecs[3]))*coeff2;
+				local_Z(1,1)=((face_vecs[0]).dot(face_vecs[0])+(face_vecs[1]).dot(face_vecs[1])+(face_vecs[4]).dot(face_vecs[4]))*coeff2;
+				local_Z(2,2)=((face_vecs[1]).dot(face_vecs[1])+(face_vecs[2]).dot(face_vecs[2])+(face_vecs[5]).dot(face_vecs[5]))*coeff2;
+				local_Z(3,3)=((face_vecs[3]).dot(face_vecs[3])+(face_vecs[4]).dot(face_vecs[4])+(face_vecs[5]).dot(face_vecs[5]))*coeff2;
+
+				local_Z(0,1)=(-(face_vecs[1]).dot(face_vecs[2])-(face_vecs[3]).dot(face_vecs[4]))*coeff2;
+				local_Z(0,2)=(-(face_vecs[0]).dot(face_vecs[1])+(face_vecs[3]).dot(face_vecs[5]))*coeff2;
+				local_Z(0,3)=( (face_vecs[0]).dot(face_vecs[4])+(face_vecs[2]).dot(face_vecs[5]))*coeff2;
+
+				local_Z(1,0)=local_Z(0,1);
+				local_Z(1,2)=(-(face_vecs[0]).dot(face_vecs[2])-(face_vecs[4]).dot(face_vecs[5]))*coeff2;
+				local_Z(1,3)=( (face_vecs[0]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[5]))*coeff2;
+				
+				local_Z(2,0)=local_Z(0,2);
+				local_Z(2,1)=local_Z(1,2);
+				local_Z(2,3)=(-(face_vecs[2]).dot(face_vecs[3])-(face_vecs[1]).dot(face_vecs[4]))*coeff2;
+				
+				local_Z(3,0)=local_Z(0,3);
+				local_Z(3,1)=local_Z(1,3);
+				local_Z(3,2)=local_Z(2,3);
+				
+				// local_Z *= 0.5*t_step;
+			}
+				
+			// auto local_N = (local_M + local_Z).inverse();
+			Eigen::Matrix4d local_N = (local_M).llt().solve(local_mag_Id);
+			// auto local_R = local_N*(local_M - local_Z);
+			Eigen::Vector4d Fdummy(0,0,0,0);
+			F_fracs.push_back(Fdummy);
+			B_fracs.push_back(Fdummy);
+			F_frac_size += 4;
+			
+			M_fracs.push_back(local_M);
+			Z_fracs.push_back(local_Z);
+			
+			jj=kk=0;
+			std::array<uint32_t,4> assoc_full_dual_edges;
+			
+			for (auto j = abs_fids.begin(); j != abs_fids.end(); ++j)
+			{
+				assoc_full_dual_edges[jj] = *j;
+				for (auto k = j; k != abs_fids.end(); ++k)
+				{
+					if (local_N(jj,kk) != 0)
+					{
+						N_trip.push_back(double_triplet(*j,*k,local_N(jj,kk)));
+						if (jj != kk)
+							N_trip.push_back(double_triplet(*k,*j,local_N(jj,kk)));
+					}
+					++kk;
+				}
+				++jj;
+				kk=jj;
+			}
+			
+
+			F_maps[vv] = assoc_full_dual_edges;
+		}
+		
+		Eigen::VectorXd	P_p(P_size);
+		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
+		std::vector<bool> sigma_node(nodes_size(),false);
+		// std::cout << "Ma almeno qui ci arrivo?" << std::endl;
+		for (uint32_t nid=0; nid< pts.size(); ++nid )
+		{
+			// timecounter t_find;
+			// t_find.tic();
+			auto n_star = nte_list[nid];
+			auto local_E_size = n_star.size();
+			auto local_Id = Eigen::MatrixXd::Identity(local_E_size,local_E_size);
+			std::vector<uint32_t> global_i;
+			
+			for (auto ee : n_star)
+				global_i.push_back(abs(ee));
+			
+			local_S = local_E = Eigen::MatrixXd::Zero(local_E_size,local_E_size);
+			
+			auto vols = associated_volumes[nid];
+			
+			for (auto vv : vols)
+			{
+				auto vol_nodes = std::vector<uint32_t>({std::get<0>(volumes[vv]),std::get<1>(volumes[vv]),
+														std::get<2>(volumes[vv]),std::get<3>(volumes[vv])});
+					
+				std::vector<uint32_t> edgs_l2g;
+				for (auto ff : vtf_list[vv])
+					for (auto ee : fte_list[abs(ff)])
+						edgs_l2g.push_back(abs(ee));	
+				sort_unique(edgs_l2g);
+				std::swap(edgs_l2g[1],edgs_l2g[2]);
+				std::swap(edgs_l2g[1],edgs_l2g[3]);
+				
+				// auto vol_edges = edges(vv);
+				auto vol_domain = vol_material[vv];
+				auto face_vecs = primal_area_vectors(vv);
+			
+				auto elem_volume = fabs(CellVolumes[vv]);
+				
+				double eps_vol   = Materials[vol_domain].Epsilon();
+				// std::cout << eps_vol << std::endl;
+				double sigma_vol = Materials[vol_domain].Sigma();
+	
+				
+				if (sigma_vol != 0)
+					sigma_node[nid]=true;
+				// eps_vol = 1;
+				
+				auto D = vtf_list[vv];
+				
+				uint32_t e1,e2,e3;
+				
+				uint32_t k=0;
+				for (auto vn : vol_nodes)
+				{
+					if (vn == nid)
+						break;
+					else
+						k++;
+				}
+				
+				std::vector<uint32_t>::iterator it_gi;
+				
+				if (k==0)
+				{	
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[0]);							
+					e1    = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[2]);
+					e2    = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[3]);						
+					e3    = std::distance(global_i.begin(),it_gi);
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+												  (-2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+										
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+													  (-2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+													  
+					}
+				}
+				else if (k==1)
+				{
+					
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[0]);						
+					e1 = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[1]);
+					e2 = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[4]);
+					e3 = std::distance(global_i.begin(),it_gi);				
+					
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+												  (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+												  (-2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+												  (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+							
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[0]*( 2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+													  (2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+													  (-2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[0]*( 2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+					}
+				}
+				else if (k==2)
+				{
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[1]);							
+					e1 = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[2]);
+					e2 = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[5]);							
+					e3 = std::distance(global_i.begin(),it_gi);
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+												 (2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+												 (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+												 (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[0]*
+																 (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+																 (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+																 (-2.0/3.0/elem_volume*(D[3].Sgn()))*eps_vol)*elem_volume/4;
+																 
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[1]*( 2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+													  (2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[0]*( 2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+													  (2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(face_vecs[3]*
+													  (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[0]*
+																	 ( 2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[3]*
+																	 (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[3]*
+																	 (-2.0/3.0/elem_volume*(D[3].Sgn()))*sigma_vol)*elem_volume/4;
+					}
+				}
+				else if (k==3)
+				{
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[3]);						
+					e1 = std::distance(global_i.begin(),it_gi);
+					
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[4]);
+					e2 = std::distance(global_i.begin(),it_gi);
+
+					it_gi = std::lower_bound(global_i.begin(),global_i.end(),edgs_l2g[5]);							
+					e3 = std::distance(global_i.begin(),it_gi);				
+					
+					
+					local_E(e1,e1)=local_E(e1,e1)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+												  (2.0/3.0/elem_volume*(D[0].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e2)=local_E(e2,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+												  (2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e3)=local_E(e3,e3)+(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+												  (2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e2,e1)=local_E(e1,e2)=local_E(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[1]*
+												  (2.0/3.0/elem_volume*(D[1].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e1)=local_E(e1,e3)=local_E(e1,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+												  (2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					local_E(e3,e2)=local_E(e2,e3)=local_E(e2,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+												  (2.0/3.0/elem_volume*(D[2].Sgn()))*eps_vol)*elem_volume/4;
+					
+					if (sigma_vol != 0)
+					{
+						local_S(e1,e1)=local_S(e1,e1)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[0]*
+													  (2.0/3.0/elem_volume*(D[0].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e2)=local_S(e2,e2)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[1]*
+													  (2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e3)=local_S(e3,e3)+(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(face_vecs[2]*
+													  (2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e2,e1)=local_S(e1,e2)=local_S(e1,e2)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[1]*
+													  (2.0/3.0/elem_volume*(D[1].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e1)=local_S(e1,e3)=local_S(e1,e3)+(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(face_vecs[2]*
+													  (2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+						local_S(e3,e2)=local_S(e2,e3)=local_S(e2,e3)+(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(face_vecs[2]*
+													  (2.0/3.0/elem_volume*(D[2].Sgn()))*sigma_vol)*elem_volume/4;
+					}
+				}
+				
+			}
+
+			Eigen::VectorXd Udummy = Eigen::VectorXd::Zero(local_E_size);
+			U_fracs.push_back(Udummy);
+			
+			U_frac_size+= Udummy.size();
+			
+			Eigen::MatrixXd local_H = (local_E).llt().solve(local_Id);
+			E_fracs.push_back(local_E.sparseView());
+			S_fracs.push_back(local_S.sparseView());
+
+			jj=kk=0;
+			std::vector<uint32_t> assoc_full_primal_edges(global_i.size());	
+			for (auto j = global_i.begin(); j != global_i.end(); ++j)
+			{
+				assoc_full_primal_edges[jj] = *j;
+				frac_edges[*j].push_back(std::make_pair(nid,jj));
+				
+				for (auto k = j; k != global_i.end(); ++k)
+				{
+					if (local_H(jj,kk) != 0)
+					{
+						H_trip.push_back(double_triplet(*j,*k,local_H(jj,kk)));
+						if (jj != kk)
+							H_trip.push_back(double_triplet(*k,*j,local_H(jj,kk)));
+					}
+					++kk;
+				}
+				
+				++jj;
+				kk=jj;
+			}
+			
+			U_maps[nid] = assoc_full_primal_edges;
+		}
+
+		Einv.setFromTriplets(H_trip.begin(),H_trip.end(),ass);
+		
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			Eigen::MatrixXd nfull(N);
+			Eigen::MatrixXd hfull(Einv);
+			std::ofstream h_out("H.dat"), n_out("N.dat");
+			h_out << hfull << std::endl;
+			n_out << nfull << std::endl;
+			n_out.close();
+			h_out.close();
+		}
+		
+		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+		
+		for (uint32_t vv=0; vv < volumes_size(); ++vv)
+		{
+			// uint32_t jj,kk;
+			double chi_vol	 = Materials[vol_material[vv]].Chi();
+			auto fids = vtf_list[vv];
+			
+			// Eigen::Matrix4d local_M(M_fracs[vv]);
+			// Eigen::Matrix4d local_Z(Z_fracs[vv]);
+			
+			auto local_N_size = fids.size();
+			// Eigen::Matrix4d local_Id = Eigen::MatrixXd::Identity(4,4);
+			Eigen::Matrix4d local_RS  = local_mag_Id;
+			Eigen::Matrix4d local_N   = local_mag_Id;
+			
+			if (chi_vol != 0)
+			{
+				local_N = (M_fracs[vv]+0.5*t_step*Z_fracs[vv]).llt().solve(local_mag_Id);
+				local_RS = local_N*(M_fracs[vv]-0.5*t_step*Z_fracs[vv]);
+			}
+			else
+			{
+				local_N = M_fracs[vv].llt().solve(local_mag_Id);
+			}
+			
+			// std::cout << local_N << std::endl;
+			N_fracs.push_back(local_N);
+			R_fracs.push_back(local_RS);
+		}
+		
+		for (uint32_t nid=0; nid< pts.size(); ++nid )
+		{
+			auto n_star = nte_list[nid];
+			std::vector<uint32_t> global_i;
+			for (auto ee : n_star)
+				global_i.push_back(abs(ee));
+			
+			// Handling pec edges
+			Eigen::MatrixXd local_E(E_fracs[nid]);
+			Eigen::MatrixXd local_S(S_fracs[nid]);
+			jj=kk=0;
+			for (auto j = global_i.begin(); j != global_i.end(); ++j)
+			{	
+				if (classify_edges[*j] == 4)
+				{
+					// std::cout << "ci entri o no?" << std::endl;
+					local_E.row(jj).setZero();
+					local_E.col(jj).setZero();
+					local_E.coeffRef(jj,jj)=1; //
+					
+					// if (nid==0)
+						// std::cout << std::endl << local_E << std::endl << std::endl;
+					
+					if (sigma_node[nid])
+					{
+						local_S.row(jj).setZero();
+						local_S.col(jj).setZero();
+					}
+				}
+				++jj;
+			}
+			
+			auto local_E_size = n_star.size();
+			Eigen::MatrixXd local_H(local_E_size,local_E_size), local_PQ(local_E_size,local_E_size);
+			auto local_Id = Eigen::MatrixXd::Identity(local_E_size,local_E_size);
+			local_PQ = local_Id;
+			
+			if (sigma_node[nid])
+			{
+				local_H  = (local_E+0.5*t_step*local_S).llt().solve(local_Id);
+				local_PQ = local_H*(local_E-0.5*t_step*local_S);
+			}
+			else
+			{
+				local_H = local_E.llt().solve(local_Id);
+			}
+			
+			uint32_t offset;
+			bool is_frac=false;
+			if (dual_is_fractured[nid]>0)
+			{
+				if (dual_is_fractured[nid] >= Q_size+1)
+					std::cout << nid << "---" << dual_is_fractured[nid] << "---" << global_i.size() << std::endl;
+				is_frac=true;
+				offset = dual_is_fractured[nid]-1;
+			}
+			// else
+				// std::cout << std::endl << local_P << std::endl << std::endl;
+			jj=kk=0;
+			
+			for (auto j = global_i.begin(); j != global_i.end(); j++)
+			{
+				switch (classify_edges[*j])
+				{
+					case 1 :
+					{
+						for (auto k = global_i.begin(); k != global_i.end(); k++)
+						{
+							if (classify_edges[*k] !=4 && local_H(jj,kk)!=0)
+								H_trip.push_back(double_triplet(h_index[*j],*k,local_H(jj,kk)));
+
+							kk++;
+						}
+						
+						// M_trip[*j].push_back(h_index[*j]);
+						M_trip.push_back(double_triplet(*j,h_index[*j],double(1)));
+						break;
+					}
+					case 2 :
+					{
+						P_p[p_index[*j]]=local_PQ(jj,jj);
+
+						for (auto k = global_i.begin(); k != global_i.end(); k++)
+						{
+							if (local_H(jj,kk)!=0)
+								Mp_trip.push_back(double_triplet(p_index[*j],*k,local_H(jj,kk)));
+							
+							kk++;
+						}
+						
+						// M_trip[*j].push_back(H_size+p_index[*j]);
+						M_trip.push_back(double_triplet(*j,H_size+p_index[*j],double(1)));
+						break;
+					}
+					case 3 :
+					{
+						// M_trip[*j].push_back(H_size+P_size+offset+jj);
+						M_trip.push_back(double_triplet(*j,H_size+P_size+offset+jj,double(1)));
+						break;
+					}
+					case 4 :
+					{
+						// M_trip[*j].push_back(H_size+P_size+Q_size+boundary_index[*j]);
+						M_trip.push_back(double_triplet(*j,H_size+P_size+Q_size+boundary_index[*j],double(1)));
+						break;
+					}
+					default :
+					{
+						std::cout << "Edge domain class = " << classify_edges[*j] << ". This is unexpected!" << std::endl;
+						break;
+					}
+				}
+				// }
+				
+				if (is_frac)
+				{
+					if (classify_edges[*j] != 4)
+					{
+						for (kk = 0; kk < local_E_size; kk++)
+						{
+							if (classify_edges[global_i[kk]] != 4)
+							{
+								if (local_PQ(jj,kk) != 0)
+									Q_trip.push_back(double_triplet(offset+jj,offset+kk,local_PQ(jj,kk)));
+							
+								if (local_H(jj,kk) != 0)
+								{
+									Mq_trip.push_back(double_triplet(offset+jj,global_i[kk],local_H(jj,kk)));
+									if (offset+jj > Q_size-1 || global_i[kk] >= edges_size())
+										std::cout << Q_size << " " << global_i.size() << " " << edges_size() << " " << global_i[kk] << std::endl;
+								}
+							}
+						}						
+					}
+				}
+				
+				for (uint32_t ll=0; ll < local_E_size; ++ll)
+				{
+					if (store_E && local_E_nondirichlet(jj,ll) != 0)
+					{
+						E_trip.push_back(double_triplet(global_i[jj],global_i[ll],local_E_nondirichlet(jj,ll)));
+					}
+						
+					if (local_E_inv(jj,ll) != 0)
+						Einv_trip.push_back(double_triplet(global_i[jj],global_i[ll],local_E_inv(jj,ll)));
+				}
+				
+				jj++;
+				kk=0;
+			}
+		}
+		
+		t_material.toc();
+	}*/
+	
 	void ConstructFracMaterialMatrices(void)
 	{
 		timecounter t_material;
@@ -7278,6 +7964,7 @@ class Discretization
 	std::mutex									meshlock;
 	std::vector<double>                         CellVolumes, probe_numeric_times;
 	std::vector<double>                         num_e_energy, num_h_energy, ana_e_energy, ana_h_energy, del_e_energy, del_h_energy;
+	std::vector<double>                         cum_num_e_energy, cum_num_h_energy, cum_ana_e_energy, cum_ana_h_energy, cum_del_e_energy, cum_del_h_energy;
 	std::vector<std::vector<double>>			probe_numeric_Exvalues, probe_numeric_Eyvalues, probe_numeric_Ezvalues;
 	std::vector<std::vector<double>>			probe_numeric_Hxvalues, probe_numeric_Hyvalues, probe_numeric_Hzvalues;
 	std::vector<std::vector<std::pair<Eigen::Vector3d,Eigen::Vector3d>>> analytic_e_value_vector, analytic_h_value_vector;
