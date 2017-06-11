@@ -39,7 +39,7 @@ double inverse_laplace_transform_hx(double t, double k, double alpha, double ksi
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
@@ -156,7 +156,7 @@ double inverse_laplace_transform_hz(double t, double k, double alpha, double ksi
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
@@ -256,7 +256,7 @@ double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
@@ -358,7 +358,7 @@ double inverse_laplace_transform_ey_old(double t, double k, double alpha, double
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 1e-1, 1e-3, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
