@@ -63,7 +63,7 @@ class Output
 			mode = value;
 		}
 		else if (param == "radiator")
-			radiating_vol_bnd.push_back(std::stod(value));
+			radiating_vol_bnd.push_back(std::stof(value));
 		else if (param == "probe")
 		{
 			Eigen::Vector3d new_probepoint;
@@ -88,7 +88,7 @@ class Output
 					{
 						if (k < 3)
 						{
-							new_probepoint[k]= std::stod(coord);
+							new_probepoint[k]= std::stof(coord);
 							k++;
 						}
 						else
@@ -103,12 +103,12 @@ class Output
 				if (i == value.end())
 					MyThrow(input_line,too_few_coords);
 			}
-			std::cout << new_probepoint << std::endl;
+			// std::cout << new_probepoint << std::endl;
 			probepoints.push_back(new_probepoint);
 		}
 		else if (param == "period")
 		{
-			output_period = std::stod(value);
+			output_period = std::stof(value);
 		}
 		else if (param == "xgrid")
 		{
@@ -134,17 +134,17 @@ class Output
 					{
 						if (k == 0)
 						{
-							xstart = std::stod(coord);
+							xstart = std::stof(coord);
 							k++;
 						}
 						else if (k == 1)
 						{
-							xstep = std::stod(coord);
+							xstep = std::stof(coord);
 							k++;
 						}
 						else if (k == 2)
 						{
-							xstop = std::stod(coord);
+							xstop = std::stof(coord);
 							k++;
 						}
 						else
@@ -186,17 +186,17 @@ class Output
 					{
 						if (k == 0)
 						{
-							ystart = std::stod(coord);
+							ystart = std::stof(coord);
 							k++;
 						}
 						else if (k == 1)
 						{
-							ystep = std::stod(coord);
+							ystep = std::stof(coord);
 							k++;
 						}
 						else if (k == 2)
 						{
-							ystop = std::stod(coord);
+							ystop = std::stof(coord);
 							k++;
 						}
 						else
@@ -239,17 +239,17 @@ class Output
 					{
 						if (k == 0)
 						{
-							zstart = std::stod(coord);
+							zstart = std::stof(coord);
 							k++;
 						}
 						else if (k == 1)
 						{
-							zstep = std::stod(coord);
+							zstep = std::stof(coord);
 							k++;
 						}
 						else if (k == 2)
 						{
-							zstop = std::stod(coord);
+							zstop = std::stof(coord);
 							k++;
 						}
 						else

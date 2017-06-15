@@ -2422,25 +2422,13 @@ class Discretization
 					colour[curr_n]++;
 				}
 			}
-			  
+			
+
+			// std::cout << "BEWARE: " << qtop << std::endl;
 			colour[qtop]++;
 			k++;
 		}
 		
-		/*for (v=0; v<volumes_size(); v++)
-		{
-			auto pp = pts[P_cluster[v][0]];
-			
-			Eigen::Vector3d diff = pv - pp;
-			auto check1 = (diff(0)>=0 && diff(0) < Lx);
-			auto check2 = (diff(1)>=0 && diff(1) < Ly);
-			auto check3 = (diff(2)>=0 && diff(2) < Lz);
-			
-			if (check1 && check2 && check3)
-				return v;
-		}*/
-
-		// std::cout << "BEWARE: Probe out of mesh!" << std::endl;
 		return volumes_size();
 	}
 	
@@ -2454,7 +2442,7 @@ class Discretization
 		p_queue.push_back(root);
 		colour[0]++;
 		k=0;
-
+		// std::cout << pv << std::endl;
 		while ( k<p_queue.size() )
 		{
 			qtop=p_queue[k];
@@ -2470,6 +2458,14 @@ class Discretization
 			auto v2 = pts[tet_nodes[1]];
 			auto v3 = pts[tet_nodes[2]];
 			auto v4 = pts[tet_nodes[3]];
+			
+			// if (v==root)
+			// {
+				// std::cout << v1 << std::endl;
+				// std::cout << v2 << std::endl;
+				// std::cout << v3 << std::endl;
+				// std::cout << v4 << std::endl;
+			// }
 			Eigen::Matrix4d mat1;
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
@@ -2532,70 +2528,9 @@ class Discretization
 				}
 			}
 			colour[qtop]++;
+			// std::cout << "BEWARE: " << qtop << std::endl;
 			k++;
 		}
-		
-		
-		/*for (v=0; v<volumes_size(); v++)
-		{
-			double vol = CellVolumes[v];
-			auto tet_nodes = std::vector<uint32_t>({std::get<0>(volumes[v]),std::get<1>(volumes[v]),
-														std::get<2>(volumes[v]),std::get<3>(volumes[v])});
-			auto v1 = pts[tet_nodes[0]];
-			auto v2 = pts[tet_nodes[1]];
-			auto v3 = pts[tet_nodes[2]];
-			auto v4 = pts[tet_nodes[3]];
-			
-			Eigen::Matrix4d mat1;
-			
-			mat1 <<  v1(0), v1(1), v1(2), 1,
-				     v2(0), v2(1), v2(2), 1,
-				     v3(0), v3(1), v3(2), 1,
-				     v4(0), v4(1), v4(2), 1;
-					 
-			double det0 = mat1.determinant();
-			
-			mat1 <<  pv(0), pv(1), pv(2), 1,
-				     v2(0), v2(1), v2(2), 1,
-				     v3(0), v3(1), v3(2), 1,
-				     v4(0), v4(1), v4(2), 1;
-					 
-			double det1 = mat1.determinant();
-			
-			auto check1 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
-			
-			mat1 <<  v1(0), v1(1), v1(2), 1,
-				     pv(0), pv(1), pv(2), 1,
-				     v3(0), v3(1), v3(2), 1,
-				     v4(0), v4(1), v4(2), 1;
-					 
-			det1 = mat1.determinant();
-			auto check2 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
-			
-			mat1 <<  v1(0), v1(1), v1(2), 1,
-				     v2(0), v2(1), v2(2), 1,
-				     pv(0), pv(1), pv(2), 1,
-				     v4(0), v4(1), v4(2), 1;
-					 
-			det1 = mat1.determinant();
-			auto check3 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
-			
-			mat1 <<  v1(0), v1(1), v1(2), 1,
-				     v2(0), v2(1), v2(2), 1,
-				     v3(0), v3(1), v3(2), 1,
-				     pv(0), pv(1), pv(2), 1;
-					 
-			det1 = mat1.determinant();
-			auto check4 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
-			
-			if (check1 && check2 && check3 && check4)
-			{
-				return v;
-			}
-				
-		}*/
-
-		// std::cout << "BEWARE: Probe out of mesh!" << std::endl;
 		
 		return volumes_size();
 	}
@@ -5915,16 +5850,23 @@ class Discretization
 		
 		Eigen::VectorXd	P_p(P_size);
 
-		
+		double mean_nstar=0;
+		std::vector<double> var_nstar(pts.size());
+		std::vector<uint32_t> freqs(51,0);
 		for (uint32_t nid=0; nid< pts.size(); nid++ )
 		{
 			// timecounter t_find;
 			// t_find.tic();
 			auto n_star = nte_list[nid];
+			
+			mean_nstar += n_star.size();
+			var_nstar[nid]=n_star.size();
+			freqs[n_star.size()]++;
+			
 			auto local_E_size = n_star.size();
 			auto local_Id = Eigen::MatrixXd::Identity(local_E_size,local_E_size);
 			std::vector<uint32_t> global_i;
-			
+
 			for (auto ee : n_star)
 				global_i.push_back(abs(ee));
 			
@@ -6319,7 +6261,18 @@ class Discretization
 			}
 		}
 		
+		mean_nstar = mean_nstar/double(pts.size());
+		double true_variance=0;
+		for (auto val : var_nstar)
+			true_variance+= std::pow(val-mean_nstar,2);
+		true_variance = std::sqrt(true_variance/double(pts.size()-1));
 		
+		// std::cout << std::endl << "mean = " << mean_nstar << "  variance = " << true_variance << std::endl;
+		// for (uint32_t i_freq=0; i_freq<51; ++i_freq)
+		// {
+			// std::cout << " freqs[" << i_freq << "]=" << freqs[i_freq];
+		// }
+		// std::cout << std::endl;
 		// t_material.toc();
 		// std::cout << "done - " << t_material << " seconds" << std::endl;
 		
