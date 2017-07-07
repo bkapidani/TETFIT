@@ -39,7 +39,7 @@ double inverse_laplace_transform_hx(double t, double k, double alpha, double ksi
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-12, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
@@ -156,7 +156,7 @@ double inverse_laplace_transform_hz(double t, double k, double alpha, double ksi
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-12, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
@@ -246,9 +246,9 @@ double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi
 		data.freq = freq;
 		
 		if (flag)
-			F.function = &besselj_function_hz;
+			F.function = &besselj_function_ey;
 		else
-			F.function = &besseli_function_hz;
+			F.function = &besseli_function_ey;
 		
 		F.params = (void *)(&data);
 		
@@ -256,7 +256,7 @@ double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-12, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
@@ -286,9 +286,9 @@ double besselj_function_ey(double x, void * params)
 	gsl_sf_result res, res2;
 	
 	double argument = alpha*sqrt( pow(x,2) - pow(k,2) );
-	int status   = -alpha*x*gsl_sf_bessel_J1_e(argument,&res)/sqrt( pow(x,2) - pow(k,2) );
-	int status2  = gsl_sf_bessel_J0_e(argument,&res2);
-	double f     = exp(-ksi*x)*(-ksi*res2.val+res.val)*sin(2*PIE*freq*(t-x));
+	int status   = gsl_sf_bessel_J1_e(argument,&res)/sqrt( pow(x,2) - pow(k,2) );
+	// int status2  = gsl_sf_bessel_J0_e(argument,&res2);
+	double f     = exp(-ksi*x)*(/*-ksi*res2.val+*/-alpha*x*res.val)*sin(2*PIE*freq*(t-x));
 
 	// double k     = pt->k;
 	// double alpha = pt->alpha;
@@ -358,7 +358,7 @@ double inverse_laplace_transform_ey_old(double t, double k, double alpha, double
 		// printf ("estimated error = % .18f\n", error);
 		// //printf ("intervals = %zu\n", w->size);
 		// printf ("Size of interval = %g\n", t-k);
-		gsl_integration_qags(&F, k, t, 0, 1e-8, 1000, w, &result, &error);
+		gsl_integration_qags(&F, k, t, 1e-12, 1e-8, 1000, w, &result, &error);
 		//printf ("intervals = %zu\n", w->size);
 		gsl_integration_workspace_free(w);
 		
