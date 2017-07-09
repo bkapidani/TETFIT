@@ -2131,6 +2131,12 @@ class Discretization
 				
 				for (uint32_t p=0; p<surfaces_size(); ++p)
 				{
+					auto incidenze = ftv_list[p];
+					// Eigen::Vector3d facvec;
+					// if (incidenze.size()==2)
+					// {
+						// facvec = vol_barycenter(abs(incidenze[1]))-
+					// }
 					auto vol_begin = abs(ftv_list[p][0]);
 					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
 					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
@@ -2152,9 +2158,16 @@ class Discretization
 
 					}
 					
-					Eigen::Vector3d facvec = (pts[std::get<1>(surfaces[p])]-pts[std::get<0>(surfaces[p])]).cross(pts[std::get<2>(surfaces[p])]-
-						                          pts[std::get<0>(surfaces[p])]);
+					Eigen::Vector3d facvec = 0.5*((pts[std::get<1>(surfaces[p])]-pts[std::get<0>(surfaces[p])]).cross(pts[std::get<2>(surfaces[p])]-
+						                          pts[std::get<0>(surfaces[p])]));
 					Banal[p]               = Materials[vol_material[vol_begin]].Mu()*(anal_value2.second).dot(facvec);
+
+					if (boundary_face[p] == 1)
+					{
+						std::cout << Banal[p] << "\t\t" << B[p]; 
+						std::cout << " and it was bnd!";
+						std::cout << std::endl;
+					}
 				}
 				
 				for (uint32_t p=0; p<edges_size(); ++p)
@@ -2228,8 +2241,11 @@ class Discretization
 			}
 			else
 			{
+				std::cout << "------------------------------------------------------------------------" << std::endl;
 				// std::cout << "ciccio" << std::endl;
-				auto Banal = Eigen::VectorXd(surfaces_size());
+				// auto Banal = Eigen::VectorXd(surfaces_size());
+				auto Banal = std::vector<Eigen::Vector3d>(surfaces_size());
+
 				std::vector<std::pair<double,double>> Eanal(edges_size()),Enum(edges_size());
 				
 				//for SILO output
@@ -2266,7 +2282,9 @@ class Discretization
 					
 					Eigen::Vector3d facvec = (pts[std::get<1>(surfaces[p])]-pts[std::get<0>(surfaces[p])]).cross(pts[std::get<2>(surfaces[p])]-
 						                          pts[std::get<0>(surfaces[p])]);
-					Banal[p]               = Materials[vol_material[vol_begin]].Mu()*(anal_value2.second).dot(facvec);
+					// double sign = CellVolumes[vol_begin]<0 ? -1 : 1;
+					// Banal[p]               = /*Materials[vol_material[vol_begin]].Mu()**/(anal_value2.second).dot(facvec);
+					Banal[p] = anal_value2.second;
 				}
 				
 				for (uint32_t p=0; p<edges_size(); ++p)
@@ -2370,22 +2388,35 @@ class Discretization
 				}
 				
 				// std::cout << "ciccio2" << std::endl;
+				Eigen::Vector4d Banalfracs;
+				double vcoeff;
 				for (uint32_t p = 0; p< volumes_size(); ++p)
 				{
-					Eigen::Vector4d Banalfracs;
-					// auto incidenze = vtf_list[p];
+					
+					auto incidenze = vtf_list[p];
+					vcoeff = CellVolumes[p]>0 ? -1 : 1;
 					for (uint32_t j=0; j<4; ++j)
 					{
-						Banalfracs(j) = Banal[F_maps[p][j]];
-						// if (bnd_faces[F_maps[p][j]])
+						// Banalfracs(j) = Banal[F_maps[p][j]];
+						auto this_f = incidenze[j];
+						Banalfracs(j) =  vcoeff*double(this_f.Sgn())*Banal[F_maps[p][j]].dot(vol_barycenter(p)-face_barycenter(abs(this_f)));
+							
+						// if (std::signbit(Banalfracs(j)) != std::signbit(F_fracs[p][j]) )
 						// {
-							// std::cout << Banalfracs(j) << "\t\t" << B_fracs[p][j] << std::endl;
+							// std::cout << Banalfracs(j) << "\t\t" << F_fracs[p][j]; 
+							if (boundary_face[F_maps[p][j]] == 6)
+							{
+								std::cout << Banalfracs(j) << "\t\t" << F_fracs[p][j]; 
+								std::cout << " and it was bnd!";
+								std::cout << std::endl;
+							}
+							
 						// }
 					}
-					
-					num_B_vals.push_back(B_fracs[p].dot(N_fracs[p]*B_fracs[p]));
-					ana_B_vals.push_back(Banalfracs.dot(N_fracs[p]*Banalfracs));
-					err_B_vals.push_back((Banalfracs-B_fracs[p]).dot(N_fracs[p]*(Banalfracs-B_fracs[p])));
+					// std::cout << std::endl;
+					num_B_vals.push_back(F_fracs[p].dot(M_fracs[p]*F_fracs[p]));
+					ana_B_vals.push_back(Banalfracs.dot(M_fracs[p]*Banalfracs));
+					err_B_vals.push_back((Banalfracs-F_fracs[p]).dot(M_fracs[p]*(Banalfracs-F_fracs[p])));
 					
 					Wh   += *num_B_vals.rbegin();
 					Wh_a += *ana_B_vals.rbegin();
@@ -5139,7 +5170,7 @@ class Discretization
 		std::vector<Eigen::Vector3d> bnd_dual_edge_vectors;
 		std::vector<Eigen::Vector3d> bnd_dual_rhomb1_vectors, bnd_dual_rhomb2_vectors;
 		//std::ofstream debug_cage("//debug_cage.txt");
-		this->bnd_faces.resize(lines,false);
+		this->boundary_face.resize(lines,0);
 		for (uint32_t k=0; k<lines; k++)
 		{
 			sgnint32_t<int32_t> f1(k, 1);
@@ -5202,7 +5233,7 @@ class Discretization
 					bnd_nodes[std::get<0>(srf)]=true;
 					bnd_nodes[std::get<1>(srf)]=true;
 					bnd_nodes[std::get<2>(srf)]=true;
-					bnd_faces[k]=true;
+					boundary_face[k]=1;
 					
 					// std::cout << "Check0" << std::endl;
 					
@@ -5449,7 +5480,7 @@ class Discretization
 			if (tri == *itor)
 			{
 				uint32_t face_label = std::distance(surfaces.begin(),itor);
-				
+				boundary_face[face_label]=bid;
 				if (BCs[bid].Type() == "pec") // boundary conditions override sources!
 				{	
 					// debug_faces << print_face(1,face_label,true,0,255,0);
@@ -5555,7 +5586,7 @@ class Discretization
 				{
 					if (Sources[esrc].Type() == "e")
 					{
-						std::cout << "setting e-field source!" << std::endl;
+						// std::cout << "setting e-field source!" << std::endl;
 						is_dirich = true;
 						break;
 					}
@@ -8599,9 +8630,9 @@ class Discretization
 		overwrite_to_sparse oss;
 		Eigen::MatrixXd local_E, local_S;
 		Eigen::Matrix4d local_M, local_Z;
-		std::vector<double_triplet> H_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip, RHS_trip1, RHS_trip2;
+		std::vector<double_triplet> H_trip, E_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip, RHS_trip1, RHS_trip2;
 		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip; 
-		Eigen::SparseMatrix<double> Einv(edges_size(),edges_size()), N(surfaces_size(),surfaces_size());
+		Eigen::SparseMatrix<double> Einv(edges_size(),edges_size()), E(edges_size(),edges_size()), N(surfaces_size(),surfaces_size());
 		// std::vector<std::vector<uint32_t>> M_trip(edges_size());
 		uint32_t jj,kk;
 		
@@ -8990,6 +9021,13 @@ class Discretization
 						if (jj != kk)
 							H_trip.push_back(double_triplet(*k,*j,local_H(jj,kk)));
 					}
+					
+					if (local_E(jj,kk) != 0)
+					{
+						E_trip.push_back(double_triplet(*j,*k,local_E(jj,kk)));
+						if (jj != kk)
+							E_trip.push_back(double_triplet(*k,*j,local_E(jj,kk)));
+					}
 					++kk;
 				}
 				
@@ -9000,6 +9038,7 @@ class Discretization
 			U_maps[nid] = assoc_full_primal_edges;
 		}
 
+		E.setFromTriplets(E_trip.begin(),E_trip.end(),ass);
 		Einv.setFromTriplets(H_trip.begin(),H_trip.end(),ass);
 		
 		if (Simulations[current_simulation].DebugMatrices())
@@ -9132,6 +9171,8 @@ class Discretization
 		RHS.setFromTriplets(RHS_trip2.begin(),RHS_trip2.end(),ass);
 		this->RHSmat = std::move(RHSmat);
 		this->RHS = std::move(RHS);
+		this->N = std::move(N);
+		this->E = std::move(E);
 		t_material.toc();
 	}
 	
@@ -9680,7 +9721,7 @@ class Discretization
 	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
 	std::vector<std::vector<uint32_t>>			edge_src, face_src;
 	std::vector<int32_t> 						bnd_edges;
-	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna, bnd_faces;
+	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna;
 	std::vector<volume_type> 					volumes;
 	std::vector<surface_type> 					surfaces;
 	std::vector<Eigen::Matrix4d>				whitney_nodal;

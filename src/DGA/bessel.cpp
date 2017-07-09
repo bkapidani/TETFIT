@@ -49,25 +49,14 @@ double inverse_laplace_transform_hx(double t, double k, double alpha, double ksi
 		
 		if (flag)
 		{
-			// std::cout << "time = " << t << " a = " << k << " b = " << t << std::endl;
-			// std::cout << "ksi = " << ksi << " alpha = " << alpha << " value = " << alpha*k*result << std::endl;
-			// std::cout << "1st term = " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;
 			return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))-alpha*k*result;
 		}
 		else
 		{
-			// std::cout << "besseli" << std::endl;
-			// if (t>5.9e-10 && t< 6.1e-10)
-			// {
-				// std::cout << "time = " << t << " a = " << k << " b = " << t << std::endl;
-				// std::cout << "ksi = " << ksi << " alpha = " << alpha << " value = " << alpha*k*result << std::endl;
-				// std::cout << "1st term = " << exp(-ksi*(k))*sin(2*PIE*freq*(t-k)) << std::endl;
-			// }
 			return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))+alpha*k*result;
 		}
 	}
 }
-
 
 double besselj_function_hx(double x, void * params)
 {
@@ -264,6 +253,15 @@ double inverse_laplace_transform_ey(double t, double k, double alpha, double ksi
 		// std::cout << "second term     	= " << alpha*k*result << std::endl;
 		// std::cout << "integral error	= " << error << std::endl;
 		
+		// if (flag)
+		// {
+			// return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))-alpha*result;
+		// }
+		// else
+		// {
+			// return exp(-ksi*(k))*sin(2*PIE*freq*(t-k))+alpha*result;
+		// }
+		
 		return result;
 	}
 }
@@ -282,17 +280,17 @@ double besselj_function_ey(double x, void * params)
 	
 	// double c_o = 1/sqrt(3*8.854187817e-12*4e-7*3.141592);
 	// double c_o   = 0.3*c;
-	
+	// std::cout << "miao" << std::endl;
 	gsl_sf_result res, res2;
-	
+	// std::cout << "miao" << (x/k) << std::endl;
 	double argument = alpha*sqrt( pow(x,2) - pow(k,2) );
-	int status   = gsl_sf_bessel_J1_e(argument,&res)/sqrt( pow(x,2) - pow(k,2) );
-	// int status2  = gsl_sf_bessel_J0_e(argument,&res2);
-	double f     = exp(-ksi*x)*(/*-ksi*res2.val+*/-alpha*x*res.val)*sin(2*PIE*freq*(t-x));
+	
+	int status = gsl_sf_bessel_J0_e(argument,&res);
+	double f     = exp(-ksi*x)*res.val*(2*PIE*freq)*cos(2*PIE*freq*(t-x));
+	
+	// int status   = gsl_sf_bessel_J1_e(argument,&res)/sqrt( pow(x,2) - pow(k,2) );
+	// double f     = exp(-ksi*x)*x*res.val*sin(2*PIE*freq*(t-x))/sqrt( pow(x,2) - pow(k,2));
 
-	// double k     = pt->k;
-	// double alpha = pt->alpha;
-	// double f     = gsl_sf_bessel_J1(alpha*sqrt( pow(x,2) - pow(k,2) ))/ sqrt( pow(x,2) - pow(k,2) );
 	
 	return f;
 }
@@ -309,13 +307,19 @@ double besseli_function_ey(double x, void * params)
 	double c     = pt->c;
 	double freq  = pt->freq;
 	
+	// std::cout << "ciao" << std::endl;
 	// double c_o = 1/sqrt(3*8.854187817e-12*4e-7*3.141592);
 	// double c_o   = 0.3*c;
 	gsl_sf_result res, res2;
 	double argument = alpha*sqrt( pow(x,2) - pow(k,2) );
-	int status = alpha*x*gsl_sf_bessel_I1_e(argument,&res)/sqrt( pow(x,2) - pow(k,2) );
-	int status2  = gsl_sf_bessel_I0_e(argument,&res2);
-	double f     = exp(-ksi*x)*(-ksi*res2.val+res.val)*sin(2*PIE*freq*(t-x));
+	
+
+	int status = gsl_sf_bessel_I0_e(argument,&res);
+	double f     = exp(-ksi*x)*res.val*2*PIE*freq*cos(2*PIE*freq*(t-x));
+	
+	
+	// int status 		= 	gsl_sf_bessel_I1_e(argument,&res)/sqrt( pow(x,2) - pow(k,2) );
+	// double f     	= exp(-ksi*x)*x*res.val*sin(2*PIE*freq*(t-x))/sqrt( pow(x,2) - pow(k,2));
 
 	// double k     = pt->k;
 	// double alpha = pt->alpha;

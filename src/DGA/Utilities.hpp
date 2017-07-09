@@ -303,7 +303,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			a1 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			a5 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a9 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a9 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a9 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -322,7 +322,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			 a2 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			 a6 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a10 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a10 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a10 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -341,7 +341,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			 a3 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			 a7 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a11 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a11 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a11 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -360,7 +360,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 			 a4 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
 			 a8 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			// a12 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
-			a12 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a12 -= inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
 			break;
@@ -371,8 +371,8 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, doub
 	double hy_double = 0;
 	double hz_double = (PI/ax)*c*cos(PI*x/ax)*(a5+a6+a7+a8);
 	double ex_double = 0;
-	// double ey_double = std::sqrt(mu/eps)*sin(PI*x/ax)*((a9+a10+a11+a12)-sigma*(a5+a6+a7+a8));
-	double ey_double = std::sqrt(mu/eps)*sin(PI*x/ax)*(a9+a10+a11+a12);
+	// double ey_double = sqrt(mu/eps)*sin(PI*x/ax)*((a9+a10+a11+a12)-sigma*(a5+a6+a7+a8));
+	double ey_double = sqrt(mu/eps)*sin(PI*x/ax)*(a9+a10+a11+a12);
 	double ez_double = 0;
 	
 	return std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({ex_double,ey_double,ez_double}),Eigen::Vector3d({hx_double,hy_double,hz_double}));
