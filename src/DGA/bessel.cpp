@@ -157,7 +157,6 @@ double inverse_laplace_transform_hz(double t, double k, double alpha, double ksi
 	}
 }
 
-
 double besselj_function_hz(double x, void * params)
 {
 	
