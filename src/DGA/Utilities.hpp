@@ -109,6 +109,21 @@ namespace parser
 	}
 
 	template<typename T>
+	std::tuple<T, T, T>
+	read_gmsh_point_line(const char *str, char **endptr)
+	{
+		T t0, t1, t2, t3;
+		
+		t0 = strtot<T>(str, endptr); 
+		t1 = strtot<T>(*endptr, endptr);
+		t2 = strtot<T>(*endptr, endptr);
+		t3 = strtot<T>(*endptr, endptr);
+		
+		//return std::make_tuple(t1/1000.0, t2/1000.0, t3/1000.0);
+		return std::make_tuple(t1, t2, t3);
+	}
+
+	template<typename T>
 	std::tuple<T, T, T, T, T>
 	read_tetrahedron_line(const char *str, char **endptr)
 	{
@@ -135,7 +150,75 @@ namespace parser
 		t4 = strtot<T>(*endptr, endptr);
 		
 		return std::make_tuple(t1, t2-1, t3-1, t4-1);
-	}   
+	}
+
+	template<typename T>
+	std::tuple<T, T, T, T, T, T>
+	read_element_line(const char *str, char **endptr)
+	{
+		T t0, t1, t2, t3, t4, t5;
+		
+		// std::ofstream os;
+		// os.open("./debug/parser_tets.dat", std::ios::out | std::ios::app );
+		
+		t0 = strtot<T>(str, endptr);
+		t1 = strtot<T>(*endptr, endptr);
+		
+		if (t1 == 4) //tetrehedron
+		{
+			t0 = strtot<T>(*endptr, endptr);
+			t0 = strtot<T>(*endptr, endptr);
+			
+			t0 = t1;
+			t1 = strtot<T>(*endptr, endptr);
+			t2 = strtot<T>(*endptr, endptr);
+			t3 = strtot<T>(*endptr, endptr);
+			t4 = strtot<T>(*endptr, endptr);
+			t5 = strtot<T>(*endptr, endptr);
+			
+			
+			// os << t0 << " " << t1 << " " << t2 << " " << t3 << " " << t4 << " " << t5 << std::endl;  
+		}
+		else if (t1 == 2) //triangle
+		{
+			t0 = strtot<T>(*endptr, endptr);
+			t0 = strtot<T>(*endptr, endptr);
+			
+			t0 = t1;
+			t1 = strtot<T>(*endptr, endptr);
+			t2 = strtot<T>(*endptr, endptr);
+			t3 = strtot<T>(*endptr, endptr);
+			t4 = strtot<T>(*endptr, endptr);
+			t5 = 1;
+		}
+		else if (t1 == 1) //physical line
+		{
+			t0 = t1;
+			T n_of_tags = strtot<T>(*endptr, endptr);
+			for (size_t k = 0; k < n_of_tags; k++)
+			{
+				T t_token = strtot<T>(*endptr, endptr);
+				if (k==0)
+				{
+					t1 = t_token;
+				}
+			}
+			
+			t2 = strtot<T>(*endptr, endptr);
+			t3 = strtot<T>(*endptr, endptr);
+			t4 = 1;
+			t5 = 1;
+		}	
+		else
+		{
+			t0 = t1 = 0;
+			t2 = t3 = t4 = t5 = 1;
+		}
+		
+		// os.close();
+		return std::make_tuple(t0, t1, t2-1, t3-1, t4-1, t5-1);
+	}
+	
 } //namespace parser
 
 
@@ -184,7 +267,7 @@ const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
 const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
 const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint", "maxerror", "l2norm"};
-const std::vector<SimMethod>							simmethods		= { "fit", "dga", "fem", "dgao2", "frac", "fraco2", "fito2"};
+const std::vector<SimMethod>							simmethods		= { "fdtd", "dga", "fem", "dgao2", "frac", "fraco2", "fdtdo2"};
 const std::vector<Solver>								solvers			= { "cg", "agmg"};
 
 const std::runtime_error main_missing_file(std::string("Input file missing! Correct use is: \"tetfit input_file\" "));

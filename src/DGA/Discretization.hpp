@@ -271,9 +271,9 @@ class Discretization
 		auto o = &Outputs[s.Output()];
 		auto meth = s.Method();	
 		
-		if (m.GetMeshType() == "tetrahedral" && meth == "fit")
+		if (m.GetMeshType() == "tetrahedral" && meth == "fdtd")
 			MyThrow(method_line,incompatible_meth_mesh);
-		else if (m.GetMeshType() == "cartesian" && meth != "fit" && meth != "fito2")
+		else if (m.GetMeshType() == "cartesian" && meth != "fdtd" && meth != "fdtdo2")
 			MyThrow(method_line,incompatible_meth_mesh);
 		
 		auto mod_out = (*o).Mode();
@@ -289,7 +289,7 @@ class Discretization
 		std::vector<double> numeric_values,numeric_times, Losses;
 		
 		meshlock.lock(); //lock access to the meshes map
-		if (meth == "fit" || meth == "fito2")
+		if (meth == "fdtd" || meth == "fdtdo2")
 		{
 			uint32_t maxmatlabel = (*Materials.rbegin()).first;
 			Eigen::MatrixXd material_adj(maxmatlabel+1,maxmatlabel+1);
@@ -353,7 +353,7 @@ class Discretization
 				
 				
 				uint32_t elem_index; 
-				if (meth != "fit" && meth != "fito2")
+				if (meth != "fdtd" && meth != "fdtdo2")
 					elem_index = FindProbe(pv);
 				else
 					elem_index = FindFitProbe(pv);
@@ -408,29 +408,18 @@ class Discretization
 		}
 		// Actual simulation!
 		if (meth == "dga")
-		{	
-			// t_step = estimate_time_step_bound();
-			ConstructMaterialMatrices();
-			timecounter t_eigs;
-			t_eigs.tic();
-			double t_step_spectra = ComputeDGATimeStep();
-			t_eigs.toc();
-			std::cout  << std::endl << "Time step computation took " << t_eigs << " seconds" << std::endl;
+		{				
+			NewConstructMaterialMatrices();
 			
-			// auto t_step_geom = t_step;
-			t_step = s.Courant()*t_step_spectra;
-			ConstructMaterialMatrices();
-			
-			// if (store_E)
-			// {
-				ConstructerrorFEMaterialMatrices(s.Courant());
-			// }
+			// std::ofstream h_tang("h_tang.dat");
+			// h_tang.close();
 			
 			Eigen::VectorXd U_frac = Eigen::VectorXd::Zero(U_frac_size);
 			Eigen::VectorXd F_frac = Eigen::VectorXd::Zero(F_frac_size);
 			
 			Fb = Eigen::VectorXd::Zero(bnd_dual_edge_vectors.size());
 			
+			auto Fb_old(Fb);
 			auto Old_F_frac = F_frac;
 			auto Old_U_frac = U_frac;
 			auto U_old = U;
@@ -448,6 +437,7 @@ class Discretization
 			Eigen::Map<Eigen::VectorXd> Old_U_a(start_of_old_u,H_size), Old_U_b(start_of_old_u+H_size,P_size), Old_U_c(start_of_old_u+H_size+P_size,Q_size);
 			Eigen::Map<Eigen::VectorXd> Old_U_d(start_of_old_u+H_size+P_size+Q_size,B_size);
 			Eigen::Map<Eigen::VectorXd> F_a(start_of_f,N_size), F_b(start_of_f+N_size,R_size), F_c(start_of_f+N_size+R_size,S_size);
+			Eigen::Map<Eigen::VectorXd> Old_F_a(start_of_old_f,N_size), Old_F_b(start_of_old_f+N_size,R_size), Old_F_c(start_of_old_u+N_size+R_size,S_size);
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
@@ -467,7 +457,10 @@ class Discretization
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
+			std::cout << "Fractioned overhead: " << std::setw(10) << U_frac.size() << std::setw(10) << edges_size()
+												 << std::setw(10) << F_frac.size() << std::setw(10) << surfaces_size() << std::endl;
 			std::cout << std::endl;
+
 
 			//******************************************************************************************************//
 			//First instant electric sources
@@ -475,19 +468,19 @@ class Discretization
 			{
 				if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
 				{
-					U_d[boundary_index[ee]] = ComputeEdgeBC(ee,0); //only boundary edges can have boundary conditions
+					U(ee) = U_d[boundary_index[ee]] = ComputeEdgeBC(ee,0); //only boundary edges can have boundary conditions
 					
-					// for (auto ii : associated_h_edges[ee])
-						// U_a[ii] = ubc;
-					// for (auto ii : associated_p_edges[ee])
-						// U_b[ii] = ubc;
-					// for (auto ii : associated_frac_edges[ee])
-						// U_c[ii] = 0.5*ubc;
+					for (auto ii : associated_h_edges[ee])
+						U_a[ii] = U(ee);
+					for (auto ii : associated_p_edges[ee])
+						U_b[ii] = U(ee);
+					for (auto ii : associated_frac_edges[ee])
+						U_c[ii] = 0.5*U(ee);
 				}
 				else if (edge_src[ee].size()>0)
 				{
 					auto usrc = ComputeEfieldSource(ee, 0);
-					
+					U(ee) = usrc;
 					for (auto ii : associated_h_edges[ee])
 					{
 						U_a[ii] = usrc;
@@ -527,61 +520,57 @@ class Discretization
 			//******************************************************************************************************//
 			
 		    // timecounter tdbg;
-			for (i=1; double(i)*t_step <= simulation_time; i++)
+			for (i=1; double(i)*t_step <= simulation_time; ++i)
 			{
 				step_cost.tic();
 				current_time = double(i)*t_step;
 				
 				tdbg.tic();
+				Fb_old = Fb;
 				Fb = Eigen::VectorXd::Zero(bnd_dual_edge_vectors.size());
 				U_old = U;
+				Old_U_frac = U_frac;
 				// std::cout << Ctb.rows() << "---" << Ctb.cols() << "---" << Fb.size() << std::endl;
-				for (uint32_t ee = 0; ee < edges_size(); ee++)
+				for (uint32_t ee = 0; ee < edges_size(); ++ee)
 				{
 					if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
 					{
-						U_d[boundary_index[ee]] = ComputeEdgeBC(ee,current_time); //only boundary edges can have boundary conditions
-						
-						// for (auto ii : associated_h_edges[ee])
-							// U_a[ii] = ubc;
-						// for (auto ii : associated_p_edges[ee])
-							// U_b[ii] = ubc;
-						// for (auto ii : associated_frac_edges[ee])
-							// U_c[ii] = 0.5*ubc;
+						U(ee) = U_d[boundary_index[ee]] = ComputeEdgeBC(ee,current_time); //only boundary edges can have boundary conditions
 					}
 					else if (edge_src[ee].size()>0)
 					{
 						I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
-
-						if (bnd_edges[ee]>=0)
+						
+						if (Sources[*(edge_src[ee].begin())].Type() == "h" )
 							Fb[bnd_edges[ee]] = ComputeHfieldSource(ee,current_time - 0.5*t_step);
+						else
+						{
+							auto usrc = ComputeEfieldSource(ee, current_time/* - t_step*/);
+							U(ee) = usrc;
 						
-						auto usrc = ComputeEfieldSource(ee, current_time/* - t_step*/);
-						
-						for (auto ii : associated_h_edges[ee])
-						{
-							U_a[ii] = usrc;
-							// std::cout << "debuggy buggy" << std::endl;
-						}
-						for (auto ii : associated_p_edges[ee])
-						{
-							U_b[ii] = usrc;
-							// std::cout << "debuggy buggy" << std::endl;
-						}
-						for (auto ii : associated_frac_edges[ee])
-						{
-							U_c[ii] = 0.5*usrc;
-							// std::cout << "debuggy buggy" << std::endl;
-						}
-						for (auto ii : associated_bnd_edges[ee])
-						{
-							U_d[ii] = usrc;
-							// std::cout << "debuggy not buggy" << std::endl;
+							for (auto ii : associated_h_edges[ee])
+							{
+								U_a[ii] = usrc;
+								// std::cout << "debuggy buggy" << std::endl;
+							}
+							for (auto ii : associated_p_edges[ee])
+							{
+								U_b[ii] = usrc;
+								// std::cout << "debuggy buggy" << std::endl;
+							}
+							for (auto ii : associated_frac_edges[ee])
+							{
+								U_c[ii] = 0.5*usrc;
+								// std::cout << "debuggy buggy" << std::endl;
+							}
+							for (auto ii : associated_bnd_edges[ee])
+							{
+								U_d[ii] = usrc;
+								// std::cout << "debuggy not buggy" << std::endl;
+							}
 						}
 					}
 				}
-				
-				U = M*U_frac;
 				
 				tdbg.toc();
 				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
@@ -589,28 +578,26 @@ class Discretization
 				tdbg.tic();
 				
 				//Computing losses:
-				double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
-				if (i>1)
-					Losses.push_back(-Joule_L);
+				// double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
+				// if (i>1)
+					// Losses.push_back(-Joule_L);
+							
+				// Electric Part:
+				// Eigen::VectorXd rhs_vec = RHSmat1*(U-U_old)+RHSmat2*(U+U_old);
+				Eigen::VectorXd rhs_vec = Eigen::VectorXd::Zero(edges_size());
+				curl_f     = C.transpose()*F+Ctb*Fb-I;
+				U_a       += H*(t_step*curl_f-rhs_vec);
+				U_b        = P_p.cwiseProduct(Old_U_b) + Mp*(t_step*curl_f-rhs_vec);
+				U_c        = Q*Old_U_c + Mq*(t_step*curl_f-rhs_vec);
+				U = M*U_frac;
 				
-				
-				Old_U_frac = U_frac;
-				
-				// Electric Part:			
-				// tc.tic();
-				
-				curl_f     = C.transpose()*F+Ctb*Fb-I-RHS*U;
-				// std::cout << "non vah" << std::endl;
-				U_a       += t_step*H*curl_f;
-				// std::cout << "vah1" << std::endl;
-				U_b        = P_p.cwiseProduct(Old_U_b) + t_step*Mp*curl_f;
-				// std::cout << "vah2" << std::endl;
-				U_c        = Q*Old_U_c + t_step*Mq*curl_f;
-				// std::cout << "vah3" << std::endl;
 				tdbg.toc();
 				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 
 				tdbg.tic();				
+				
+				F_old = F;
+				Old_F_frac = F_frac;
 				
 				curl_u     = C*U;
 				
@@ -619,12 +606,11 @@ class Discretization
 				// if (store_E)
 
 				F_a       -= t_step*N*curl_u;
-				F_b        = R*Old_F_frac - t_step*Tr*curl_u;
-				F_c        = S*F_c - t_step*Ts*curl_u;
+				F_b        = R_r.cwiseProduct(Old_F_b) - t_step*Tr*curl_u;
+				F_c        = S*Old_F_c - t_step*Ts*curl_u;
 				
 				F          = T*F_frac;
-				F_old 	   = F;
-				Old_F_frac = F_frac;
+				// B          = Mu*F;
 				
 				tdbg.toc();
 				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
@@ -632,11 +618,6 @@ class Discretization
 				
 				step_cost.toc();
 				step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
-
-				// Debug
-				// std::cout << "Time: "      << std::setw(20) << current_time << '\t'; 
-				// std::cout << "Maximum B: " << std::setw(20) << B.lpNorm<Eigen::Infinity>() << '\t'; 
-				// std::cout << "Maximum U: " << std::setw(20) << U.lpNorm<Eigen::Infinity>() << std::endl;
 
 				tdbg.tic();
 				if ((*o).AllowPrint(current_time/*-t_step*/))
@@ -652,8 +633,8 @@ class Discretization
 			
 			//Computing losses for last time step:
 			
-			double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
-			Losses.push_back(Joule_L);
+			// double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
+			// Losses.push_back(Joule_L);
 			U_old = U;
 		}
 		else if (meth == "frac")
@@ -684,8 +665,10 @@ class Discretization
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
-			// std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
-			// std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
+			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << h_mat_fill_in << std::endl;
+			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << n_mat_fill_in << std::endl;
+			std::cout << "Fractioned overhead: " << std::setw(10) << U_frac_size << std::setw(10) << edges_size()
+												 << std::setw(10) << 4*volumes_size() << std::setw(10) << surfaces_size() << std::endl;
 			std::cout << std::endl;
 			
 		    // timecounter tdbg;
@@ -749,8 +732,8 @@ class Discretization
 				// }
 				
 				curl_f       = curl_i+curl_b-I;
-				Eigen::VectorXd rhs_vec1 = RHSmat*(U-U_old);
-				Eigen::VectorXd rhs_vec2 = RHS*(U+U_old);
+				Eigen::VectorXd rhs_vec1 = RHSmat1*(U-U_old);
+				Eigen::VectorXd rhs_vec2 = RHSmat2*(U+U_old);
 				Eigen::VectorXd U_new = Eigen::VectorXd::Zero(edges_size());
 				
 				for (uint32_t j=0; j< nodes_size(); ++j)
@@ -846,6 +829,7 @@ class Discretization
 			auto U_old = U;
 			auto F_old = F;
 			
+			double geom_t_step = estimate_time_step_bound();
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
 			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
@@ -860,10 +844,13 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
+			std::cout << std::setw(20) << "Geom Time step: "  			<< std::setw(20) << geom_t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
-			// std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
-			// std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
+			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << h_mat_fill_in << std::endl;
+			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << n_mat_fill_in << std::endl;
+			std::cout << "Fractioned overhead: " << std::setw(10) << U_frac_size << std::setw(10) << edges_size()
+												 << std::setw(10) << 4*volumes_size() << std::setw(10) << surfaces_size() << std::endl;
 			std::cout << std::endl;
 			
 		    // timecounter tdbg;
@@ -928,8 +915,11 @@ class Discretization
 				}
 				
 				curl_f       = curl_i+curl_b-I;
-				Eigen::VectorXd rhs_vec1 = RHSmat*(U-U_old);
-				Eigen::VectorXd rhs_vec2 = RHS*(U+U_old);
+				// std::cout << "ciao1" << std::endl;
+				Eigen::VectorXd rhs_vec1 = RHSmat1*(U-U_old);
+				// std::cout << "ciao2" << std::endl;
+				Eigen::VectorXd rhs_vec2 = RHSmat2*(U+U_old);
+				// std::cout << "ciao3" << std::endl;
 				Eigen::VectorXd U_new = Eigen::VectorXd::Zero(edges_size());
 				
 				for (uint32_t j=0; j< nodes_size(); ++j)
@@ -1138,7 +1128,7 @@ class Discretization
 				Eigen::VectorXd nucurl = (N*curlu);
 				Eigen::VectorXd curlcurl = C.transpose()*nucurl;
 				
-				// Psi = double(2)*(E*U_old) - std::pow(t_step,2)*curlcurl + t_step*Ctb*(Fb-Fb_old) - (E*U_older) + (0.5*t_step)*(SigMat*U_older) - RHSmat*SrcFld - (t_step)*I;
+				// Psi = double(2)*(E*U_old) - std::pow(t_step,2)*curlcurl + t_step*Ctb*(Fb-Fb_old) - (E*U_older) + (0.5*t_step)*(SigMat*U_older) - RHSmat1*SrcFld - (t_step)*I;
 				Psi = std::pow(t_step,2)*curlcurl - t_step*Ctb*(Fb-Fb_old) + this->E*SrcFld;
 
 				// U = 2*U_old - U_older -
@@ -1316,7 +1306,7 @@ class Discretization
 				Eigen::VectorXd curlu= (C*U_old);
 				Eigen::VectorXd nucurl = (N*curlu);
 				Eigen::VectorXd curlcurl = C.transpose()*nucurl;
-				Psi = double(2)*(E*U_old)*(1/t_step/t_step) - curlcurl + (1/t_step)*Ctb*(Fb-Fb_old) - (E*U_older)*(1/t_step/t_step) + (0.5/t_step)*(SigMat*U_older) - RHSmat*SrcFld - (1/t_step)*I;
+				Psi = double(2)*(E*U_old)*(1/t_step/t_step) - curlcurl + (1/t_step)*Ctb*(Fb-Fb_old) - (E*U_older)*(1/t_step/t_step) + (0.5/t_step)*(SigMat*U_older) - RHSmat1*SrcFld - (1/t_step)*I;
 				
 				//Find solution for U
 				for (uint32_t k=0; k<compressed_dirichlet.size(); ++k)
@@ -1366,7 +1356,7 @@ class Discretization
 			if (i>1)
 				Losses.push_back(Joule_L);
 		}
-		else if (meth == "fit")
+		else if (meth == "fdtd")
 		{
 			timecounter step_cost;
 			Eigen::VectorXd U_old(U), F_old(F);
@@ -1379,6 +1369,8 @@ class Discretization
 			max_circum_diameter = std::sqrt(std::pow(std::sqrt(std::pow(Lxyz[2],2)+std::pow(Lxyz[1],2)),2) + std::pow(Lxyz[0],2));
 			max_edge_len = Ly > Lx ? Ly : Lx;
 			max_edge_len = Lz > max_edge_len ? Lz : max_edge_len;
+			
+			// double t_step_geom = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
@@ -1489,7 +1481,7 @@ class Discretization
 			
 			bnd_debug_os.close();
 		}
-		else if (meth == "fito2")
+		else if (meth == "fdtdo2")
 		{
 		  
 		  // uint32_t i;
@@ -2169,7 +2161,7 @@ class Discretization
 		{
 			auto meth = Simulations[current_simulation].Method();
 			// if (meth != "frac" && meth != "fraco2")
-			if (meth != "fit")
+			if (meth != "fdtd")
 			{
 				auto Banalytic = Eigen::VectorXd(surfaces_size());
 				auto Eanalytic = Eigen::VectorXd(edges_size());
@@ -2807,15 +2799,15 @@ class Discretization
 				facvec = (newnorm/facvec.norm())*facvec;
 				// std::cout << std::endl << facvec << std::endl;
 				Hanalytic[p]               = Materials[vol_material[vol_begin]].Mu()*(anal_value2.second).dot(facvec);
-				if (fabs(Hanalytic[p]) > 1e-5)
-				{
-					std::cout << Hanalytic[p] << "\t\t" << B[p]; 
-					std::cout << std::endl;
-				}
+				// if (fabs(Hanalytic[p]) > 1e-5)
+				// {
+					// std::cout << Hanalytic[p] << "\t\t" << B[p]; 
+					// std::cout << std::endl;
+				// }
 				
 			}
 			
-			std::cout << "------------------------------------------------------------------------" << std::endl;
+			// std::cout << "------------------------------------------------------------------------" << std::endl;
 
 			for (uint32_t p=0; p<edges_size(); ++p)
 			{
@@ -2844,14 +2836,14 @@ class Discretization
 				Eigen::Vector3d edgvec = pts[G[p][1]]-pts[G[p][0]];
 				Eanalytic[p]               = (anal_value2.first).dot(edgvec);
 				// Eigen::Vector3d binormal = edgevec.cross(dual_faces_areas[p]);
-				if (fabs(Eanalytic[p]) > 1e-5)
-				{
-					std::cout << Eanalytic[p] << "\t\t" << U[p]; 
-						std::cout << std::endl;
-				}
+				// if (fabs(Eanalytic[p]) > 1e-5)
+				// {
+					// std::cout << Eanalytic[p] << "\t\t" << U[p]; 
+						// std::cout << std::endl;
+				// }
 				
 			}
-			std::cout << "------------------------------------------------------------------------" << std::endl;
+			// std::cout << "------------------------------------------------------------------------" << std::endl;
 			
 			os_debug.close();
 			
@@ -2911,7 +2903,7 @@ class Discretization
 		
 		// std::stringstream meshname;
 		
-		// meshname << "fit_grid_" << tot_pt << "nodes";
+		// meshname << "fdtd_grid_" << tot_pt << "nodes";
 		
 		char *coordnames[3]; /* Names of the coordinates */
 		std::vector<double> nodex, nodey, nodez;
@@ -3472,9 +3464,12 @@ class Discretization
 		
 		double ret = 0;
 		if (Meshes[loaded_mesh_label].GetMeshType() == "tetrahedral")
-		{
-			// std::cout << "{" << vector_val(0) << "," << vector_val(1) << "," << vector_val(2) << "}\t"
-					  // << "{" << bnd_dual_edge_vectors[edg_lab](0) << "," << bnd_dual_edge_vectors[edg_lab](1) << "," << bnd_dual_edge_vectors[edg_lab](2) << "}" << std::endl;
+		{			  
+			// std::ofstream h_tang;
+			// h_tang.open("h_tang.dat",std::ofstream::out | std::ofstream::app);
+			// h_tang << p1[0] << "\t" << p1[1] << "\t" << p1[2] << "\t" << p1[3] << "\t"
+				   // << vector_val(0) << "\t" << vector_val(1) << "\t" << vector_val(2) << std::endl;
+			// h_tang.close();
 			return (vector_val.dot(bnd_dual_edge_vectors[edg_lab]));
 		}
 		else
@@ -4701,6 +4696,7 @@ class Discretization
 		}
 
 		t_step *= Simulations[current_simulation].Courant();
+		std::cout << "CFL time step = " << t_step << std::endl;
 		std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
 		std::vector<std::vector<uint32_t>> dumb_face(surfaces_size());
 		std::vector<uint32_t> dumb(edges_size(),0);
@@ -4709,15 +4705,102 @@ class Discretization
 
 		auto mod_out = Outputs[Simulations[current_simulation].Output()].Mode();
 		bool store_E = (mod_out == "l2norm")? true : false;
-		if (store_E)
+		// if (store_E)
+		// {
+		Mu_vec = Eigen::VectorXd::Zero(surfaces_size());
+		Nu_vec = Eigen::VectorXd::Zero(surfaces_size());
+		Ep_vec = Eigen::VectorXd::Zero(edges_size());
+		Si_vec = Eigen::VectorXd::Zero(edges_size());
+		
+		// }
+		Eigen::VectorXd H_vec(edges_size());
+		Eigen::VectorXd N_vec(surfaces_size());
+		
+		for (uint32_t i=0; i<nf; ++i)
 		{
-			Mu_vec = Eigen::VectorXd::Zero(surfaces_size());
-			Nu_vec = Eigen::VectorXd::Zero(surfaces_size());
-			Ep_vec = Eigen::VectorXd::Zero(edges_size());
-			Si_vec = Eigen::VectorXd::Zero(edges_size());
+			N_vec(i) = average_ni[i]/face_area[i];
 		}
 		
-		std::ofstream os_nuvec("nuvec.dat");
+		for (uint32_t i=0; i<ne; ++i)
+		{
+			H_vec(i) = edge_len[i]/average_eps[i];
+			
+			uint32_t in_b = 0;
+			uint32_t break_cond=0;
+			for (auto sgnff : Ct_vec[i])
+			{
+				uint32_t ff = abs(sgnff);
+				// std::cout << ff << std::endl;
+				uint8_t bid = boundary_face[abs(ff)];
+				// std::cout << bid << std::endl;
+				if (boundary_face[ff]>0)
+				{
+					in_b++;
+					if (BCs[bid].Type() == "pec") // boundary conditions override sources!
+					{	
+						// debug_faces << print_face(1,face_label,true,0,255,0);
+						edge_bcs[i] = bid;
+						edge_src[i].clear();
+						bc_edges.push_back(i);
+						if (break_cond == 1)
+							src_edges.pop_back();
+						else if (break_cond == 2)
+							uncommon_edges.pop_back();
+						break;
+					}
+					else
+					{
+						for	(auto src_label : Simulations[current_simulation].Src())
+						{
+							auto src = Sources[src_label];
+							if (src.Surface() == bid)
+							{
+								// debug_faces << print_face(2,face_label,true,255,0,0);
+								if (src.Type() == "e" || src.Type() == "j")
+								{
+									if (break_cond == 2)
+										break;
+									if (std::find(edge_src[i].begin(),edge_src[i].end(),src_label) == edge_src[i].end())
+									{
+										edge_src[i].push_back(src_label);
+										break_cond=1;
+										if (!src_edges.size() || src_edges.back() != i)
+											src_edges.push_back(i);
+									}
+								}
+								else if (src.Type() == "h")
+								{
+									if (break_cond == 1)
+										break;
+									if (std::find(edge_src[i].begin(),edge_src[i].end(),src_label) == edge_src[i].end())
+									{	
+										edge_src[i].push_back(src_label);
+										break_cond=2;
+										
+										if (!uncommon_edges.size() || uncommon_edges.back() != i)
+											uncommon_edges.push_back(i);
+											
+									}
+								}
+							}
+						}
+						// if (!src_edges.size())
+							// common_edges.push_back(i);
+						
+						// if (break_cond>0)
+							// break;
+					}
+				}
+			}
+			
+			if (in_b==0)
+				common_edges.push_back(i);
+		}
+		
+		// std::cout << "vaff" << std::endl;
+		t_step = Simulations[current_simulation].Courant()*ComputeFDTDTimeStep(N_vec,H_vec);
+		
+		// std::ofstream os_nuvec("nuvec.dat");
 		for (uint32_t i=0; i<nf; ++i)
 		{
 				// Nvec(i)=average_ni[i]/face_area[i];
@@ -4740,7 +4823,7 @@ class Discretization
 					Mu_vec(i) = face_area[i]/average_ni[i];
 					Nu_vec(i) = average_ni[i]/face_area[i];
 					
-					os_nuvec << Nu_vec(i) << std::endl;
+					// os_nuvec << Nu_vec(i) << std::endl;
 				}
 			}
 			else
@@ -4754,117 +4837,46 @@ class Discretization
 			
 
 		}
-	  // uint32_t number_of_lossy=0;
-		os_nuvec.close();
-		std::ofstream os_epvec("epvec.dat");
-	  for (uint32_t i=0; i<ne; ++i)
-	  {
+		// os_nuvec.close();
+		// std::ofstream os_epvec("epvec.dat");
+		for (uint32_t i=0; i<ne; ++i)
+		{
 			// Hvec(i)=edge_len[i]/average_eps[i];
-		 if (average_eps[i] != 0)
-		 {
-			 if (is_ele_lossy[i])
+			 if (average_eps[i] != 0)
 			 {
-				// std::cout << ++number_of_lossy << std::endl;
-				M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
-				M_q.push_back((average_eps[i] - 0.5*t_step*average_sigma[i])/edge_len[i]);
+				 if (is_ele_lossy[i])
+				 {
+					// std::cout << ++number_of_lossy << std::endl;
+					M_h.push_back(edge_len[i]/(average_eps[i] + 0.5*t_step*average_sigma[i]));
+					M_q.push_back((average_eps[i] - 0.5*t_step*average_sigma[i])/edge_len[i]);
+				 }
+				 else
+				 {
+					M_h.push_back(edge_len[i]/average_eps[i]);
+					M_q.push_back(average_eps[i]/edge_len[i]);
+				 }
+				 M_e.push_back(average_eps[i]/edge_len[i]);
+				 
+				 if (store_E)
+				 {
+					 Ep_vec(i) = average_eps[i]/edge_len[i];
+					 Si_vec(i) = average_sigma[i]/edge_len[i];
+					 
+					 // os_epvec << Ep_vec(i) << std::endl;
+				 }
 			 }
 			 else
 			 {
-				M_h.push_back(edge_len[i]/average_eps[i]);
-				M_q.push_back(average_eps[i]/edge_len[i]);
+				M_h.push_back(0);
+				M_q.push_back(0);
+				M_e.push_back(0);
+				// if (store_E)
+					// Ep_vec(i) = 0;
 			 }
-			 M_e.push_back(average_eps[i]/edge_len[i]);
-			 
-			 if (store_E)
-			 {
-				 Ep_vec(i) = average_eps[i]/edge_len[i];
-				 Si_vec(i) = average_sigma[i]/edge_len[i];
-				 
-				 os_epvec << Ep_vec(i) << std::endl;
-			 }
-		 }
-		 else
-		 {
-			M_h.push_back(0);
-			M_q.push_back(0);
-			M_e.push_back(0);
-			// if (store_E)
-				// Ep_vec(i) = 0;
-		 }
-		
-		uint32_t in_b = 0;
-		uint32_t break_cond=0;
-		for (auto sgnff : Ct_vec[i])
-		{
-			uint32_t ff = abs(sgnff);
-			// std::cout << ff << std::endl;
-			uint8_t bid = boundary_face[abs(ff)];
-			// std::cout << bid << std::endl;
-			if (boundary_face[ff]>0)
-			{
-				in_b++;
-				if (BCs[bid].Type() == "pec") // boundary conditions override sources!
-				{	
-					// debug_faces << print_face(1,face_label,true,0,255,0);
-					edge_bcs[i] = bid;
-					edge_src[i].clear();
-					bc_edges.push_back(i);
-					if (break_cond == 1)
-						src_edges.pop_back();
-					else if (break_cond == 2)
-						uncommon_edges.pop_back();
-					break;
-				}
-				else
-				{
-					for	(auto src_label : Simulations[current_simulation].Src())
-					{
-						auto src = Sources[src_label];
-						if (src.Surface() == bid)
-						{
-							// debug_faces << print_face(2,face_label,true,255,0,0);
-							if (src.Type() == "e" || src.Type() == "j")
-							{
-								if (break_cond == 2)
-									break;
-								if (std::find(edge_src[i].begin(),edge_src[i].end(),src_label) == edge_src[i].end())
-								{
-									edge_src[i].push_back(src_label);
-									break_cond=1;
-									if (!src_edges.size() || src_edges.back() != i)
-										src_edges.push_back(i);
-								}
-							}
-							else if (src.Type() == "h")
-							{
-								if (break_cond == 1)
-									break;
-								if (std::find(edge_src[i].begin(),edge_src[i].end(),src_label) == edge_src[i].end())
-								{	
-									edge_src[i].push_back(src_label);
-									break_cond=2;
-									
-									if (!uncommon_edges.size() || uncommon_edges.back() != i)
-										uncommon_edges.push_back(i);
-										
-								}
-							}
-						}
-					}
-					// if (!src_edges.size())
-						// common_edges.push_back(i);
-					
-					// if (break_cond>0)
-						// break;
-				}
-			}
+
 		}
-		
-		if (in_b==0)
-			common_edges.push_back(i);
-	 }
 	 
-		os_epvec.close();
+		// os_epvec.close();
 		
 		if (Simulations[current_simulation].DebugMatrices())
 		{
@@ -4902,6 +4914,182 @@ class Discretization
 		  return true;
 	}
 	
+	bool ConvertFromGMSH(const std::string& _filename)
+	{	
+		timecounter tc, tctot;
+		
+		/* Open file */
+		if (_filename.size() == 0)
+		{
+			std::cout << "Invalid mesh file name" << std::endl;
+			return false;
+		}
+		
+		uint32_t	lines, linecount;
+		
+		mapped_file mf(_filename);
+		
+		// std::cout << " * * * Reading GMSH format mesh * * * ";
+		// std::cout << std::endl;
+		
+		std::stringstream sng;
+		uint32_t string_ind=0;
+		while (_filename[string_ind] != '.')
+			sng << _filename[string_ind++];
+		
+		sng << ".mesh";
+		std::ofstream os(sng.str().c_str());
+		tctot.tic();
+		/************************ Read useless stuff ************************/
+
+		for ( size_t i=0; i<4; i++)
+			auto t = mf.get_line();
+
+		/************************ Read points ************************/
+		linecount = 0;
+		
+		const char *data = mf.mem();
+		char *endptr;
+		
+		lines = strtot<uint32_t>(data, &endptr);
+		os << lines << std::endl;
+		auto dummy = mf.get_line();
+		// pts.reserve(lines);
+		
+		tc.tic();
+		while (linecount < lines)
+		{
+			auto t = parser::read_gmsh_point_line<double>(endptr, &endptr);
+			
+			os << std::get<0>(t) << " " << std::get<1>(t) << " " << std::get<2>(t) << std::endl;
+			
+			/* Do something with that point */
+			dummy = mf.get_line();
+			linecount++;
+		}
+		tc.toc();
+		
+		/************************ Read useless stuff ************************/
+		for ( size_t i=0; i<2; i++)
+		{
+			auto t = mf.get_line();
+			// std::cout << t << std::endl;
+		}
+		/************************ Read elements ************************/
+		linecount = 0;
+		const char *new_data = mf.mem();
+		lines = strtot<uint32_t>(new_data, &endptr);
+
+		std::vector< tm_tuple > temp_tet;
+		std::vector< surface_type > temp_surf_tri;
+		std::vector< uint32_t > temp_surf_lab;
+		// std::vector< em_tuple > temp_bnd_edge; 
+		temp_tet.reserve(lines);
+		temp_surf_lab.reserve(lines);
+		temp_surf_tri.reserve(lines);
+		uint32_t num_of_tets=0;
+		tc.tic();
+		while (linecount < lines)
+		{
+			dummy = mf.get_line();
+			const char *new_data = mf.mem();
+			auto t = parser::read_element_line<uint32_t>(new_data, &endptr);
+			auto element_label = std::get<0>(t);
+			
+			if (element_label == 4)
+			{
+				num_of_tets++;
+				std::vector<uint32_t> vectet(4);
+				vectet[0] = std::get<2>(t);
+				vectet[1] = std::get<3>(t);
+				vectet[2] = std::get<4>(t);
+				vectet[3] = std::get<5>(t);
+				std::sort(vectet.begin(),vectet.end());
+				
+				uint32_t       p0(vectet[0]);
+				uint32_t       p1(vectet[1]);
+				uint32_t       p2(vectet[2]);
+				uint32_t       p3(vectet[3]);
+				uint32_t       d(std::get<1>(t));
+				
+				auto tuple = std::make_tuple(volume_type(p0, p1, p2, p3), d);
+				temp_tet.push_back( tuple );
+			}
+			else if (element_label == 2)
+			{
+				// std::cout << "I'm here with a triangle!" << std::endl;
+				uint32_t       p0( std::get<2>(t) );
+				uint32_t       p1( std::get<3>(t) );
+				uint32_t       p2( std::get<4>(t) );
+				uint32_t       bid( std::get<1>(t) );
+				
+				surface_type   tri( p0, p1, p2 );
+				temp_surf_tri.push_back(tri);
+				temp_surf_lab.push_back(bid);
+			}
+			
+			linecount++;
+		}
+		tc.toc();
+
+		os << num_of_tets << std::endl;
+		
+		/************************ Sort ************************/		
+		tc.tic();
+		
+		/* sort tetrahedra, make unique and move them in geometry */
+			
+		struct {
+			bool operator()(const tm_tuple& t1, const tm_tuple& t2)
+			{
+				return (std::get<0>(t1) < std::get<0>(t2));
+			}
+		} mycomp;
+
+		std::sort(temp_tet.begin(), temp_tet.end(), mycomp);
+		
+		for (auto tet : temp_tet)
+		{
+			auto t = std::get<0>(tet);
+			volumes.push_back(t);
+			
+			uint32_t       p0(std::get<0>(t));
+			uint32_t       p1(std::get<1>(t));
+			uint32_t       p2(std::get<2>(t));
+			uint32_t       p3(std::get<3>(t));
+			
+			os << std::get<1>(tet) << " " << p0+1 << " " << p1+1 << " " << p2+1 << " " << p3+1 << std::endl;
+		}
+		std::vector<tm_tuple>().swap(temp_tet);		
+		tc.toc();
+		
+		/************************ Read boundary surfaces ************************/
+		linecount = 0;
+		os << temp_surf_tri.size() << std::endl;
+		tc.tic();
+		while (linecount < temp_surf_tri.size())
+		{			
+			auto t = temp_surf_tri[linecount];
+
+			uint32_t       p0( std::get<0>(t) );
+			uint32_t       p1( std::get<1>(t) );
+			uint32_t       p2( std::get<2>(t) );
+			uint32_t       bid( temp_surf_lab[linecount]);
+			
+			os << bid << " " << p0+1 << " " << p1+1 << " " << p2+1 << std::endl;
+			
+			linecount++;
+		}
+		
+		os.close();
+		
+		tc.toc();
+		
+		tctot.toc();	
+		
+		return true;
+	}
+
 	bool ReadUnstructuredMesh(Mesh& msh)
 	{	
 		timecounter tc, tctot;
@@ -5550,7 +5738,7 @@ class Discretization
 		// std::vector<bool> edge_done(edges_size(),false);
 		uint32_t trinum=0;
 		
-		// std::ofstream debug_faces("debug_faces.txt");
+		std::ofstream debug_faces("debug_faces.txt");
 		// new_neutral_file << lines << std::endl;
 		// my_hack_number=0;
 		
@@ -5589,11 +5777,13 @@ class Discretization
 			// auto bc_id  = BCs[bid];
 			if (tri == *itor)
 			{
+				// std::cout << bid << std::endl;
 				uint32_t face_label = std::distance(surfaces.begin(),itor);
 				boundary_face[face_label]=bid;
 				if (BCs[bid].Type() == "pec") // boundary conditions override sources!
 				{	
 					// debug_faces << print_face(1,face_label,true,0,255,0);
+					
 					for (auto ee : fte_list[face_label])
 					{
 						edge_bcs[abs(ee)] = bid;
@@ -5627,7 +5817,7 @@ class Discretization
 							}
 							else
 							{
-								
+								// debug_faces << print_face(2,face_label,true,255,0,0);
 								for (auto ee : edgs)
 								{
 									if (std::find(edge_src[ee].begin(),edge_src[ee].end(),src_label) == edge_src[ee].end())
@@ -5648,7 +5838,7 @@ class Discretization
 			
 			linecount++;
 		}
-		
+		debug_faces.close();
 		//debug_cage << print_edge(3,0,0,0,0,0,0.01);
 		//debug_cage.close();
 		// std::cout << "n. of bnd dual edges " << nbde << std::endl;
@@ -5965,7 +6155,7 @@ class Discretization
 		// t_dbg.tic();
 		
 		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
-		Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, MyAOp, MyBOp, Spectra::GEIGS_REGULAR_INVERSE> geigs(&aop, &bop, 1, 5);
+		Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, MyAOp, MyBOp, Spectra::GEIGS_REGULAR_INVERSE> geigs(&aop, &bop, 1, 10);
 		// t_dbg.toc();
 		// std::cout << "constructing geigs_solver takes " << t_dbg << std::endl;
 		t_dbg.tic();
@@ -5989,6 +6179,92 @@ class Discretization
 		}
 		return double(2)/sqrt(lambda);
 	}
+	
+	double ComputeFDTDTimeStep( Eigen::VectorXd& N, Eigen::VectorXd& Einv ) //use spectra
+	{
+		// We are going to calculate the eigenvalues of M
+		// Eigen::MatrixXd A = Eigen::MatrixXd::Random(10, 10);
+		// Eigen::MatrixXd M = A + A.transpose();
+		class MyAOp
+		{
+			public:
+			
+			MyAOp(uint32_t s, std::vector<std::vector<uint32_t>>& c, std::vector<std::vector<sgnint32_t<int32_t>>>& ct, 
+			      Eigen::VectorXd& n, Eigen::VectorXd& einv, std::vector<int32_t>& curl, std::vector<int32_t>& dual_curl)
+			{
+				size = s;
+				this->C = &c;
+				this->Ct = &ct;
+				this->N = &n;
+				this->Einv = &einv;
+				this->curl = &curl;
+				this->dual_curl = &dual_curl;
+			}
+			
+			int rows() { return size; }
+			int cols() { return size; }
+			
+			void perform_op(double *x_in, double *y_out)
+			{
+				Eigen::Map<Eigen::VectorXd> X(x_in,size);
+				Eigen::Map<Eigen::VectorXd> Y(y_out,size);
+				
+				Eigen::VectorXd F((*C).size());
+				for (uint32_t j=0; j<F.size(); ++j)
+					F(j) = (*N)(j)*(*curl)[j]*(X((*C)[j][0])-X((*C)[j][1])+X((*C)[j][2])-X((*C)[j][3]));
+				
+				for (uint32_t j=0; j<(*Ct).size(); ++j)
+				{
+					if ((*Ct)[j].size()<4)
+					{
+						Eigen::Vector3d val_ct_vec(0,0,0);
+						Eigen::Vector3d sgn_ct_vec(0,0,0);
+						// std::cout << "{ ";
+						for (uint8_t k=0; k<(*Ct)[j].size(); ++k)
+						{
+							val_ct_vec(k)= F(abs((*Ct)[j][k]));
+							sgn_ct_vec(k)= ((*Ct)[j][k]<0 ? -1 : 1);
+						}
+						Y(j) = (*Einv)(j)*(val_ct_vec.dot(sgn_ct_vec));
+					}
+					else
+					{
+						auto abs_ct_vec = std::vector<uint32_t>({abs((*Ct)[j][0]),abs((*Ct)[j][1]),abs((*Ct)[j][2]),abs((*Ct)[j][3])});
+						Y(j) = (*Einv)(j)*((*dual_curl)[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3])));
+					}
+				}
+			}
+			
+			Eigen::VectorXd *N, *Einv;
+			std::vector<std::vector<uint32_t>> *C;
+			std::vector<std::vector<sgnint32_t<int32_t>>> *Ct;
+			// Eigen::VectorXd proxyVec;
+			std::vector<int32_t> 						*curl;
+			std::vector<int32_t> 				      	*dual_curl;
+			uint32_t size;
+		};
+		// Construct matrix operation object using the wrapper class MyAOp
+		MyAOp op(this->edges_size(),this->C_vec,this->Ct_vec,N,Einv, this->curl, this->dual_curl);
+// std::cout << "vaff2" << std::endl;
+		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
+		
+// std::cout << "vaff3" << std::endl;
+
+		// Initialize and compute
+		eigs.init();
+		int nconv = eigs.compute(1000,1e-2,Spectra::LARGEST_MAGN);
+
+		// Retrieve results
+		double lambda;
+		if(eigs.info() == Spectra::SUCCESSFUL)
+		{
+			auto eig_vec = eigs.eigenvalues();
+			lambda = eig_vec(0);
+		}
+		return double(2)/sqrt(lambda);
+	}
+	
 	
 	double ComputeDGATimeStep(Eigen::SparseMatrix<double>& C, Eigen::SparseMatrix<double>& N, Eigen::SparseMatrix<double>& Einv ) //use spectra
 	{
@@ -6029,7 +6305,7 @@ class Discretization
 		MyAOp op(this->edges_size(),C,N,Einv);
 
 		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
-		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 5);
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
 
 		// Initialize and compute
 		eigs.init();
@@ -6080,7 +6356,7 @@ class Discretization
 		MyAOp op(this->edges_size(),C,N,Einv);
 
 		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
-		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 5);
+		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
 
 		// Initialize and compute
 		eigs.init();
@@ -6947,15 +7223,15 @@ class Discretization
 		A.setFromTriplets(sysmat_trip.begin(),sysmat_trip.end(), ass);
 		this->A=std::move(A);
 		
-		Eigen::SparseMatrix<double> RHSmat(edges_size(),edges_size());
-		RHSmat.setFromTriplets(rhsmat_trip.begin(),rhsmat_trip.end(), ass);
-		this->RHSmat=std::move(RHSmat);
+		Eigen::SparseMatrix<double> RHSmat1(edges_size(),edges_size());
+		RHSmat1.setFromTriplets(rhsmat_trip.begin(),rhsmat_trip.end(), ass);
+		this->RHSmat1=std::move(RHSmat1);
 		
 		// std::cout << "After" << std::endl;
 		
 		// std::ofstream dbg_mat("matrix.dat");
 		
-		// dbg_mat << Eigen::MatrixXd(RHSmat) << std::endl;
+		// dbg_mat << Eigen::MatrixXd(RHSmat1) << std::endl;
 		
 		// dbg_mat.close();
 		
@@ -7601,7 +7877,7 @@ class Discretization
 		// this->M_vec = std::move(M_trip);
 		
 		Eigen::SparseMatrix<double> H(H_size,edges_size()), N(N_size,surfaces_size()), Einv(edges_size(),edges_size()), E(edges_size(),edges_size());
-		Eigen::SparseMatrix<double> RHSmat(edges_size(),edges_size());
+		Eigen::SparseMatrix<double> RHSmat1(edges_size(),edges_size());
 		Eigen::SparseMatrix<double> M(edges_size(),U_frac_size), Mq(Q_size,edges_size()), Mp(P_size,edges_size());
 		Eigen::SparseMatrix<double> T(surfaces_size(),F_frac_size),Tr(R_size,surfaces_size()),Ts(S_size,surfaces_size());
 		Eigen::SparseMatrix<double> /*P(P_size,U_frac_size),*/Q(Q_size,Q_size);
@@ -7636,7 +7912,7 @@ class Discretization
 		// std::cout << "12" << std::endl;
 		Ts.setFromTriplets(Ts_trip.begin(),Ts_trip.end(), ass);
 		// std::cout << "13" << std::endl;
-		RHSmat.setFromTriplets(RHS_trip.begin(),RHS_trip.end(), ass);		
+		RHSmat1.setFromTriplets(RHS_trip.begin(),RHS_trip.end(), ass);		
 		Einv.setFromTriplets(Einv_trip.begin(),Einv_trip.end(), ass);
 		if (store_E)
 		{
@@ -7656,7 +7932,7 @@ class Discretization
 		this->Mq=std::move(Mq); this->N=std::move(N); this->P=std::move(P); this->Q=std::move(Q); 
 		this->R=std::move(R); this->S=std::move(S); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 		this->H=std::move(H); this->Einv=std::move(Einv); this->SigMat=std::move(SigMat);
-		this->RHS=std::move(RHSmat);
+		this->RHSmat1=std::move(RHSmat1);
 		if (Simulations[current_simulation].DebugMatrices())
 		{
 			// Eigen::MatrixXd nfull(this->N);
@@ -8161,14 +8437,14 @@ class Discretization
 		A.setFromTriplets(sysmat_trip.begin(),sysmat_trip.end(), ass);
 		this->A=std::move(A);
 		
-		Eigen::SparseMatrix<double> RHSmat(edges_size(),edges_size());
-		RHSmat.setFromTriplets(rhsmat_trip.begin(),rhsmat_trip.end(), ass);
-		this->RHSmat=std::move(RHSmat);
+		Eigen::SparseMatrix<double> RHSmat1(edges_size(),edges_size());
+		RHSmat1.setFromTriplets(rhsmat_trip.begin(),rhsmat_trip.end(), ass);
+		this->RHSmat1=std::move(RHSmat1);
 		
 		t_material.toc();
 	}
 
-	/*void NewConstructMaterialMatrices(void)
+	void NewConstructMaterialMatrices(void)
 	{
 		timecounter t_material;
 		t_material.tic();
@@ -8180,9 +8456,9 @@ class Discretization
 		overwrite_to_sparse oss;
 		Eigen::MatrixXd local_E, local_S;
 		Eigen::Matrix4d local_M, local_Z;
-		std::vector<double_triplet> H_trip, E_trip, Einv_trip, Mp_trip, Mq_trip, M_trip, P_trip, Q_trip, RHS_trip1, RHS_trip2;
-		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip; 
-		Eigen::SparseMatrix<double> Einv(edges_size(),edges_size()), E(edges_size(),edges_size()), N(surfaces_size(),surfaces_size());
+		std::vector<double_triplet> H_trip, E_trip, Einv_trip, Mp_trip, Mq_trip, P_trip, Q_trip, RHS_trip1, RHS_trip2,Mu_trip;
+		std::vector<double_triplet> N_trip, Tr_trip, Ts_trip, T_trip, R_trip, S_trip, Sig_trip, M_trip; 
+		Eigen::SparseMatrix<double> Einv(edges_size(),edges_size()), E(edges_size(),edges_size()), Mu(surfaces_size(),surfaces_size()), N(surfaces_size(),surfaces_size());
 		// std::vector<std::vector<uint32_t>> M_trip(edges_size());
 		uint32_t jj,kk;
 		
@@ -8305,6 +8581,14 @@ class Discretization
 						if (jj != kk)
 							N_trip.push_back(double_triplet(*k,*j,local_N(jj,kk)));
 					}
+					
+					if (local_M(jj,kk) != 0)
+					{
+						Mu_trip.push_back(double_triplet(*j,*k,local_M(jj,kk)));
+						if (jj != kk)
+							Mu_trip.push_back(double_triplet(*k,*j,local_M(jj,kk)));
+					}
+					
 					++kk;
 				}
 				++jj;
@@ -8318,6 +8602,8 @@ class Discretization
 		Eigen::VectorXd	P_p(P_size);
 		Eigen::VectorXd	R_r(R_size);
 		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
+		Mu.setFromTriplets(Mu_trip.begin(),Mu_trip.end(), ass);
+		this->Mu = std::move(Mu);
 		std::vector<bool> sigma_node(nodes_size(),false);
 		// std::cout << "Ma almeno qui ci arrivo?" << std::endl;
 		for (uint32_t nid=0; nid< pts.size(); ++nid )
@@ -8592,6 +8878,11 @@ class Discretization
 		E.setFromTriplets(E_trip.begin(),E_trip.end(),ass);
 		Einv.setFromTriplets(H_trip.begin(),H_trip.end(),ass);
 		
+		std::vector<double_triplet>().swap(H_trip);
+		std::vector<double_triplet>().swap(E_trip);
+		std::vector<double_triplet>().swap(N_trip);
+		std::vector<double_triplet>().swap(Mu_trip);
+		
 		if (Simulations[current_simulation].DebugMatrices())
 		{
 			Eigen::MatrixXd nfull(N);
@@ -8684,7 +8975,7 @@ class Discretization
 					{
 						if (local_RS(jj,kk) != 0)
 						{
-							S_trip.push_back(double_triplet(offset+jj,,local_RS(jj,kk)));
+							S_trip.push_back(double_triplet(offset+jj,offset+kk,local_RS(jj,kk)));
 							if (jj != kk)
 								S_trip.push_back(double_triplet(offset+kk,offset+jj,local_RS(jj,kk)));
 								
@@ -8703,6 +8994,12 @@ class Discretization
 				kk=0;
 			}
 		}
+		
+		bool store_E =  false;
+		auto mod_out = Outputs[Simulations[current_simulation].Output()].Mode();
+		if (mod_out == "l2norm")
+			store_E = true;
+			
 		
 		for (uint32_t nid=0; nid< pts.size(); ++nid )
 		{
@@ -8737,7 +9034,7 @@ class Discretization
 						{
 							RHS_trip1.push_back(double_triplet(*j,*k,E_fracs[nid].coeffRef(jj,kk)));
 							RHS_trip2.push_back(double_triplet(*j,*k,t_step*0.5*S_fracs[nid].coeffRef(jj,kk)));
-							local_RHS(jj,kk) = (1/t_step)*E_fracs[nid].coeffRef(jj,kk)+0.5*S_fracs[nid].coeffRef(jj,kk);
+							// local_RHS(jj,kk) = (1/t_step)*E_fracs[nid].coeffRef(jj,kk)+0.5*S_fracs[nid].coeffRef(jj,kk);
 						}
 						++kk;
 					}
@@ -8802,11 +9099,7 @@ class Discretization
 					{
 						for (kk=jj; kk < global_i.size(); ++kk)
 						{
-							if (classify_edges[global_i[kk]] == 4 && local_E_nondirichlet(jj,kk) != 0)
-							{
-								RHS_trip.push_back(double_triplet(*j,global_i[kk],local_E_nondirichlet(jj,kk)));
-							}
-							else if (local_H(jj,kk)!=0)
+							if (classify_edges[global_i[kk]] != 4 && local_H(jj,kk)!=0)
 							{
 								H_trip.push_back(double_triplet(h_index[*j],global_i[kk],local_H(jj,kk)));
 								if (jj !=kk)
@@ -8866,7 +9159,7 @@ class Discretization
 						{
 							if (classify_edges[global_i[kk]] != 4)
 							{
-								if (local_P(jj,kk) != 0)
+								if (local_PQ(jj,kk) != 0)
 									Q_trip.push_back(double_triplet(offset+jj,offset+kk,local_PQ(jj,kk)));
 							
 								if (local_H(jj,kk) != 0)
@@ -8876,39 +9169,105 @@ class Discretization
 										std::cout << Q_size << " " << global_i.size() << " " << edges_size() << " " << global_i[kk] << std::endl;
 								}
 							}
-							else if (local_E_nondirichlet(jj,kk) != 0)
-							{
-								RHS_trip.push_back(double_triplet(*j,global_i[kk],local_E_nondirichlet(jj,kk)));
-							}
 						}						
 					}
 				}
 				
-				for (uint32_t ll=jj; ll < local_E_size; ++ll)
+				if (store_E)
 				{
-					if (store_E && local_E_nondirichlet(jj,ll) != 0)
+					for (uint32_t ll=jj; ll < local_E_size; ++ll)
 					{
-						E_trip.push_back(double_triplet(global_i[jj],global_i[ll],local_E_nondirichlet(jj,ll)));
-						if (ll != jj)
-							E_trip.push_back(double_triplet(global_i[ll],global_i[jj],local_E_nondirichlet(jj,ll)));
+						if (E_fracs[nid].coeffRef(jj,ll) != 0)
+						{
+							E_trip.push_back(double_triplet(global_i[jj],global_i[ll], E_fracs[nid].coeffRef(jj,ll)));
+							if (ll != jj)
+								E_trip.push_back(double_triplet(global_i[ll],global_i[jj], E_fracs[nid].coeffRef(jj,ll)));
+						}
 					}
 				}
-				
 				jj++;
 				kk=0;
 			}
 		}
 		
-		Eigen::SparseMatrix<double> RHSmat(edges_size(),edges_size()), RHS(edges_size(),edges_size());
-		RHSmat.setFromTriplets(RHS_trip1.begin(),RHS_trip1.end(),ass);
-		RHS.setFromTriplets(RHS_trip2.begin(),RHS_trip2.end(),ass);
-		this->RHSmat = std::move(RHSmat);
-		this->RHS = std::move(RHS);
-		this->N = std::move(N);
-		this->E = std::move(E);
+		U_frac_size = H_size + P_size + Q_size + B_size;
+		F_frac_size = N_size + R_size + S_size;
+		
+		this->P_p=std::move(P_p);
+		this->R_r=std::move(R_r);
+		// this->M_vec = std::move(M_trip);
+		
+		Eigen::SparseMatrix<double> H(H_size,edges_size());
+		Eigen::SparseMatrix<double> RHSmat1(edges_size(),edges_size()), RHSmat2(edges_size(),edges_size());
+		Eigen::SparseMatrix<double> M(edges_size(),U_frac_size), Mq(Q_size,edges_size()), Mp(P_size,edges_size());
+		Eigen::SparseMatrix<double> T(surfaces_size(),F_frac_size),Tr(R_size,surfaces_size()),Ts(S_size,surfaces_size());
+		Eigen::SparseMatrix<double> /*P(P_size,U_frac_size),*/Q(Q_size,Q_size);
+		Eigen::SparseMatrix<double> R(R_size,F_frac_size),S(S_size,S_size), SigMat(edges_size(),edges_size());
+		
+		T.setFromTriplets(T_trip.begin(),T_trip.end(), oss);
+		M.setFromTriplets(M_trip.begin(),M_trip.end(), oss);
+		
+		
+		H.setFromTriplets(H_trip.begin(),H_trip.end(), ass);		
+		Mp.setFromTriplets(Mp_trip.begin(),Mp_trip.end(), ass);
+		Mq.setFromTriplets(Mq_trip.begin(),Mq_trip.end(), ass);
+		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
+		// P.setFromTriplets(P_trip.begin(),P_trip.end(), ass);
+		Q.setFromTriplets(Q_trip.begin(),Q_trip.end(), ass);
+		RHSmat1.setFromTriplets(RHS_trip1.begin(),RHS_trip1.end(),ass);
+		RHSmat2.setFromTriplets(RHS_trip2.begin(),RHS_trip2.end(),ass);
+		// R.setFromTriplets(R_trip.begin(),R_trip.end(), ass);
+		S.setFromTriplets(S_trip.begin(),S_trip.end(), ass);
+		Tr.setFromTriplets(Tr_trip.begin(),Tr_trip.end(), ass);
+		Ts.setFromTriplets(Ts_trip.begin(),Ts_trip.end(), ass);
+		Einv.setFromTriplets(Einv_trip.begin(),Einv_trip.end(), ass);
+		if (store_E)
+		{
+			// E.setFromTriplets(E_trip.begin(),E_trip.end(), ass);
+			this->E = std::move(E);
+		}
+		this->H=std::move(H); this->Einv=std::move(Einv); this->SigMat=std::move(SigMat);
+		this->T=std::move(T); this->M=std::move(M); this->N=std::move(N); this->Mp=std::move(Mp); 
+		this->Mq=std::move(Mq); this->N=std::move(N); this->Q=std::move(Q); 
+		this->S=std::move(S); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
+		this->H=std::move(H); this->Einv=std::move(Einv); this->SigMat=std::move(SigMat);
+		this->RHSmat1 = std::move(RHSmat1);
+		this->RHSmat2 = std::move(RHSmat2);
+		if (Simulations[current_simulation].DebugMatrices())
+		{
+			// Eigen::MatrixXd nfull(this->N);
+			// Eigen::MatrixXd hfull(this->Einv);
+			std::ofstream h_out("H.dat"), n_out("N.dat");
+			
+			h_out << this->H.rows() << "\t" << this->H.cols() << "\t" << 0 << std::endl;
+			n_out << this->N.rows() << "\t" << this->N.cols() << "\t" << 0 << std::endl;
+			for (uint32_t k=0; k< (this->H).outerSize(); ++k)
+			{
+				for (Eigen::SparseMatrix<double>::InnerIterator it((this->H),k); it; ++it)
+				{
+					auto jj = it.row();   // row index
+					auto kk = it.col();   // col index (here it is equal to k)
+					h_out << jj << "\t" << kk << "\t" << it.value() << std::endl;
+				}
+			}
+
+			for (uint32_t k=0; k< (this->N).outerSize(); ++k)
+			{
+				for (Eigen::SparseMatrix<double>::InnerIterator it((this->N),k); it; ++it)
+				{
+					auto jj = it.row();   // row index
+					auto kk = it.col();   // col index (here it is equal to k)
+					n_out << jj << "\t" << kk << "\t" << it.value() << std::endl;
+				}
+			}
+			// h_out << hfull << std::endl;
+			// n_out << nfull << std::endl;
+			n_out.close();
+			h_out.close();
+		}
+
 		t_material.toc();
-	}*/
-	
+	}
 	
 	void ConstructFracMaterialMatrices(void)
 	{
@@ -9370,7 +9729,7 @@ class Discretization
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
 		t_spec.toc();
 		std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
-		
+		n_mat_fill_in = 0;
 		for (uint32_t vv=0; vv < volumes_size(); ++vv)
 		{
 			// uint32_t jj,kk;
@@ -9396,10 +9755,12 @@ class Discretization
 			}
 			
 			// std::cout << std::endl << local_RS << std::endl;
+			n_mat_fill_in += 16;
 			N_fracs.push_back(local_N);
 			R_fracs.push_back(local_RS);
 		}
 		
+		h_mat_fill_in = 0;
 		for (uint32_t nid=0; nid< pts.size(); ++nid )
 		{
 			auto n_star = nte_list[nid];
@@ -9476,6 +9837,7 @@ class Discretization
 			
 			// std::cout << std::endl << local_PQ << std::endl;
 			H_fracs.push_back(local_H.sparseView());
+			h_mat_fill_in += H_fracs[nid].nonZeros();
 			P_fracs.push_back(local_PQ.sparseView());
 			RHS_fracs.push_back(local_RHS.sparseView());
 			// Eigen::SparseMatrix<double> ciccio = (local_PQ-local_Id).sparseView();
@@ -9483,15 +9845,16 @@ class Discretization
 				// std::cout << std::endl << local_PQ << std::endl;
 		}
 		
-		Eigen::SparseMatrix<double> RHSmat(edges_size(),edges_size()), RHS(edges_size(),edges_size());
-		RHSmat.setFromTriplets(RHS_trip1.begin(),RHS_trip1.end(),ass);
-		RHS.setFromTriplets(RHS_trip2.begin(),RHS_trip2.end(),ass);
-		this->RHSmat = std::move(RHSmat);
-		this->RHS = std::move(RHS);
+		Eigen::SparseMatrix<double> RHSmat1(edges_size(),edges_size()), RHSmat2(edges_size(),edges_size());
+		RHSmat1.setFromTriplets(RHS_trip1.begin(),RHS_trip1.end(),ass);
+		RHSmat2.setFromTriplets(RHS_trip2.begin(),RHS_trip2.end(),ass);
+		this->RHSmat1 = std::move(RHSmat1);
+		this->RHSmat2 = std::move(RHSmat2);
 		this->N = std::move(N);
 		this->E = std::move(E);
 		t_material.toc();
 	}
+	
 	
 	// double add_to_sparse (const double& a, const double& b)
 	// {
@@ -10025,8 +10388,9 @@ class Discretization
 	std::map<uint32_t,Solid>					Solids;
 	
 	private:
-	uint32_t									input_line, H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
-	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv, SigMat, A, E, RHS, RHSmat,Ctb;
+	uint32_t									input_line, h_mat_fill_in, n_mat_fill_in;
+	uint32_t									H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
+	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv, SigMat, A, E, Mu, RHSmat1, RHSmat2, Ctb;
 	Eigen::VectorXd								U,Psi,F,Fb,I,P_p,R_r,B,Mu_vec,Ep_vec,Si_vec, Nu_vec;
 	std::mutex									meshlock;
 	std::vector<double>                         CellVolumes, probe_numeric_times;
