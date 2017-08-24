@@ -166,11 +166,12 @@ namespace parser
 		
 		if (t1 == 4) //tetrehedron
 		{
-			t0 = strtot<T>(*endptr, endptr);
-			t0 = strtot<T>(*endptr, endptr);
-			
 			t0 = t1;
 			t1 = strtot<T>(*endptr, endptr);
+			t1 = strtot<T>(*endptr, endptr);
+			
+			
+			t2 = strtot<T>(*endptr, endptr);
 			t2 = strtot<T>(*endptr, endptr);
 			t3 = strtot<T>(*endptr, endptr);
 			t4 = strtot<T>(*endptr, endptr);
@@ -181,11 +182,12 @@ namespace parser
 		}
 		else if (t1 == 2) //triangle
 		{
-			t0 = strtot<T>(*endptr, endptr);
-			t0 = strtot<T>(*endptr, endptr);
-			
 			t0 = t1;
 			t1 = strtot<T>(*endptr, endptr);
+			t1 = strtot<T>(*endptr, endptr);
+			
+			
+			t2 = strtot<T>(*endptr, endptr);
 			t2 = strtot<T>(*endptr, endptr);
 			t3 = strtot<T>(*endptr, endptr);
 			t4 = strtot<T>(*endptr, endptr);
@@ -316,6 +318,20 @@ void sort_unique(std::vector<T>& v) //useful as stand-alone
 	std::sort(v.begin(), v.end());
 	auto uniq_iter = std::unique(v.begin(), v.end());
 	v.erase(uniq_iter, v.end());
+}
+
+typedef std::string StringType;
+StringType GetBaseFilename(const char *filename)
+{
+    StringType fName(filename);
+    size_t pos = fName.rfind(".");
+    if(pos == StringType::npos)  //No extension.
+        return fName;
+
+    if(pos == 0)    //. is at the front. Not an extension.
+        return fName;
+
+    return fName.substr(0, pos);
 }
 
 class add_to_sparse 

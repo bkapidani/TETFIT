@@ -401,16 +401,18 @@ class Discretization
 		export_time_average=bcs_time_average=mag_time_average=ele_time_average=iter_time_average=0;
 		bool store_E = (mod_out == "l2norm")? true : false;
 		
-		if (store_E && meth == "dga")
-		{
-			meth = "frac"; //to get the actual energy norm, we need to use the fully fractured grid
-			Simulations[current_simulation].ForceMethod(meth); //little hack
-		}
+		// if (store_E && meth == "dga")
+		// {
+			// meth = "fraco2"; //to get the actual energy norm, we need to use the fully fractured grid
+			// Simulations[current_simulation].ForceMethod(meth); //little hack
+		// }
 		// Actual simulation!
 		if (meth == "dga")
 		{				
 			NewConstructMaterialMatrices();
-			
+			if (store_E)
+				ConstructerrorFEMaterialMatrices(s.Courant());
+				
 			// std::ofstream h_tang("h_tang.dat");
 			// h_tang.close();
 			
@@ -457,8 +459,8 @@ class Discretization
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
-			std::cout << "Fractioned overhead: " << std::setw(10) << U_frac.size() << std::setw(10) << edges_size()
-												 << std::setw(10) << F_frac.size() << std::setw(10) << surfaces_size() << std::endl;
+			// std::cout << "Fractioned overhead: " << std::setw(10) << U_frac.size() << std::setw(10) << edges_size()
+												 // << std::setw(10) << F_frac.size() << std::setw(10) << surfaces_size() << std::endl;
 			std::cout << std::endl;
 
 
@@ -667,8 +669,8 @@ class Discretization
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << h_mat_fill_in << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << n_mat_fill_in << std::endl;
-			std::cout << "Fractioned overhead: " << std::setw(10) << U_frac_size << std::setw(10) << edges_size()
-												 << std::setw(10) << 4*volumes_size() << std::setw(10) << surfaces_size() << std::endl;
+			// std::cout << "Fractioned overhead: " << std::setw(10) << U_frac_size << std::setw(10) << edges_size()
+												 // << std::setw(10) << 4*volumes_size() << std::setw(10) << surfaces_size() << std::endl;
 			std::cout << std::endl;
 			
 		    // timecounter tdbg;
@@ -849,8 +851,8 @@ class Discretization
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << h_mat_fill_in << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << n_mat_fill_in << std::endl;
-			std::cout << "Fractioned overhead: " << std::setw(10) << U_frac_size << std::setw(10) << edges_size()
-												 << std::setw(10) << 4*volumes_size() << std::setw(10) << surfaces_size() << std::endl;
+			// std::cout << "Fractioned overhead: " << std::setw(10) << U_frac_size << std::setw(10) << edges_size()
+												 // << std::setw(10) << 4*volumes_size() << std::setw(10) << surfaces_size() << std::endl;
 			std::cout << std::endl;
 			
 		    // timecounter tdbg;
@@ -2198,13 +2200,6 @@ class Discretization
 					Eigen::Vector3d facvec = 0.5*((pts[std::get<1>(surfaces[p])]-pts[std::get<0>(surfaces[p])]).cross(pts[std::get<2>(surfaces[p])]-
 						                          pts[std::get<0>(surfaces[p])]));
 					Banalytic[p]               = Materials[vol_material[vol_begin]].Mu()*(anal_value2.second).dot(facvec);
-
-					if (boundary_face[p] == 1)
-					{
-						// std::cout << Banalytic[p] << "\t\t" << B[p]; 
-						// std::cout << " and it was bnd!";
-						// std::cout << std::endl;
-					}
 				}
 				
 				for (uint32_t p=0; p<edges_size(); ++p)
@@ -2238,6 +2233,7 @@ class Discretization
 				}
 				
 				double We, Wh, We_a, Wh_a, We_d, Wh_d;
+
 				
 				We   = 0.5*U.dot(((this->E)*U));
 				We_a = 0.5*Eanalytic.dot(((this->E)*Eanalytic));
@@ -2245,7 +2241,7 @@ class Discretization
 				Wh_a = 0.5*Banalytic.dot((this->N)*Banalytic);
 				We_d = 0.5*(Eanalytic-U).dot(((this->E)*(Eanalytic-U)));
 				Wh_d = 0.5*(Banalytic-B).dot((this->N)*(Banalytic-B));
-				
+
 				// We   = 0.5*U.cwiseAbs().maxCoeff();
 				// We_a = 0.5*Eanalytic.cwiseAbs().maxCoeff();
 				// Wh   = 0.5*B.cwiseAbs().maxCoeff();
@@ -2259,9 +2255,9 @@ class Discretization
 				// Wh_a = 0.5*Banalytic.dot(Banalytic);
 				// We_d = 0.5*(Eanalytic-U).dot(Eanalytic-U);
 				// Wh_d = 0.5*(Banalytic-B).dot(Banalytic-B);
+				// std::cout << "cippalippa" << std::endl;
 				
-				
-				if (i > 0)
+				if (probe_numeric_times.size() != 0)
 				{
 					cum_num_e_energy.push_back( cum_num_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(num_e_energy.back()+We) );
 					cum_ana_e_energy.push_back( cum_ana_e_energy.back() + 0.5*(t-probe_numeric_times.back())*(ana_e_energy.back()+We_a) );
@@ -2279,14 +2275,16 @@ class Discretization
 					cum_del_e_energy.push_back(0); //E is SPD
 					cum_del_h_energy.push_back(0); //N is SPD
 				}
-
+				
+				
+				
 				num_e_energy.push_back(We);
 				ana_e_energy.push_back(We_a);
 				num_h_energy.push_back(Wh);
 				ana_h_energy.push_back(Wh_a);	
 				del_e_energy.push_back(We_d); //E is SPD
 				del_h_energy.push_back(Wh_d); //N is SPD
-
+				
 				probe_numeric_times.push_back(t);
 			}
 			else
@@ -3799,12 +3797,14 @@ class Discretization
 		t_mesh.tic();
 		double scale = msh.Scale();
 		
+		std::string input_mesh_file = msh.FileName();
+		
 		if (msh.IsLoaded())
 			return true;
 			
 		
 		/* Open file */
-		if (msh.FileName().size() == 0)
+		if (input_mesh_file.size() == 0)
 		{
 			std::cout << "Invalid mesh file name" << std::endl;
 			return false;
@@ -3813,7 +3813,7 @@ class Discretization
 		std::string line;
 		input_line = 1;
 		std::ifstream ReadFile;//(inputfile.c_str());
-		ReadFile.open(msh.FileName().c_str());
+		ReadFile.open(input_mesh_file.c_str());
 		bool in_definition = false;
 		bool geometry_added = false;
 		
@@ -5094,6 +5094,7 @@ class Discretization
 	{	
 		timecounter tc, tctot;
 		double scale = msh.Scale();
+		std::string input_mesh_file = msh.FileName();
 		
 		if (msh.IsLoaded())
 			return true;
@@ -5101,15 +5102,28 @@ class Discretization
 			msh.Switch();
 		
 		/* Open file */
-		if (msh.FileName().size() == 0)
+		if (input_mesh_file.size() == 0)
 		{
 			std::cout << "Invalid mesh file name" << std::endl;
 			return false;
 		}
+
+		if (msh.GetMesher() == "gmsh")
+		{
+			if (!ConvertFromGMSH(input_mesh_file))
+				return false;
+			input_mesh_file = GetBaseFilename(input_mesh_file.c_str()) + std::string(".mesh");
+		}
 		
 		uint32_t	lines, linecount;
 		
-		mapped_file mf(msh.FileName());
+		mapped_file mf(input_mesh_file);
+		
+		// if (msh.GetMesher() == "gmsh")
+		// {
+			// std::ostream dummyo(input_mesh_file.c_str());
+			// dummyo.close();
+		// }
 		
 		// std::cout << " * * * Reading NETGEN format mesh * * * " << std::endl;
 		
@@ -5838,6 +5852,14 @@ class Discretization
 			
 			linecount++;
 		}
+		
+		if (msh.GetMesher() == "gmsh")
+		{
+			std::ofstream dummyo(input_mesh_file.c_str());
+			dummyo << std::endl;
+			dummyo.close();
+		}
+		
 		debug_faces.close();
 		//debug_cage << print_edge(3,0,0,0,0,0,0.01);
 		//debug_cage.close();
@@ -6771,26 +6793,20 @@ class Discretization
 			}
 		}
 
-		U_frac_size = H_size + P_size + Q_size + B_size;
-		F_frac_size = N_size + R_size + S_size;
+		// U_frac_size = H_size + P_size + Q_size + B_size;
+		// F_frac_size = N_size + R_size + S_size;
 		
-		Eigen::SparseMatrix<double> T(surfaces_size(),F_frac_size),Tr(R_size,surfaces_size()),Ts(S_size,surfaces_size());
-		Eigen::SparseMatrix<double> E(edges_size(),edges_size()), N(N_size,surfaces_size()), R(R_size,F_frac_size), S(S_size,S_size), SigMat(edges_size(),edges_size());
+		Eigen::SparseMatrix<double> E(edges_size(),edges_size()), N(surfaces_size(),surfaces_size()), SigMat(edges_size(),edges_size());
 			
 		add_to_sparse ass;
 		overwrite_to_sparse oss;
 		
 		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
-		R.setFromTriplets(R_trip.begin(),R_trip.end(), ass);
-		S.setFromTriplets(S_trip.begin(),S_trip.end(), ass);
-		T.setFromTriplets(T_trip.begin(),T_trip.end(), oss);
-		Tr.setFromTriplets(Tr_trip.begin(),Tr_trip.end(), ass);
-		Ts.setFromTriplets(Ts_trip.begin(),Ts_trip.end(), ass);
 		E.setFromTriplets(E_trip.begin(),E_trip.end(), ass);
-		SigMat.setFromTriplets(Sig_trip.begin(),Sig_trip.end(), ass);
+		// SigMat.setFromTriplets(Sig_trip.begin(),Sig_trip.end(), ass);
 		
 		
-		this->E=std::move(E); this->SigMat=std::move(SigMat);
+		this->E=std::move(E); //this->SigMat=std::move(SigMat);
 		this->N=std::move(N);
 		t_material.toc();
 		// std::cout << "done - " << t_material << " seconds" << std::endl;
