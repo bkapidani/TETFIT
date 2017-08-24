@@ -5855,9 +5855,10 @@ class Discretization
 		
 		if (msh.GetMesher() == "gmsh")
 		{
-			std::ofstream dummyo(input_mesh_file.c_str());
-			dummyo << std::endl;
-			dummyo.close();
+			assert( remove(input_mesh_file.c_str()) == 0); //remove new useless, possibly humungously big file
+			// std::ofstream dummyo(input_mesh_file.c_str());
+			// dummyo << std::endl;
+			// dummyo.close();
 		}
 		
 		debug_faces.close();
