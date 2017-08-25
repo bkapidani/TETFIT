@@ -455,7 +455,10 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << H.nonZeros()+Mp.nonZeros()+P_size+Q.nonZeros()+Mq.nonZeros() << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << N.nonZeros()+R.nonZeros()+Tr.nonZeros()+S.nonZeros()+Ts.nonZeros() << std::endl;
@@ -665,7 +668,10 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << h_mat_fill_in << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << n_mat_fill_in << std::endl;
@@ -848,6 +854,9 @@ class Discretization
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Geom Time step: "  			<< std::setw(20) << geom_t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;	
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U_frac_size+F_frac_size-B_size  		<< std::endl;
 			std::cout << std::setw(20) << "Eps mass fill in: "      << std::setw(20) << h_mat_fill_in << std::endl;
 			std::cout << std::setw(20) << "Mu  mass fill in: "      << std::setw(20) << n_mat_fill_in << std::endl;
@@ -1057,7 +1066,10 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;	
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << solution.size()      		 << std::endl;
 			std::cout << std::setw(20) << "Matrix fill in: "        << std::setw(20) << A.nonZeros()      		 	 << std::endl;
 			std::cout << std::setw(20) << "Max. rel. res. : "       << std::setw(20) << s.Tolerance()     		 	 << std::endl  << std::endl;
@@ -1236,7 +1248,10 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;	
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << solution.size()      		 << std::endl;
 			std::cout << std::setw(20) << "Matrix fill in: "        << std::setw(20) << A.nonZeros()      		 	 << std::endl;
 			std::cout << std::setw(20) << "Max. rel. res. : "       << std::setw(20) << s.Tolerance()     		 	 << std::endl  << std::endl;
@@ -1372,7 +1387,7 @@ class Discretization
 			max_edge_len = Ly > Lx ? Ly : Lx;
 			max_edge_len = Lz > max_edge_len ? Lz : max_edge_len;
 			
-			// double t_step_geom = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
+			double t_step_geom = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
@@ -1387,7 +1402,11 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
+			std::cout << std::setw(20) << "Time step (geometric): " << std::setw(20) << t_step_geom                  << " sec" << std::endl;
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
 			
 			std::cout << "Materials incidence matrix: " << std::endl << this->matad << std::endl << std::endl;
@@ -1513,7 +1532,10 @@ class Discretization
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
-			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;			
+			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;
+			std::cout << std::setw(20) << "Surfaces: "         		<< std::setw(20) << surfaces_size()     		 	 		<< std::endl;
+			std::cout << std::setw(20) << "Edges:    "         		<< std::setw(20) << edges_size()     		 	 			<< std::endl;
+			std::cout << std::setw(20) << "Points:   "				<< std::setw(20) << nodes_size()     		 	 			<< std::endl;
 			std::cout << std::setw(20) << "Unknowns: "         		<< std::setw(20) << U.size()+F.size()      		 << std::endl  << std::endl;
 			
 			std::cout << "Materials incidence matrix: " << std::endl << this->matad << std::endl << std::endl;
