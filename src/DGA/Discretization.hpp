@@ -4012,6 +4012,7 @@ class Discretization
 		std::vector<int32_t> cplus=std::vector<int32_t>({1,-1,1,-1});
 		std::vector<int32_t> cminus=std::vector<int32_t>({-1,1,-1,1});
 		std::vector<uint32_t> boundary_face;
+		std::vector<bool> tbc_surfaces;
 		
 		max_circum_diameter = 0;
 		
@@ -4525,6 +4526,7 @@ class Discretization
 						face_area[D[nv][0]] = area_z;
 						//F.push_back(0);
 						boundary_face.push_back(1); // accordance with netgen
+						tbc_surfaces.push_back(vol_material[nv]);
 					 }
 					 else
 					 {
@@ -4533,6 +4535,7 @@ class Discretization
 						 auto vv1 = abs(Dt[D[nv][0]][0]);
 						 auto vv2 = abs(Dt[D[nv][0]][1]);
 						 boundary_face[D[nv][0]]=matad(vol_material[vv1],vol_material[vv2]);
+						 tbc_surfaces[D[nv][0]]= tbc_surfaces[D[nv][0]] || vol_material[nv];
 					 }	
 					 
 					 if (!C_vec[D[nv][1]].size())
@@ -4548,6 +4551,7 @@ class Discretization
 						face_area[D[nv][1]] = area_y;
 						//F.push_back(0);
 						boundary_face.push_back(5); //accordance with netgen
+						tbc_surfaces.push_back(vol_material[nv]);
 					 }
 					 else
 					 {
@@ -4556,6 +4560,7 @@ class Discretization
 						 auto vv1 = abs(Dt[D[nv][1]][0]);
 						 auto vv2 = abs(Dt[D[nv][1]][1]);
 						 boundary_face[D[nv][1]]=matad(vol_material[vv1],vol_material[vv2]);
+						 tbc_surfaces[D[nv][1]]= tbc_surfaces[D[nv][1]] || vol_material[nv];
 					 }	
 					 
 					 if (!C_vec[D[nv][2]].size())
@@ -4570,6 +4575,7 @@ class Discretization
 						face_area[D[nv][2]] = area_x;					
 						//F.push_back(0);
 						boundary_face.push_back(2); //accordance with netgen
+						tbc_surfaces.push_back(vol_material[nv]);
 					 }
 					 else
 					 {
@@ -4578,6 +4584,7 @@ class Discretization
 						 auto vv1 = abs(Dt[D[nv][2]][0]);
 						 auto vv2 = abs(Dt[D[nv][2]][1]);
 						 boundary_face[D[nv][2]]=matad(vol_material[vv1],vol_material[vv2]);
+						 tbc_surfaces[D[nv][2]]= tbc_surfaces[D[nv][2]] || vol_material[nv];
 					 }	
 					 
 					 if (!C_vec[D[nv][3]].size())
@@ -4592,6 +4599,7 @@ class Discretization
 						face_area[D[nv][3]] = area_x;					
 						//F.push_back(0);
 						boundary_face.push_back(4); //accordance with netgen
+						tbc_surfaces.push_back(vol_material[nv]);
 					 }
 					 else
 					 {
@@ -4600,6 +4608,7 @@ class Discretization
 						 auto vv1 = abs(Dt[D[nv][3]][0]);
 						 auto vv2 = abs(Dt[D[nv][3]][1]);
 						 boundary_face[D[nv][3]]=matad(vol_material[vv1],vol_material[vv2]);
+						 tbc_surfaces[D[nv][3]]= tbc_surfaces[D[nv][3]] || vol_material[nv];
 					 }	
 					 
 					 if (!C_vec[D[nv][4]].size())
@@ -4615,6 +4624,7 @@ class Discretization
 						face_area[D[nv][4]] = area_y;					
 						//F.push_back(0);
 						boundary_face.push_back(3); //accordance with netgen
+						tbc_surfaces.push_back(vol_material[nv]);
 					 }
 					 else
 					 {
@@ -4623,6 +4633,7 @@ class Discretization
 						 auto vv1 = abs(Dt[D[nv][4]][0]);
 						 auto vv2 = abs(Dt[D[nv][4]][1]);
 						 boundary_face[D[nv][4]]=matad(vol_material[vv1],vol_material[vv2]);
+						 tbc_surfaces[D[nv][4]]= tbc_surfaces[D[nv][4]] || vol_material[nv];
 					 }	
 					 
 					 if (!C_vec[D[nv][5]].size())
@@ -4637,6 +4648,7 @@ class Discretization
 						face_area[D[nv][5]] = area_z;					
 						//F.push_back(0);
 						boundary_face.push_back(6); //accordance with netgen
+						tbc_surfaces.push_back(vol_material[nv]);
 					 }
 					 else
 					 {
@@ -4645,7 +4657,8 @@ class Discretization
 						 auto vv1 = abs(Dt[D[nv][5]][0]);
 						 auto vv2 = abs(Dt[D[nv][5]][1]);
 						 boundary_face[D[nv][5]]=matad(vol_material[vv1],vol_material[vv2]);
-					 }	
+						 tbc_surfaces[D[nv][5]]= tbc_surfaces[D[nv][5]] || vol_material[nv];
+					 }
 					
 					if (mu_nv != 0)
 					{
@@ -4699,11 +4712,7 @@ class Discretization
 						average_sigma[E_cluster[nv][11]] += da_x*si_nv; is_ele_lossy[E_cluster[nv][11]]++;
 					}
 					
-					// dual_pts.push_back(pp+0.5*inc_x+0.5*inc_y+0.5*inc_z);
 					nv++;
-					// tripletList.push_back(Q(i,j,nv));
-					// this_col[i]=nv;
-				   // }
 				   
 				   px+=Lx;
 				}

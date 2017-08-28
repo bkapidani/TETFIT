@@ -275,12 +275,12 @@ class Solid
 		Eigen::Vector3d pd = p - center; 
 		dot = pd.dot(size);
 		
-		if( dot < 0.0 || dot > size.norm() )
+		if( dot < -1e-12 || dot > (size.squaredNorm()+1e-12) )
 			return false;
 
-		dsq = pd.squaredNorm() - dot*dot/size.norm();
+		dsq = pd.squaredNorm() - dot*dot/size.squaredNorm();
 
-		if( dsq > squareradius )
+		if( dsq > (squareradius+1e-12) )
 			return false;
 		
 		return true;
