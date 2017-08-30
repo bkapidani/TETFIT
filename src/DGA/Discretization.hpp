@@ -50,6 +50,7 @@ class Discretization
 		std::ifstream ReadFile;//(inputfile.c_str());
 		ReadFile.open(inputfile.c_str());
 		bool in_definition = false;
+		// bool freq_not_set = true;
 		// bool mesh_added = false;
 		
 		
@@ -147,7 +148,14 @@ class Discretization
 						else if (thing_being_defined == "mesh")
 							Meshes[definition_label].SetParam(input_line,tok,val);
 						else if (thing_being_defined == "source")
+						{
 							Sources[definition_label].SetParam(input_line,tok,val);
+							// if (freq_not_set && tok == "frequency")
+							// {
+								// this->excitation_freq = std::stod(val);
+								// freq_not_set = false;
+							// }
+						}
 						else if (thing_being_defined == "simulation")
 						{
 							Simulations[definition_label].SetParam(input_line,tok,val);
@@ -258,7 +266,7 @@ class Discretization
 		
 		DateAndTime();
 		bool probes_out_of_mesh = false;
-		
+		bool dipoles_out_of_mesh = false;
 		std::cout << "Preprocessing... ";
 		std::cout.flush();
 		
@@ -266,6 +274,7 @@ class Discretization
 		t_preproc.tic();
 		
 		current_simulation = sim_label;
+		this->excitation_freq = Sources[*(Simulations[current_simulation].Src().begin())].GetFreq();
 		// auto sim_sources = s.Src();
 		auto m = Meshes[s.MeshLabel()];
 		auto o = &Outputs[s.Output()];
@@ -309,7 +318,10 @@ class Discretization
 		}
 		FlushMesh();
 		loaded_mesh_label = s.MeshLabel();
+		
+		/***********************************MESH PARSING************************************/
 		ReadMesh(m);
+		/***********************************MESH PARSING************************************/
 		
 		have_analytic = s.HaveAnalytic();
 		
@@ -380,6 +392,78 @@ class Discretization
 
 			}
 			
+			for (auto p = Simulations[current_simulation].Src().begin(); p != Simulations[current_simulation].Src().end(); ++p)
+			{
+				if (Sources[*p].Type() == "j")
+				{
+					auto pv = Sources[*p].Location();
+
+					uint32_t elem_index; 
+					if (meth != "fdtd" && meth != "fdtdo2")
+					{
+						elem_index = FindProbe(pv);
+						if (elem_index < volumes_size()) //probe is in mesh
+						{
+							auto ptt = std::get<0>(volumes[elem_index]);
+							
+							auto ed_p = nte_list[ptt].begin();
+							auto ed_e = abs(*ed_p);
+							auto ed_d = (edge_barycenter(ed_e)-pv).norm();
+							while (++ed_p != nte_list[ptt].end())
+							{
+								auto ed_dnew = (edge_barycenter(abs(*ed_p))-pv).norm();
+								if ( ed_dnew < ed_d)
+								{
+									ed_d = ed_dnew;
+									ed_e = abs(*ed_p);
+								}
+							}
+							
+							// if (edge_src[ed_e].size() == 0)
+							// {
+								edge_src[ed_e].push_back(*p);
+							// }
+						}
+						else 
+							dipoles_out_of_mesh = true;
+
+					}
+					else
+					{
+						elem_index = FindFitProbe(pv);
+						if (elem_index < volumes_size()) //probe is in mesh
+						{
+							uint32_t ed_p=0;
+							auto ed_e = E_cluster[elem_index][ed_p];
+							auto ed_d = (edge_barycenter(ed_e)-pv).norm();
+							while (++ed_p < 12)
+							{
+								auto ed_dnew = (edge_barycenter(E_cluster[elem_index][ed_p])-pv).norm();
+								if ( ed_dnew < ed_d)
+								{
+									ed_d = ed_dnew;
+									ed_e = E_cluster[elem_index][ed_p];
+								}
+							}
+							
+
+								// if (!src_edges.size() || src_edges.back() != ed_e)
+								// {
+								if (edge_src[ed_e].size() == 0)
+								{
+									src_edges.push_back(ed_e);
+								}
+								
+								edge_src[ed_e].push_back(*p);
+								// }
+
+						}
+						else 
+							dipoles_out_of_mesh = true;
+					}
+				}
+			}
+			
 			if (mod_out == "maxerror")
 			{
 				probe_numeric_Exvalues.push_back(dummy_probe);
@@ -443,10 +527,12 @@ class Discretization
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -544,15 +630,24 @@ class Discretization
 					}
 					else if (edge_src[ee].size()>0)
 					{
-						I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
-						
-						if (Sources[*(edge_src[ee].begin())].Type() == "h" )
-							Fb[bnd_edges[ee]] = ComputeHfieldSource(ee,current_time - 0.5*t_step);
+						// I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
+						auto exc_type = Sources[*(edge_src[ee].begin())].Type();
+						if ( exc_type == "h" )
+							Fb[bnd_edges[ee]] = ComputeHfieldSource(ee,current_time - 0.5*t_step);	
 						else
 						{
-							auto usrc = ComputeEfieldSource(ee, current_time/* - t_step*/);
-							U(ee) = usrc;
-						
+							double usrc;
+							if (exc_type == "j" )
+							{
+								usrc = ComputeCurrentSource(ee,current_time);
+								U(ee) = usrc;
+							}
+							else
+							{
+								usrc = ComputeEfieldSource(ee, current_time/* - t_step*/);
+								U(ee) = usrc;
+							}
+							
 							for (auto ii : associated_h_edges[ee])
 							{
 								U_a[ii] = usrc;
@@ -656,10 +751,12 @@ class Discretization
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -840,10 +937,12 @@ class Discretization
 			double geom_t_step = estimate_time_step_bound();
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -1054,10 +1153,12 @@ class Discretization
 			auto Fb_old = Fb;
 			
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1078,17 +1179,21 @@ class Discretization
 			{
 				if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
 				{
-					U[ee] = ComputeEdgeBC(ee,0);
+					U[ee] = ComputeEdgeBC(ee,current_time);
 					SrcFld[ee] = U[ee];
 				}
 				else if (edge_src[ee].size()>0)
 				{
-					// I[ee] = ComputeCurrentSource(ee,0.5*t_step); //Still don't know what to make of this!
-
-					// if (bnd_edges[ee]>=0)
-						// Fb[ee] = ComputeHfieldSource(ee,0.5*t_step);
-					U[ee] = ComputeEfieldSource(ee, 0);
-					SrcFld[ee] = U[ee];
+					auto exc_type = Sources[*(edge_src[ee].begin())].Type();
+					// I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
+					if (exc_type != "h")
+					{						
+						if (exc_type == "j")
+							U(ee) = ComputeCurrentSource(ee, current_time);
+						else
+							U(ee) = ComputeEfieldSource(ee, current_time);
+						SrcFld[ee] = U[ee];
+					}
 				}
 			}
 			
@@ -1122,15 +1227,22 @@ class Discretization
 					}
 					else if (edge_src[ee].size()>0)
 					{
-						I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
-						if (bnd_edges[ee]>=0)
+						auto exc_type = Sources[*(edge_src[ee].begin())].Type();
+						// I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
+						if (exc_type == "h" && bnd_edges[ee]>=0)
 						{
 							Fb[bnd_edges[ee]] = ComputeHfieldSource(ee,current_time - 0.5*t_step);
 							// if (Fb[bnd_edges[ee]] != 0)
 								// std::cout << "Fb[bnd_edges[" << ee << "]] = " << Fb[bnd_edges[ee]] << std::endl;
 						}
-						U[ee] = ComputeEfieldSource(ee, current_time);
-						SrcFld[ee] = U[ee];
+						else
+						{						
+							if (exc_type == "j")
+								U(ee) = ComputeCurrentSource(ee, current_time);
+							else
+								U(ee) = ComputeEfieldSource(ee, current_time);
+							SrcFld[ee] = U(ee);
+						}
 					}
 				}
 				
@@ -1236,10 +1348,12 @@ class Discretization
 			auto Fb_old = Fb;
 			
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1260,17 +1374,21 @@ class Discretization
 			{
 				if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
 				{
-					U[ee] = ComputeEdgeBC(ee,0);
+					U[ee] = ComputeEdgeBC(ee,current_time);
 					SrcFld[ee] = U[ee];
 				}
 				else if (edge_src[ee].size()>0)
 				{
-					// I[ee] = ComputeCurrentSource(ee,0.5*t_step); //Still don't know what to make of this!
-
-					// if (bnd_edges[ee]>=0)
-						// Fb[bnd_edges[ee]] = ComputeHfieldSource(ee,0.5*t_step);
-					U[ee] = ComputeEfieldSource(ee, 0);
-					SrcFld[ee] = U[ee];
+					auto exc_type = Sources[*(edge_src[ee].begin())].Type();
+					// I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
+					if (exc_type != "h")
+					{						
+						if (exc_type == "j")
+							U(ee) = ComputeCurrentSource(ee, current_time);
+						else
+							U(ee) = ComputeEfieldSource(ee, current_time);
+						SrcFld[ee] = U[ee];
+					}
 				}
 			}
 			
@@ -1304,15 +1422,22 @@ class Discretization
 					}
 					else if (edge_src[ee].size()>0)
 					{
-						I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
-						if (bnd_edges[ee]>=0)
+						auto exc_type = Sources[*(edge_src[ee].begin())].Type();
+						// I[ee] = ComputeCurrentSource(ee,current_time - 0.5*t_step);
+						if (exc_type == "h" && bnd_edges[ee]>=0)
 						{
 							Fb[bnd_edges[ee]] = ComputeHfieldSource(ee,current_time - 0.5*t_step);
 							// if (Fb[bnd_edges[ee]] != 0)
 								// std::cout << "Fb[bnd_edges[" << ee << "]] = " << Fb[bnd_edges[ee]] << std::endl;
 						}
-						U[ee] = ComputeEfieldSource(ee, current_time);
-						SrcFld[ee] = U[ee];
+						else
+						{						
+							if (exc_type == "j")
+								U(ee) = ComputeCurrentSource(ee, current_time);
+							else
+								U(ee) = ComputeEfieldSource(ee, current_time);
+							SrcFld[ee] = U(ee);
+						}
 					}
 				}
 				
@@ -1391,10 +1516,12 @@ class Discretization
 			
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl     << "Simulation parameters:" 	<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1431,8 +1558,11 @@ class Discretization
 				
 				for (auto j : src_edges)
 				{
-					I(j) = ComputeCurrentSource(j,current_time - 0.5*t_step)/*-ComputeHfieldSource(j,current_time - 0.5*t_step)*/;
-					U(j) = ComputeEfieldSource(j, current_time);
+					auto exc_type = Sources[*(edge_src[j].begin())].Type();
+					if (exc_type == "j")
+						U(j) = ComputeCurrentSource(j, current_time);
+					else
+						U(j) = ComputeEfieldSource(j, current_time);
 					// std::cout << "Edge " << j << " is dirichlet: " << U(j) << std::endl;
 				}
 				tdbg.toc();
@@ -1474,7 +1604,9 @@ class Discretization
 				
 				tdbg.tic();
 				F_old=F;
-				for (uint32_t j=0; j<F.size(); ++j)
+				// for (uint32_t j=0; j<F.size(); ++j)
+				// {
+				for (auto j : this->tbc_surfaces)
 				{
 					B(j) = (M_mu[j]*F_old(j) - t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
 					F(j) =  M_nu[j]*B(j);
@@ -1521,10 +1653,12 @@ class Discretization
 			// t_step *= s.Courant();
 			N_of_steps=simulation_time/t_step;
 			t_preproc.toc();
-			std::cout << "done (" << t_preproc << " seconds)" << std::endl;
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+			if (dipoles_out_of_mesh)
+				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl     << "Simulation parameters:" 	<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1563,9 +1697,11 @@ class Discretization
 					U(j) = ComputeEdgeBC(j,current_time/*-t_step*/);
 				for (auto j : src_edges)
 				{
-					// std::cout << "where does it come" << std::endl;
-					I(j) = ComputeCurrentSource(j,current_time + 0.5*t_step)/*-ComputeHfieldSource(j,current_time - 0.5*t_step)*/;
-					U(j) = ComputeEfieldSource(j, current_time/*-t_step*/);
+					auto exc_type = Sources[*(edge_src[j].begin())].Type();
+					if (exc_type == "j")
+						U(j) = ComputeCurrentSource(j, current_time);
+					else
+						U(j) = ComputeEfieldSource(j, current_time/*-t_step*/);
 					// std::cout << "where does it go" << std::endl;
 				}
 				// std::cout << "i suspect i will see this" << std::endl;
@@ -1657,7 +1793,7 @@ class Discretization
 			os.open(ss.str().c_str());
 			osh.open(ssh.str().c_str());
 			
-			if (have_analytic)
+			if (have_analytic != "false")
 			{
 				os_a.open(sa.str().c_str());
 				os_ah.open(sah.str().c_str());
@@ -1685,7 +1821,7 @@ class Discretization
 					osh << std::setw(15) << probe_numeric_Hzvalues[p][k];			
 					osh << std::endl;
 					
-					if (have_analytic)
+					if (have_analytic != "false")
 					{
 						os_a << std::setw(15) << probe_points[p](0) 						<< " ";
 						os_a << std::setw(15) << probe_points[p](1) 						<< " ";
@@ -1711,7 +1847,7 @@ class Discretization
 			os.close();
 			osh.close();
 			
-			if (have_analytic)
+			if (have_analytic != "false")
 			{
 				os_a.close();
 				os_ah.close();
@@ -1733,7 +1869,7 @@ class Discretization
 			os.open(ss.str().c_str());
 			osh.open(ssh.str().c_str());
 			
-			if (have_analytic)
+			if (have_analytic != "false")
 			{
 				os_a.open(sa.str().c_str());
 				os_ah.open(sah.str().c_str());
@@ -1761,7 +1897,7 @@ class Discretization
 					osh << std::setw(15) << probe_numeric_Hzvalues[0][k];			
 					osh << std::endl;
 					
-					if (have_analytic)
+					if (have_analytic != "false")
 					{
 						os_a << std::setw(15) << error_points[2*k](0) 						<< " ";
 						os_a << std::setw(15) << error_points[2*k](1) 						<< " ";
@@ -1787,7 +1923,7 @@ class Discretization
 			os.close();
 			osh.close();
 			
-			if (have_analytic)
+			if (have_analytic != "false")
 			{
 				os_a.close();
 				os_ah.close();
@@ -1973,26 +2109,26 @@ class Discretization
 				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
 				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-				if (have_analytic)
+				if (have_analytic != "false")
 				{
 					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 					if (analsrctype == "h")
 					{
-						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+						anal_value1 = analytic_value_excite_h(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
-						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
+						anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					else if (analsrctype == "e")
 					{
 						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 
 				}
@@ -2030,26 +2166,26 @@ class Discretization
 				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
 				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-				if (have_analytic)
+				if (have_analytic != "false")
 				{
 					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 					if (analsrctype == "h")
 					{
-						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+						anal_value1 = analytic_value_excite_h(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
-						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
+						anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					else if (analsrctype == "e")
 					{
 						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					
 					Eigen::Vector3d vol_error_e = (anal_value1.first-num_ele).cwiseAbs();
@@ -2201,20 +2337,20 @@ class Discretization
 					auto vol_begin = abs(ftv_list[p][0]);
 					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
 					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-					if (have_analytic)
+					if (have_analytic != "false")
 					{
 						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 						if (analsrctype == "h")
 						{
-							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+							anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 						else if (analsrctype == "e")
 						{
 							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															      Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 
 					}
@@ -2230,20 +2366,20 @@ class Discretization
 					auto vol_begin = abs(ftv_list[abs(edg_face)][0]);
 					SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
 					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-					if (have_analytic)
+					if (have_analytic != "false")
 					{
 						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 						if (analsrctype == "h")
 						{
-							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+							anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 						else if (analsrctype == "e")
 						{
 							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															      Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 
 					}
@@ -2332,20 +2468,20 @@ class Discretization
 					auto vol_begin = abs(ftv_list[p][0]);
 					SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
 					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-					if (have_analytic)
+					if (have_analytic != "false")
 					{
 						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 						if (analsrctype == "h")
 						{
-							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+							anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 						else if (analsrctype == "e")
 						{
 							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															      Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 
 					}
@@ -2369,26 +2505,26 @@ class Discretization
 					SpaceTimePoint stp2 = SpaceTimePoint({pt2(0),pt2(1),pt2(2),t});
 					auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 					auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-					if (have_analytic)
+					if (have_analytic != "false")
 					{
 						auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 						if (analsrctype == "h")
 						{
-							anal_value1 = analytic_value(stp1,Materials[vol_material[vol_begin]].Sigma(),
+							anal_value1 = analytic_value_excite_h(stp1,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9);
-							anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq);
+							anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 						else if (analsrctype == "e")
 						{
 							anal_value1 = analytic_value_old(stp1,Materials[vol_material[vol_begin]].Sigma(),
 																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9);
+															      Materials[vol_material[vol_begin]].Mu(),this->excitation_freq);
 							anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 																  Materials[vol_material[vol_begin]].Epsilon(),
-															      Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															      Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 						}
 					}
 					
@@ -2575,26 +2711,26 @@ class Discretization
 				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
 				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-				if (have_analytic)
+				if (have_analytic != "false")
 				{
 					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 					if (analsrctype == "h")
 					{
-						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+						anal_value1 = analytic_value_excite_h(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
-						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
+						anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					else if (analsrctype == "e")
 					{
 						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 				}
 				analytic_e_value_vector[p].push_back(anal_value1);
@@ -2622,26 +2758,26 @@ class Discretization
 				SpaceTimePoint stp2 = SpaceTimePoint({probe_points[p][0],probe_points[p][1],probe_points[p][2],t+0.5*t_step});
 				auto anal_value1 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-				if (have_analytic)
+				if (have_analytic != "false")
 				{
 					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 					if (analsrctype == "h")
 					{
-						anal_value1 = analytic_value(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
+						anal_value1 = analytic_value_excite_h(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
-						anal_value2 = analytic_value(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
+						anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					else if (analsrctype == "e")
 					{
 						anal_value1 = analytic_value_old(stp,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 						anal_value2 = analytic_value_old(stp2,Materials[vol_material[probe_elem[p]]].Sigma(),
 														   Materials[vol_material[probe_elem[p]]].Epsilon(),
-														   Materials[vol_material[probe_elem[p]]].Mu(),5e9); //BIG HACK!
+														   Materials[vol_material[probe_elem[p]]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 				}
 				
@@ -2786,20 +2922,20 @@ class Discretization
 				auto vol_begin = abs(Dt[p][0]);
 				SpaceTimePoint stp2 = SpaceTimePoint({face_barycenter(p)(0),face_barycenter(p)(1),face_barycenter(p)(2),t+0.5*t_step});
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-				if (have_analytic)
+				if (have_analytic != "false")
 				{
 					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 					if (analsrctype == "h")
 					{
-						anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+						anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[vol_begin]].Sigma(),
 														  Materials[vol_material[vol_begin]].Epsilon(),
-														  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+														  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					else if (analsrctype == "e")
 					{
 						anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 
 				}
@@ -2835,20 +2971,20 @@ class Discretization
 				auto vol_begin = abs(Dt[abs(edg_face)][0]);
 				SpaceTimePoint stp2 = SpaceTimePoint({edge_barycenter(p)(0),edge_barycenter(p)(1),edge_barycenter(p)(2),t});
 				auto anal_value2 = std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({0,0,0}),Eigen::Vector3d({0,0,0}));
-				if (have_analytic)
+				if (have_analytic != "false")
 				{
 					auto analsrctype = Sources[*(Simulations[current_simulation].Src().begin())].Type();
 					if (analsrctype == "h")
 					{
-						anal_value2 = analytic_value(stp2,Materials[vol_material[vol_begin]].Sigma(),
+						anal_value2 = analytic_value_excite_h(stp2,Materials[vol_material[vol_begin]].Sigma(),
 														  Materials[vol_material[vol_begin]].Epsilon(),
-														  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+														  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 					else if (analsrctype == "e")
 					{
 						anal_value2 = analytic_value_old(stp2,Materials[vol_material[vol_begin]].Sigma(),
 															  Materials[vol_material[vol_begin]].Epsilon(),
-															  Materials[vol_material[vol_begin]].Mu(),5e9); //BIG HACK!
+															  Materials[vol_material[vol_begin]].Mu(),this->excitation_freq); //BIG HACK!
 					}
 
 				}
@@ -2999,6 +3135,7 @@ class Discretization
 	
 	uint32_t FindFitProbe(const Eigen::Vector3d& pv)
 	{
+		double tol = 1e-12;
 		uint32_t v = root;
 		std::vector<uint32_t> colour(volumes_size()), p_queue;
 		uint32_t k, j, qtop;
@@ -3018,9 +3155,9 @@ class Discretization
 			auto pp = pts[P_cluster[v][0]];
 			
 			Eigen::Vector3d diff = pv - pp;
-			auto check1 = (diff(0)>=0 && diff(0) < Lx);
-			auto check2 = (diff(1)>=0 && diff(1) < Ly);
-			auto check3 = (diff(2)>=0 && diff(2) < Lz);
+			auto check1 = (diff(0)>=-tol && diff(0) < Lx+tol);
+			auto check2 = (diff(1)>=-tol && diff(1) < Ly+tol);
+			auto check3 = (diff(2)>=-tol && diff(2) < Lz+tol);
 			
 			if (check1 && check2 && check3)
 			{
@@ -3053,6 +3190,7 @@ class Discretization
 	
 	uint32_t FindProbe(const Eigen::Vector3d& pv)
 	{
+		double tol = 1e-12;
 		uint32_t v = root;
 		std::vector<uint32_t> colour(volumes_size()), p_queue;
 		uint32_t k, j, qtop;
@@ -3101,7 +3239,7 @@ class Discretization
 					 
 			double det1 = mat1.determinant();
 			
-			auto check1 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
+			auto check1 = ((det0>= -tol &&  det1 >= -tol) || (det0<= tol &&  det1 <= tol));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     pv(0), pv(1), pv(2), 1,
@@ -3109,7 +3247,7 @@ class Discretization
 				     v4(0), v4(1), v4(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check2 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
+			auto check2 = ((det0>= -tol &&  det1 >= -tol) || (det0<= tol &&  det1 <= tol));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     v2(0), v2(1), v2(2), 1,
@@ -3117,7 +3255,7 @@ class Discretization
 				     v4(0), v4(1), v4(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check3 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
+			auto check3 = ((det0>= -tol &&  det1 >= -tol) || (det0<= tol &&  det1 <= tol));
 			
 			mat1 <<  v1(0), v1(1), v1(2), 1,
 				     v2(0), v2(1), v2(2), 1,
@@ -3125,7 +3263,7 @@ class Discretization
 				     pv(0), pv(1), pv(2), 1;
 					 
 			det1 = mat1.determinant();
-			auto check4 = ((det0>= 0 &&  det1 >= 0) || (det0<= 0 &&  det1 <= 0));
+			auto check4 = ((det0>= -tol &&  det1 >= -tol) || (det0<= tol &&  det1 <= tol));
 			
 			if (check1 && check2 && check3 && check4)
 			{
@@ -3372,12 +3510,17 @@ class Discretization
 		}
 		
 		// std::cout << "Visited loop " << counter << " times!" << std::endl;
-		
+		Eigen::Vector3d edg_vec;
 		// std::cout << "-------------" << std::endl << vector_val[1] << std::endl;
 		if (Meshes[loaded_mesh_label].GetMeshType() == "tetrahedral")
-			return vector_val.dot(pts[abs(etn_list[e][1])]-pts[abs(etn_list[e][0])]);
+		{
+			edg_vec = pts[abs(etn_list[e][1])]-pts[abs(etn_list[e][0])];
+		}
 		else
-			return vector_val.dot(pts[G[e][1]]-pts[G[e][0]]);
+		{
+			edg_vec = pts[G[e][1]]-pts[G[e][0]];
+		}
+		return (double(1)/edg_vec.norm())*vector_val.dot(edg_vec);
 	}
 
 	std::pair<double,double> ComputeFracCurrentSource(uint32_t e, double t)
@@ -3424,12 +3567,18 @@ class Discretization
 		// std::cout << "Visited loop " << counter << " times!" << std::endl;
 		
 		// std::cout << "-------------" << std::endl << vector_val[1] << std::endl;
+		Eigen::Vector3d edg_vec;
 		if (Meshes[loaded_mesh_label].GetMeshType() == "tetrahedral")
-			return std::make_pair(0.5*vector_val1.dot(pts[abs(etn_list[e][1])]-pts[abs(etn_list[e][0])]),
-								  0.5*vector_val2.dot(pts[abs(etn_list[e][1])]-pts[abs(etn_list[e][0])]));
+		{
+			edg_vec = 0.5*(pts[abs(etn_list[e][1])]-pts[abs(etn_list[e][0])]);
+		}
 		else
-			return std::make_pair(0.5*vector_val1.dot(pts[G[e][1]]-pts[G[e][0]]),
-								  0.5*vector_val2.dot(pts[G[e][1]]-pts[G[e][0]]));
+		{
+			edg_vec = 0.5*(pts[G[e][1]]-pts[G[e][0]]);
+		}
+		
+		return std::make_pair((double(1)/edg_vec.norm())*vector_val1.dot(edg_vec),
+							  (double(1)/edg_vec.norm())*vector_val2.dot(edg_vec));
 	}
 
 	double ComputeHfieldSource(uint32_t e, double t)
@@ -3950,15 +4099,15 @@ class Discretization
 		uint32_t nv,nf,ne,np;
 		nv=nf=ne=np=0;
 		
-		auto xmin = msh.GetXmin();
-		auto ymin = msh.GetYmin();
-		auto zmin = msh.GetZmin();
-		Lx	 = msh.GetXstep();
-		Ly   = msh.GetYstep();
-		Lz   = msh.GetZstep();
-		xmax = msh.GetXmax();
-		ymax = msh.GetYmax();
-		zmax = msh.GetZmax();		
+		auto xmin = scale*msh.GetXmin();
+		auto ymin = scale*msh.GetYmin();
+		auto zmin = scale*msh.GetZmin();
+		Lx	 = scale*msh.GetXstep();
+		Ly   = scale*msh.GetYstep();
+		Lz   = scale*msh.GetZstep();
+		xmax = scale*msh.GetXmax();
+		ymax = scale*msh.GetYmax();
+		zmax = scale*msh.GetZmax();		
 		
 		
 		auto px = xmin;
@@ -4750,6 +4899,8 @@ class Discretization
 		for (uint32_t i=0; i<nf; ++i)
 		{
 			N_vec(i) = average_ni[i]/face_area[i];
+			if (tbc_surfaces[i])
+				this->tbc_surfaces.push_back(i);
 		}
 		
 		for (uint32_t i=0; i<ne; ++i)
@@ -4787,7 +4938,7 @@ class Discretization
 							if (src.Surface() == bid)
 							{
 								// debug_faces << print_face(2,face_label,true,255,0,0);
-								if (src.Type() == "e" || src.Type() == "j")
+								if (src.Type() == "e")
 								{
 									if (break_cond == 2)
 										break;
@@ -6484,7 +6635,7 @@ class Discretization
 				bool is_dirich=false;
 				for (auto esrc : edge_src[i] )
 				{
-					if (Sources[esrc].Type() == "e")
+					if (Sources[esrc].Type() == "e" || Sources[esrc].Type() == "j")
 					{
 						is_dirich = true;
 						break;
@@ -6872,7 +7023,7 @@ class Discretization
 				bool is_dirich=false;
 				for (auto esrc : edge_src[i] )
 				{
-					if (Sources[esrc].Type() == "e")
+					if (Sources[esrc].Type() == "e" || Sources[esrc].Type() == "j")
 					{
 						is_dirich = true;
 						break;
@@ -7238,7 +7389,7 @@ class Discretization
 		timecounter t_spec; t_spec.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep();
 		t_spec.toc();
-		std::cout << std::endl<< "Time step computation took " << t_spec << " seconds" << std::endl;
+		// std::cout << std::endl<< "Time step computation took " << t_spec << " seconds" << std::endl;
 		
 		Eigen::SparseMatrix<double> SysMat(E.rows(),E.cols());
 		if (SigMat.nonZeros()>0)
@@ -8046,7 +8197,7 @@ class Discretization
 				bool is_dirich=false;
 				for (auto esrc : edge_src[i] )
 				{
-					if (Sources[esrc].Type() == "e")
+					if (Sources[esrc].Type() == "e" || Sources[esrc].Type() == "j")
 					{
 						is_dirich = true;
 						break;
@@ -8451,7 +8602,7 @@ class Discretization
 		timecounter t_spec; t_spec.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,this->N,this->Einv);
 		t_spec.toc();
-		std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
+		// std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
 		
 		Eigen::SparseMatrix<double> SysMat(E.rows(),E.cols());
 		// if (SigMat.nonZeros()>0)
@@ -9776,7 +9927,7 @@ class Discretization
 		timecounter t_spec; t_spec.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
 		t_spec.toc();
-		std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
+		// std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
 		n_mat_fill_in = 0;
 		for (uint32_t vv=0; vv < volumes_size(); ++vv)
 		{
@@ -10469,9 +10620,9 @@ class Discretization
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;
 	std::vector<cluster_list> 					Dt;
-	double                                      t_step, min_h, average_diameter, max_rel_err, max_circum_diameter, max_edge_len;
+	double                                      t_step, min_h, average_diameter, excitation_freq, max_rel_err, max_circum_diameter, max_edge_len;
 	double										Lx,Ly,Lz;
-	bool										have_analytic;
+	std::string									have_analytic;
 	uint32_t									loaded_mesh_label, current_simulation, method_line, root;
 	// std::string									method_line;
 	// stuff for cartesian mesh
@@ -10486,7 +10637,7 @@ class Discretization
 	std::vector<std::array<uint32_t, 12>>		E_cluster;
 	std::vector<std::array<uint32_t, 8>>		P_cluster;
 	std::vector<int32_t> 						curl, dual_curl;
-	std::vector<uint32_t> 						src_edges, common_edges, uncommon_edges, bc_edges;
+	std::vector<uint32_t> 						src_edges, common_edges, uncommon_edges, bc_edges, tbc_surfaces;
 	std::vector<double> 						M_nu, M_h, M_q, M_e, M_mu;
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;

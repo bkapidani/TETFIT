@@ -44,8 +44,10 @@
 		freq  	= 0;
 		radius   = 1;
 		width = 1;
+		impedance = 50; //Ohm (only real allowed for now)
 		kvec[0] = kvec[1] = kvec[2] = 0;
-		st      = "j";
+		location[0] = location[1] = location[2] = 0;
+		st      = " ";
 		bfuncs[0] = bfuncs[1] = bfuncs[2] = "cos";
 		center_coords[0] = center_coords[1] = center_coords[2] = 0;
 		surface_label   = 0;
@@ -167,6 +169,45 @@
 					MyThrow(input_line,too_few_coords);
 			}
 		}
+		else if (param == "location")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k < 3)
+						{
+							location[k]= std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+					
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+		}
 		else if (param == "mode")
 		{
 			auto  i = value.begin();
@@ -233,6 +274,8 @@
 		}
 		else if (param == "amplitude")
 			this->amp = std::stod(value);
+		else if (param == "impedance")
+			this->impedance = std::stod(value);
 		else if (param == "frequency")
 			this->freq = std::stod(value);
 		else if (param == "radius")
@@ -259,10 +302,13 @@
 	const WaveNumber&	Getkz(void) { return kvec[2]; }
 	const Frequency&	GetFreq(void) { return freq; }
 	const Amplitude&	GetAmp(void) { return amp; }
+	const Eigen::Vector3d& Location(void) { return location; }
 	
 	Eigen::Vector3d Compute(SpaceTimePoint p) //returns a vector, so one can use superposition of sources
 	{
 		double ret=amp; // if the source is dc, we are already done!
+		if (st == "j")
+			ret *= impedance;
 		/*Time profile of source*/
 		if (carrier == "sin")
 			ret *= sin(2*PI*freq*p[3]); 
@@ -316,9 +362,10 @@
 	Carrier carrier;
 	Frequency freq;
 	Amplitude amp;
-	double    radius, width;
+	double    radius, width, impedance;
 	Direction dir;
 	WaveVector kvec, center_coords;
+	Eigen::Vector3d location;
 	std::array<BaseFunction,3> bfuncs;
 	uint32_t surface_label;
 	bool is_set;

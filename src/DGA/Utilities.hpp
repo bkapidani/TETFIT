@@ -361,7 +361,7 @@ void MyThrow(uint32_t input_line, const std::runtime_error& e)
 	throw e;
 }
 
-std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
+std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_excite_h(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
 {
 	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
 	double c = 1/sqrt(eps*mu);
