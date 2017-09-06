@@ -1,5 +1,6 @@
 /* file bessel.h */
 #include <gsl/gsl_sf_bessel.h>
+#include <gsl/gsl_sf_legendre.h>
 #include <gsl/gsl_integration.h>
 #include <stdio.h>
 #include <stdlib.h>

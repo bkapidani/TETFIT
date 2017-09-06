@@ -43,6 +43,7 @@
 		amp   	= 0;
 		freq  	= 0;
 		radius   = 1;
+		decay   = 0;
 		width = 1;
 		impedance = 50; //Ohm (only real allowed for now)
 		kvec[0] = kvec[1] = kvec[2] = 0;
@@ -50,7 +51,7 @@
 		st      = " ";
 		bfuncs[0] = bfuncs[1] = bfuncs[2] = "cos";
 		center_coords[0] = center_coords[1] = center_coords[2] = 0;
-		surface_label   = 0;
+		surface_label.resize(0);
 	}
 	
 	
@@ -233,8 +234,8 @@
 						if (k < 3)
 						{
 							
-							if (std::find(modes.begin(),modes.end(),coord) == modes.end())
-								MyThrow(input_line,src_unknown_bf);
+							// if (std::find(modes.begin(),modes.end(),coord) == modes.end())
+								// MyThrow(input_line,src_unknown_bf);
 							
 							bfuncs[k] = coord;
 							k++;
@@ -280,6 +281,8 @@
 			this->freq = std::stod(value);
 		else if (param == "radius")
 			this->radius = std::stod(value);
+		else if (param == "decay")
+			this->decay = std::stod(value);
 		else if (param == "width")
 			this->width = std::stod(value);
 		else if (param == "kx")
@@ -289,13 +292,13 @@
 		else if (param == "kz")
 			this->kvec[2] = std::stod(value);
 		else if (param == "surface")
-			this->surface_label = std::stod(value);
+			this->surface_label.push_back(std::stoi(value));
 		else
 			MyThrow(input_line,src_unknown_parameter);
 	}
 	
 	const Sourcetype& 	Type(void) { return st; }
-	const uint32_t&     Surface(void) { return surface_label; } 
+	const std::vector<uint32_t>&     Surface() { return surface_label; } 
 	const Direction& 	GetDirection(void) { return dir; }
 	const WaveNumber&	Getkx(void) { return kvec[0]; }
 	const WaveNumber&	Getky(void) { return kvec[1]; }
@@ -319,41 +322,245 @@
 		else if (carrier == "ricker")
 			ret *= (1 - 2*std::pow(PI*freq*(p[3]-1/freq),2))*exp(-std::pow(PI*freq*(p[3]-(1/freq)),2));
 			
+		if (decay != 0)
+			ret *= std::pow(std::pow(p[0]-center_coords[0],2)+
+							std::pow(p[1]-center_coords[1],2)+
+							std::pow(p[2]-center_coords[2],2),-0.5*decay);
 		
 		/*Spatial profile of source*/
-		if (prof == "gaussian")
+		if (dir == "rho" || dir == "theta" || dir == "phi")
 		{
-			double exponent = - ((std::pow(p[0]-center_coords[0],2)+
-			                      std::pow(p[1]-center_coords[1],2)+
-							      std::pow(p[2]-center_coords[2],2))/std::pow(radius,2));
-			ret *= exp(exponent);
-		}
-		else if (prof == "wave")
-		{
-			// std::cout << "Fai la cosa giusta" << std::endl;
-			
-			for (uint8_t j=0; j<3; j++)
+			Eigen::Vector3d rtf1(0,0,0), rtf2(0,0,0);
+			if (p[0] != 0 || p[1] != 0 || p[2] != 0)
 			{
-				if (bfuncs[j] == "sin")
-					ret *= sin(2*PI*kvec[j]*(p[j]-center_coords[j]));
-				else
-				{
-					ret *= cos(2*PI*kvec[j]*(p[j]-center_coords[j]));
-				}
-				
-				// std::cout << ret << std::endl;
+				rtf1[0] = std::sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+				rtf1[1] = std::acos(p[2]/rtf1[0]);
+				rtf1[2] = std::atan2(p[1],p[0]);
 			}
+			
+			if (center_coords[0] != 0 || center_coords[1] != 0 || center_coords[2] != 0)
+			{
+				rtf2[0] = std::sqrt(center_coords[0]*center_coords[0]+center_coords[1]*center_coords[1]+center_coords[2]*center_coords[2]);
+				rtf2[1] = std::acos(center_coords[2]/rtf2[0]);
+				rtf2[2] = std::atan2(center_coords[1],center_coords[0]);
+			}
+			
+			if (prof == "gaussian")
+			{
+				double exponent = - ((std::pow(p[0]-center_coords[0],2)+
+									  std::pow(p[1]-center_coords[1],2)+
+									  std::pow(p[2]-center_coords[2],2))/std::pow(radius,2));
+				ret *= exp(exponent);
+			}
+			else if (prof == "wave")
+			{
+				gsl_sf_result res;
+				double nu;
+				int lambda, status;
+				for (uint8_t j=0; j<3; j++)
+				{
+					switch(bfuncs[j][0])
+					{
+						case 'J' : //cylindrical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_Jn_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'Y' : //modified cylindrical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_Yn_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'j' : //spherical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_jl_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'y' : //modified spherical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_yl_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'P' : //Legendre polynomials
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_legendre_Pl_e(lambda,cos(kvec[j]*(rtf1[j]-rtf2[j])),&res);
+							ret *=res.val;
+							break;
+						}
+						default  : 
+						{
+							if (bfuncs[j] == "sin")
+								ret *= sin(kvec[j]*(rtf1[j]-rtf2[j]));
+							else if (bfuncs[j] == "cos")
+							{
+								ret *= cos(kvec[j]*(rtf1[j]-rtf2[j]));
+							}
+							
+							break;
+						}
+					}
+				}
+			}
+			
+			if (dir == "rho")
+				return Eigen::Vector3d({sin(rtf1[1])*cos(rtf1[2])*ret,sin(rtf1[1])*sin(rtf1[2])*ret,cos(rtf1[1])*ret});
+			else if (dir == "theta")
+				return Eigen::Vector3d({ rtf1[0]*cos(rtf1[1])*cos(rtf1[2])*ret,rtf1[0]*cos(rtf1[1])*sin(rtf1[2])*ret,-rtf1[0]*sin(rtf1[2])*ret});
+			else if (dir == "phi")
+				return Eigen::Vector3d({-rtf1[0]*sin(rtf1[1])*sin(rtf1[2])*ret,rtf1[0]*sin(rtf1[1])*cos(rtf1[2])*ret,0});
 		}
-		
-		/*One candle one direction of R^3 per source!
-		  For arbitrarily oriented sources, 
-		  use the principle of superposition, i.e. define another source...*/
-		if (dir == "x")
-			return Eigen::Vector3d({ret,0,0});
-		else if (dir == "y")
-			return Eigen::Vector3d({0,ret,0});
+		else if (dir == "r" || dir == "psi")
+		{
+			Eigen::Vector3d rtf1(0,0,0), rtf2(0,0,0);
+			if (p[0] != 0 || p[1] != 0 || p[2] != 0)
+			{
+				rtf1[0] = std::sqrt(p[0]*p[0]+p[1]*p[1]);
+				if (p[0]==0 && p[1] == 0)
+					rtf1[1] = 0;
+				else if (p[0]>=0)
+					rtf1[1] =  std::asin(p[1]/rtf1[0]);
+				else
+					rtf1[1] = -std::asin(p[1]/rtf1[0])+PI;
+				rtf1[2] = p[2];
+			}
+			
+			if (center_coords[0] != 0 || center_coords[1] != 0 || center_coords[2] != 0)
+			{
+				rtf2[0] = std::sqrt(center_coords[0]*center_coords[0]+center_coords[1]*center_coords[1]);
+				if (center_coords[0]==0 && center_coords[1] == 0)
+					rtf2[1] = 0;
+				else if (p[0]>=0)
+					rtf2[1] =  std::asin(center_coords[1]/rtf2[0]);
+				else
+					rtf2[1] = -std::asin(center_coords[1]/rtf2[0])+PI;
+				// std::cout << "theta = " << rtf1[1]/PI*180 << std::endl;
+				rtf2[2] = center_coords[2];
+			}
+			
+			if (prof == "gaussian")
+			{
+				double exponent = - ((std::pow(p[0]-center_coords[0],2)+
+									  std::pow(p[1]-center_coords[1],2)+
+									  std::pow(p[2]-center_coords[2],2))/std::pow(radius,2));
+				ret *= exp(exponent);
+			}
+			else if (prof == "wave")
+			{
+				// std::cout << "Fai la cosa giusta" << std::endl;
+				gsl_sf_result res;
+				double nu;
+				int lambda, status;
+				for (uint8_t j=0; j<3; j++)
+				{
+					switch(bfuncs[j][0])
+					{
+						case 'J' : //cylindrical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_Jn_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'Y' : //modified cylindrical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_Yn_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'j' : //spherical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_jl_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'y' : //modified spherical bessel f.
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_bessel_yl_e(lambda,kvec[j]*(rtf1[j]-rtf2[j]),&res);
+							ret *=res.val;
+							break;
+						}
+						case 'P' : //Legendre polynomials
+						{
+							lambda = std::stoi(tail(bfuncs[j],bfuncs[j].size()-1));
+							status = gsl_sf_legendre_Pl_e(lambda,cos(kvec[j]*(rtf1[j]-rtf2[j])),&res);
+							ret *=res.val;
+							break;
+						}
+						default  : 
+						{
+							if (bfuncs[j] == "sin")
+								ret *= sin(kvec[j]*(rtf1[j]-rtf2[j]));
+							else if (bfuncs[j] == "cos")
+							{
+								ret *= cos(kvec[j]*(rtf1[j]-rtf2[j]));
+							}
+							
+							break;
+						}
+					}
+				}
+			}
+			
+			if (dir == "r")
+			{
+				// std::cout << "----------------------------------------------------------" << std::endl;
+				// std::cout << p[0] << '\t' << p[1] << '\t' << p[2] << std::endl;
+				// std::cout << rtf1[0] << '\t' << 180*rtf1[1]/PI << '\t' << rtf1[2] << std::endl;
+				return Eigen::Vector3d({cos(rtf1[1])*ret, sin(rtf1[1])*ret,0});
+			}
+			else if (dir == "psi")
+				return Eigen::Vector3d({ -rtf1[0]*sin(rtf1[1])*ret, rtf1[0]*cos(rtf1[1])*ret, 0});
+			else if (dir == "z")
+				return Eigen::Vector3d({0,0,ret});
+		}
 		else
-			return Eigen::Vector3d({0,0,ret});
+		{
+			if (prof == "gaussian")
+			{
+				double exponent = - ((std::pow(p[0]-center_coords[0],2)+
+									  std::pow(p[1]-center_coords[1],2)+
+									  std::pow(p[2]-center_coords[2],2))/std::pow(radius,2));
+				ret *= exp(exponent);
+			}
+			else if (prof == "wave")
+			{
+				// std::cout << "Fai la cosa giusta" << std::endl;
+				
+				for (uint8_t j=0; j<3; j++)
+				{
+					if (bfuncs[j] == "sin")
+						ret *= sin(kvec[j]*(p[j]-center_coords[j]));
+					else if (bfuncs[j] == "cos")
+					{
+						ret *= cos(kvec[j]*(p[j]-center_coords[j]));
+					}
+					
+					// std::cout << ret << std::endl;
+				}
+			}
+			
+			/*One candle one direction of R^3 per source!
+			  For arbitrarily oriented sources, 
+			  use the principle of superposition, i.e. define another source...*/
+			if (dir == "x")
+				return Eigen::Vector3d({ret,0,0});
+			else if (dir == "y")
+				return Eigen::Vector3d({0,ret,0});
+			else
+				return Eigen::Vector3d({0,0,ret});
+		}
 	}
 	
 	private:
@@ -362,12 +569,12 @@
 	Carrier carrier;
 	Frequency freq;
 	Amplitude amp;
-	double    radius, width, impedance;
+	double    radius, decay, width, impedance;
 	Direction dir;
 	WaveVector kvec, center_coords;
 	Eigen::Vector3d location;
 	std::array<BaseFunction,3> bfuncs;
-	uint32_t surface_label;
+	std::vector<uint32_t> surface_label;
 	bool is_set;
 	// double (*foo)();
 };

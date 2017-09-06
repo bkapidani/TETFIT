@@ -46,6 +46,7 @@ class Output
 		xstart = ystart = zstart = 0;
 		xstop  = ystop  = zstop  = 0;
 		xstep  = ystep  = zstep  = 0;
+		ref_sys = 0; //cartesian coordinates
 		// silo_instant = 0;
 	}
 	
@@ -64,6 +65,17 @@ class Output
 		}
 		else if (param == "radiator")
 			radiating_vol_bnd.push_back(std::stof(value));
+		else if (param == "coordinates")
+		{
+			if (value == "cartesian")
+				ref_sys = 0;
+			else if (value == "cylindrical")
+				ref_sys = 1;
+			else if (value == "spherical")
+				ref_sys = 2;
+			else
+				MyThrow(input_line,sim_invalid_coord_system);
+		}
 		else if (param == "probe")
 		{
 			Eigen::Vector3d new_probepoint;
@@ -311,6 +323,7 @@ class Output
 	}
 	
 	const uint32_t Nprobes(void) const { return probepoints.size(); }
+	const uint8_t ReferenceFrame(void) const { return ref_sys; }
 	const double& Period(void) const { return output_period; }
 	// const double& Instant(void) const { return silo_instant; }
 	const std::string& Name(void) const { return name; }
@@ -330,4 +343,5 @@ class Output
 	double output_period;
 	std::vector<Eigen::Vector3d> probepoints;
 	OutputMode mode;
+	uint8_t ref_sys;
 };

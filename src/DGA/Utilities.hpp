@@ -263,7 +263,7 @@ const std::vector<SolidType>							solidtypes		= {"sphere","box","cylinder"};
 const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j", "h", "d" };
 const std::vector<Profile>   							profiles   		= { "wave", "gaussian", "const" };
 const std::vector<Carrier>   							carriers   		= { "sin", "cos", "gaussian", "dc", "ricker" };
-const std::vector<Direction>    						directions    	= { "x", "y", "z" };
+const std::vector<Direction>    						directions    	= { "x", "y", "z", "r", "psi", "rho", "phi", "theta" };
 const std::vector<BaseFunction> 						modes 			= { "sin", "cos" };
 const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
@@ -298,6 +298,7 @@ const std::runtime_error sim_unknown_method(std::string("Undefined simulation me
 const std::runtime_error sim_unknown_solver(std::string("Unavailable solver! Available: cg, agmg"));
 const std::runtime_error sim_unknown_parameter(std::string("Undefined simulation parameter! Available: source, mesh, duration, output"));
 const std::runtime_error out_unknown_parameter(std::string("Undefined output parameter! Available: mode, period, probe, name"));
+const std::runtime_error sim_invalid_coord_system(std::string("Invalid system of coordinates! Available: cartesian, cylindrical, spherical"));
 const std::runtime_error set_wo_define(std::string("define something before setting variables"));
 const std::runtime_error unknown_define(std::string("can only define material, mesh, boundary condition, simulation, output, source"));
 const std::runtime_error grid_unknown_define(std::string("Unknown primivite: can only define solid inside cartesian meshes"));
@@ -334,6 +335,13 @@ StringType GetBaseFilename(const char *filename)
     return fName.substr(0, pos);
 }
 
+std::string tail(std::string const& source, size_t const length) 
+{
+	if (length >= source.size())
+		return source;
+	return source.substr(source.size() - length);
+} // tail
+
 class add_to_sparse 
 {
 	public:
@@ -359,6 +367,13 @@ void MyThrow(uint32_t input_line, const std::runtime_error& e)
 {
 	std::cout << "Input file error at line " << input_line << ": " << e.what() << std::endl;
 	throw e;
+}
+
+void DateAndTime(void)
+{
+	using namespace date;
+	using namespace std::chrono;
+	std::cout << "On " << system_clock::now() << '\n';
 }
 
 std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_excite_h(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
@@ -554,4 +569,118 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_old(SpaceTimePoint p, 
 	double ez_double = 0;
 	
 	return std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Eigen::Vector3d({ex_double,ey_double,ez_double}),Eigen::Vector3d({hx_double,hy_double,hz_double}));
+}
+
+std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
+{
+	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
+	double rho   = std::sqrt(std::pow(x,2)+std::pow(y,2));
+	double theta;
+	
+	if (x==0 && y == 0)
+		theta = 0;
+	else if (x>=0)
+		theta = std::asin(y/rho);
+	else
+		theta = -std::asin(y/rho)+PI;
+	
+	double k1 = -207.84727995444730376134397098783; 	//HARD CODED: change if geometry, frequency or material parameters change
+	double k2 =   87.296645428299512314918079813159;	//HARD CODED: change if geometry, frequency or material parameters change
+
+	double c = 1/sqrt(eps*mu);
+	double ra=  5e-2;
+	double rb= 10e-2;
+	double az=  6e-1;
+	double ksi = sigma/eps/2;
+	
+	double alph1 = std::pow(c*k1,2);
+	double alph2 = 0.25*pow(sigma/eps,2);
+	
+	if (rho > ra)
+		alph1 = std::pow(c*k2,2);
+	
+	double alpha;
+	bool flag = true;
+	if (alph1>alph2)
+	{
+		flag = true;
+		alpha =  sqrt(alph1-alph2);
+	}
+	else
+	{
+		flag = false;
+		alpha = sqrt(alph2-alph1);
+	}
+	
+	double a1, a2, a3, a4, a5, a6;
+	int32_t j;
+	// i=j=0;
+	a1=a2=a3=a4=a5=a6=0;
+	
+	/******************************HX******************************************************/
+	j=0;
+	while (true)
+	{
+		double k = (z + 2*az*j) / c;
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
+		{
+			a1 += inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a3 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			a5 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	j=0;
+	while (true)
+	{
+		double k = (2*az*j + 2*az - z) / c;
+		// if ((t-k) > 1e-8*k)
+		if (t > k + 1e-18)
+		{
+			a2 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
+			a4 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			a6 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
+		}
+		else
+			break;
+		j++;
+	}
+	
+	Eigen::Matrix3d Mconvert;
+	
+	Mconvert << cos(theta), -rho*sin(theta), 0,
+			 	sin(theta),  rho*cos(theta), 0,
+				0,           0,              1;
+	
+	Eigen::Vector3d h_cylindric(0,0,0), e_cylindric(0,0,0);
+
+	if (rho <= ra)
+	{
+		e_cylindric = Eigen::Vector3d({gsl_sf_bessel_J1(k1*rho)*(a1+a2),0,k1*c*gsl_sf_bessel_J0(k1*rho)*(a3+a4)});
+		h_cylindric = Eigen::Vector3d({0,sqrt(eps/mu)*gsl_sf_bessel_J1(k1*rho)*(a5+a6),0});
+	}
+	else
+	{
+		double const_coeff = (k1/k2)*gsl_sf_bessel_J0(k1*ra)/(gsl_sf_bessel_J0(k2*ra)*gsl_sf_bessel_Y0(k2*rb)-gsl_sf_bessel_J0(k2*rb)*gsl_sf_bessel_Y0(k2*ra));
+		// std::cout << "Amp2_1 = " <<  const_coeff*gsl_sf_bessel_Y0(k2*rb) << std::endl;
+		// std::cout << "Amp2_2 = " << -const_coeff*gsl_sf_bessel_J0(k2*rb) << std::endl;
+		e_cylindric=Eigen::Vector3d({(gsl_sf_bessel_Y0(k2*rb)*gsl_sf_bessel_J1(k2*rho)-gsl_sf_bessel_J0(k2*rb)*gsl_sf_bessel_Y1(k2*rho))*(a1+a2),
+		                              0,
+									  k2*c*(gsl_sf_bessel_Y0(k2*rb)*gsl_sf_bessel_J0(k2*rho)-gsl_sf_bessel_J0(k2*rb)*gsl_sf_bessel_Y0(k2*rho))*(a3+a4)});
+		h_cylindric=Eigen::Vector3d({ 0, 
+		                              sqrt(eps/mu)*(gsl_sf_bessel_Y0(k2*rb)*gsl_sf_bessel_J1(k2*rho)-gsl_sf_bessel_J0(k2*rb)*gsl_sf_bessel_Y1(k2*rho))*(a5+a6),
+									  0});
+		e_cylindric *= const_coeff;
+		h_cylindric *= const_coeff;
+	}
+
+	
+	// Eigen::Vector3d h_cartesian = Mconvert*h_cylindric;
+	// Eigen::Vector3d e_cartesian = Mconvert*e_cylindric;
+	
+	return std::make_pair<Eigen::Vector3d,Eigen::Vector3d>(Mconvert*e_cylindric,Mconvert*h_cylindric);
 }
