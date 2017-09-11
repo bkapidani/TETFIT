@@ -257,7 +257,7 @@ typedef std::vector<Point> 										PointVector;
 typedef Seb::Smallest_enclosing_ball<double> 					Miniball;
 		
 //lists of allowed string constants
-const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry","output"};
+const std::vector<Primitive>							definables		= {"material","source","mesh","bc","simulation","geometry","output","refinement"};
 const std::vector<Primitive>							meshdefinables	= {"grid","solid"};
 const std::vector<SolidType>							solidtypes		= {"sphere","box","cylinder"};
 const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j", "h", "d" };
@@ -293,14 +293,15 @@ const std::runtime_error mesh_unknown_type(std::string("Undefined mesh type! Ava
 const std::runtime_error mesh_inexistent_file(std::string("Mesh input file does not exist or it is not in specified path"));
 const std::runtime_error mesh_unknown_mesher(std::string("Undefined mesher! Available: netgen, gmsh"));
 const std::runtime_error mesh_unknown_parameter(std::string("Undefined mesh parameter! Available: file, name, type, mesher, scalefactor"));
-const std::runtime_error sim_unknown_output(std::string("Undefined output mode type! Available: silo, probepoint, maxerror"));
-const std::runtime_error sim_unknown_method(std::string("Undefined simulation method! Available: fit, dga, fem"));
+const std::runtime_error ref_unknown_parameter(std::string("Undefined refinement parameter! Available: x, y, z, vector"));
+const std::runtime_error sim_unknown_output(std::string("Undefined output mode type! Available: silo, probepoint, maxerror, l2norm"));
+const std::runtime_error sim_unknown_method(std::string("Undefined simulation method! Available: fdtd, dga, fem"));
 const std::runtime_error sim_unknown_solver(std::string("Unavailable solver! Available: cg, agmg"));
 const std::runtime_error sim_unknown_parameter(std::string("Undefined simulation parameter! Available: source, mesh, duration, output"));
 const std::runtime_error out_unknown_parameter(std::string("Undefined output parameter! Available: mode, period, probe, name"));
 const std::runtime_error sim_invalid_coord_system(std::string("Invalid system of coordinates! Available: cartesian, cylindrical, spherical"));
 const std::runtime_error set_wo_define(std::string("define something before setting variables"));
-const std::runtime_error unknown_define(std::string("can only define material, mesh, boundary condition, simulation, output, source"));
+const std::runtime_error unknown_define(std::string("can only define one of the following: material, mesh, refinement, boundary condition, simulation, output, source"));
 const std::runtime_error grid_unknown_define(std::string("Unknown primivite: can only define solid inside cartesian meshes"));
 const std::runtime_error end_wo_define(std::string("ending unopened definition"));
 const std::runtime_error unknown_instruction(std::string("Unknown instruction inside define block"));
@@ -309,7 +310,7 @@ const std::runtime_error out_of_bounds_freq(std::string("Output frequency must b
 const std::runtime_error solid_unknown_parameter(std::string("Unrecognized solid parameter! Available: type, radius, center, corner, size"));
 const std::runtime_error solid_unknown_type(std::string("Unavailable solid type! Available: sphere, box, cylinder"));
 const std::runtime_error solid_negative_value(std::string("Positive definite quantity forced to negative value!"));
-const std::runtime_error incompatible_meth_mesh(std::string("If mesh type is tetrahedral, method must be fem or dga. If mesh type is cartesian, method must be fit"));
+const std::runtime_error incompatible_meth_mesh(std::string("If mesh type is tetrahedral, method must be fem or dga. If mesh type is cartesian, method must be fdtd"));
 
 std::string mesh_throw_preamble("In cartesian mesh definition file: ");
 

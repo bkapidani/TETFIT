@@ -262,3 +262,96 @@ class Mesh
 	double scalefactor;
 	double xmin,xmax,ymin,ymax,zmin,zmax,xstep,ystep,zstep,L,volume; //used only when mesh type is cartesian
 };
+
+class Refinement
+{
+	public:
+	Refinement()
+	{
+		xref = 1;
+		yref = 1;
+		zref = 1;
+	}
+	
+	void SetParam(uint32_t input_line, std::string param, std::string value)
+	{
+		if (param == "vector")
+		{
+			// double xmin,xstep,xmax;
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k == 0)
+						{
+							xref = std::stod(coord);
+							k++;
+						}
+						else if (k == 1)
+						{
+							yref = std::stod(coord);
+							k++;
+						}
+						else if (k == 2)
+						{
+							zref = std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+					
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+
+			assert(xref >= 1);
+			assert(yref >= 1);
+			assert(zref >= 1);
+		}
+		else if (param == "x")
+		{
+			xref = std::stod(value);
+			assert(xref >= 1);
+		}
+		else if (param == "y")
+		{
+			yref = std::stod(value);
+			assert(yref >= 1);
+		}
+		else if (param == "z")
+		{
+			zref = std::stod(value);
+			assert(zref >= 1);
+		}
+		else
+			MyThrow(input_line,ref_unknown_parameter);
+	}
+	
+	const double& X(void) { return xref; }
+	const double& Y(void) { return yref; }
+	const double& Z(void) { return zref; }
+	
+	private:
+	double xref,yref,zref;
+};

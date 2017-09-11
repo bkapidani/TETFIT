@@ -84,7 +84,6 @@ class Discretization
 								MyThrow(input_line,unknown_define);
 							else
 							{
-								
 								thing_being_defined = tok;
 								definition_label = std::stod(val);
 								in_definition = true;
@@ -95,6 +94,8 @@ class Discretization
 									BCs[definition_label]=BoundaryCondition();
 								else if (thing_being_defined == "mesh")
 									Meshes[definition_label]=Mesh();
+								else if (thing_being_defined == "refinement")
+									Refinements[definition_label]=Refinement();
 								else if (thing_being_defined == "source")
 									Sources[definition_label]=Source();
 								else if (thing_being_defined == "simulation")
@@ -147,6 +148,8 @@ class Discretization
 							BCs[definition_label].SetParam(input_line,tok,val);
 						else if (thing_being_defined == "mesh")
 							Meshes[definition_label].SetParam(input_line,tok,val);
+						else if (thing_being_defined == "refinement")
+							Refinements[definition_label].SetParam(input_line,tok,val);
 						else if (thing_being_defined == "source")
 						{
 							Sources[definition_label].SetParam(input_line,tok,val);
@@ -189,13 +192,14 @@ class Discretization
 		root = 0;
 		input_line = 1;
 		
-		this->Materials = disc.Materials;
-		this->BCs = disc.BCs;
-		this->Meshes = disc.Meshes;
-		this->Sources = disc.Sources;
-		this->Simulations = disc.Simulations;
-		this->Outputs = disc.Outputs;
-		this->Solids = disc.Solids;
+		this->Materials 	= disc.Materials;
+		this->BCs 			= disc.BCs;
+		this->Meshes 		= disc.Meshes;
+		this->Sources 		= disc.Sources;
+		this->Simulations 	= disc.Simulations;
+		this->Outputs 		= disc.Outputs;
+		this->Solids 		= disc.Solids;
+		this->Refinements	= disc.Refinements;
 	}
 
 	void Run(void)
@@ -3660,6 +3664,12 @@ class Discretization
 		ymax = scale*msh.GetYmax();
 		zmax = scale*msh.GetZmax();		
 		
+		for (auto refref : this->Refinements)
+		{
+			Lx /= refref.second.X();
+			Ly /= refref.second.Y();
+			Lz /= refref.second.Z();
+		}
 		
 		auto px = xmin;
 		auto py = ymin;
@@ -9048,6 +9058,7 @@ class Discretization
 	std::map<uint32_t,BoundaryCondition>		BCs;
 	std::map<uint32_t,Mesh>						Meshes;
 	std::map<uint32_t,Solid>					Solids;
+	std::map<uint32_t,Refinement>				Refinements;
 	
 	private:
 	uint32_t									input_line, h_mat_fill_in, n_mat_fill_in;
