@@ -1143,7 +1143,7 @@ class Discretization
 			std::cout << "Materials incidence matrix: " << std::endl << this->matad << std::endl << std::endl;
 			
 			uint32_t Nxy = Nx*Ny;
-			std::ofstream bnd_debug_os("h_sul_duale_di_bordo.dat");
+			// std::ofstream bnd_debug_os("h_sul_duale_di_bordo.dat");
 			
 			for (i=0; i*t_step <= simulation_time; ++i)
 			{
@@ -1236,7 +1236,7 @@ class Discretization
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
 			
-			bnd_debug_os.close();
+			// bnd_debug_os.close();
 		}
 
 		meshlock.unlock(); //unlock the access to the meshes map
