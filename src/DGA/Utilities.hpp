@@ -380,9 +380,12 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_excite_h(SpaceTimePoin
 {
 	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
 	double c = 1/sqrt(eps*mu);
-	double ax=5e-2;
-	double az=10e-2;
-	double ay=2.5e-2; //momentarily useless
+	// double ax=5e-2;
+	// double az=10e-2;
+	// double ay=2.5e-2; //momentarily useless
+	double ax=1;
+	double az=1;
+	double ay=1; //momentarily useless
 	double ksi = sigma/eps/2;
 	double alph1 = pow(PI*c/ax,2);
 	double alph2 = 0.25*pow(sigma/eps,2);
@@ -496,9 +499,12 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_old(SpaceTimePoint p, 
 {
 	auto x = p[0]; auto y = p[1]; auto z = p[2]; auto t = p[3];
 	double c = 1/sqrt(eps*mu);
-	double ax=5e-2;
-	double az=10e-2;
-	double ay=2.5e-2; //momentarily useless
+	// double ax=5e-2;
+	// double az=10e-2;
+	// double ay=2.5e-2; //momentarily useless
+	double ax=1;
+	double az=1;
+	double ay=1; //momentarily useless
 	double ksi = sigma/eps/2;
 	double alph1 = pow(PI*c/ax,2);
 	double alph2 = 0.25*pow(sigma/eps,2);
@@ -588,9 +594,9 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, 
 	double k2 =   87.296645428299512314918079813159;	//HARD CODED: change if geometry, frequency or material parameters change
 
 	double c = 1/sqrt(eps*mu);
-	double ra=  5e-2;
-	double rb= 10e-2;
-	double az=  6e-1;
+	double ra=  0.05;
+	double rb=  0.1;
+	double az=  0.6;
 	double ksi = sigma/eps/2;
 	
 	double alph1 = std::pow(c*k1,2);
@@ -598,6 +604,13 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, 
 	
 	if (rho > ra)
 		alph1 = std::pow(c*k2,2);
+	
+	// if (rho > ra)
+	// {
+		// std::cout << "rho = " << rho << std::endl;
+		// std::cout << "c = " << c << std::endl;
+		// std::cout << "k = " << k2 << std::endl;
+	// }
 	
 	double alpha;
 	bool flag = true;
@@ -642,7 +655,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, 
 		if (t > k + 1e-18)
 		{
 			a2 -= inverse_laplace_transform_hx(t,k, alpha, ksi, c, freq, flag);
-			a4 -= inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
+			a4 += inverse_laplace_transform_hz(t,k, alpha, ksi, c, freq, flag);
 			a6 += inverse_laplace_transform_ey(t,k, alpha, ksi, c, freq, flag);
 		}
 		else
@@ -658,7 +671,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, 
 	
 	Eigen::Vector3d h_cylindric(0,0,0), e_cylindric(0,0,0);
 
-	if (rho <= ra)
+	if (rho < ra)
 	{
 		e_cylindric = Eigen::Vector3d({gsl_sf_bessel_J1(k1*rho)*(a1+a2),0,k1*c*gsl_sf_bessel_J0(k1*rho)*(a3+a4)});
 		h_cylindric = Eigen::Vector3d({0,sqrt(eps/mu)*gsl_sf_bessel_J1(k1*rho)*(a5+a6),0});

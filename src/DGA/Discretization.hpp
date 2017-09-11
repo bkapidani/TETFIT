@@ -3215,12 +3215,16 @@ class Discretization
 		Eigen::Vector3d vector_val(0,0,0);
 		uint32_t counter = 0;
 		
+		// std::cout << "-------------------------------------" << std::endl;
 		for (auto src : edge_src[e])
 		{
 			counter++;
+			// for (auto pippo : Sources[src].Surface())
+				// std::cout << "(" << src << ", " << pippo << ")\t";
 			if (Sources[src].Type() == "e")
 				vector_val += Sources[src].Compute(p);
 		}
+		// std::cout << std::endl << "-------------------------------------" << std::endl;
 		
 		// std::cout << "Visited loop " << counter << " times!" << std::endl;
 		

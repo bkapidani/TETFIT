@@ -399,10 +399,10 @@
 						default  : 
 						{
 							if (bfuncs[j] == "sin")
-								ret *= sin(kvec[j]*(rtf1[j]-rtf2[j]));
+								ret *= sin(2*PI*kvec[j]*(rtf1[j]-rtf2[j]));
 							else if (bfuncs[j] == "cos")
 							{
-								ret *= cos(kvec[j]*(rtf1[j]-rtf2[j]));
+								ret *= cos(2*PI*kvec[j]*(rtf1[j]-rtf2[j]));
 							}
 							
 							break;
@@ -501,10 +501,10 @@
 						default  : 
 						{
 							if (bfuncs[j] == "sin")
-								ret *= sin(kvec[j]*(rtf1[j]-rtf2[j]));
+								ret *= sin(2*PI*kvec[j]*(rtf1[j]-rtf2[j]));
 							else if (bfuncs[j] == "cos")
 							{
-								ret *= cos(kvec[j]*(rtf1[j]-rtf2[j]));
+								ret *= cos(2*PI*kvec[j]*(rtf1[j]-rtf2[j]));
 							}
 							
 							break;
@@ -541,10 +541,10 @@
 				for (uint8_t j=0; j<3; j++)
 				{
 					if (bfuncs[j] == "sin")
-						ret *= sin(kvec[j]*(p[j]-center_coords[j]));
+						ret *= sin(2*PI*kvec[j]*(p[j]-center_coords[j]));
 					else if (bfuncs[j] == "cos")
 					{
-						ret *= cos(kvec[j]*(p[j]-center_coords[j]));
+						ret *= cos(2*PI*kvec[j]*(p[j]-center_coords[j]));
 					}
 					
 					// std::cout << ret << std::endl;
