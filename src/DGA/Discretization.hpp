@@ -2651,8 +2651,8 @@ class Discretization
 			auto Hanalytic = Eigen::VectorXd(surfaces_size());
 			auto Eanalytic = Eigen::VectorXd(edges_size());
 			std::ostringstream sos;
-			sos << "error_on_sources_at_ts" << i << ".dat";
-			std::ofstream os_debug(sos.str().c_str());
+			// sos << "error_on_sources_at_ts" << i << ".dat";
+			// std::ofstream os_debug(sos.str().c_str());
 			for (uint32_t p=0; p<surfaces_size(); ++p)
 			{
 				
@@ -2757,7 +2757,7 @@ class Discretization
 			}
 			// std::cout << "------------------------------------------------------------------------" << std::endl;
 			
-			os_debug.close();
+			// os_debug.close();
 			
 			double We, Wh, We_a, Wh_a, We_d, Wh_d;
 			
