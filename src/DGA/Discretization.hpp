@@ -4436,8 +4436,8 @@ class Discretization
 			 pz+=Lz;
 		}
 
-		t_step *= Simulations[current_simulation].Courant();
-		std::cout << "CFL time step = " << t_step << std::endl;
+		// t_step *= Simulations[current_simulation].Courant();
+		// std::cout << "CFL time step = " << t_step << std::endl;
 		std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
 		std::vector<std::vector<uint32_t>> dumb_face(surfaces_size());
 		std::vector<uint32_t> dumb(edges_size(),0);
