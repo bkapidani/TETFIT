@@ -600,11 +600,11 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, 
 	double az=  0.6;
 	double ksi = sigma/eps/2;
 	
-	double alph1 = std::pow(c*k1,2);
+	double alph1 = std::pow(c*k2,2);
 	double alph2 = 0.25*pow(sigma/eps,2);
 	
-	if (rho > ra)
-		alph1 = std::pow(c*k2,2);
+	if (c < 0.5*c0)
+		alph1 = std::pow(c*k1,2);
 	
 	// if (rho > ra)
 	// {
@@ -672,7 +672,7 @@ std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_cyl(SpaceTimePoint p, 
 	
 	Eigen::Vector3d h_cylindric(0,0,0), e_cylindric(0,0,0);
 
-	if (rho < ra)
+	if (c < 0.5*c0)
 	{
 		e_cylindric = Eigen::Vector3d({gsl_sf_bessel_J1(k1*rho)*(a1+a2),0,k1*c*gsl_sf_bessel_J0(k1*rho)*(a3+a4)});
 		h_cylindric = Eigen::Vector3d({0,sqrt(eps/mu)*gsl_sf_bessel_J1(k1*rho)*(a5+a6),0});

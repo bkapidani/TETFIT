@@ -421,7 +421,7 @@
 		else if (dir == "r" || dir == "psi")
 		{
 			Eigen::Vector3d rtf1(0,0,0), rtf2(0,0,0);
-			if (p[0] != 0 || p[1] != 0 || p[2] != 0)
+			if (p[0] != 0 || p[1] != 0)
 			{
 				rtf1[0] = std::sqrt(p[0]*p[0]+p[1]*p[1]);
 				if (p[0]==0 && p[1] == 0)
@@ -430,8 +430,10 @@
 					rtf1[1] =  std::asin(p[1]/rtf1[0]);
 				else
 					rtf1[1] = -std::asin(p[1]/rtf1[0])+PI;
-				rtf1[2] = p[2];
+				
 			}
+			
+			rtf1[2] = p[2];
 			
 			if (center_coords[0] != 0 || center_coords[1] != 0 || center_coords[2] != 0)
 			{
@@ -443,8 +445,10 @@
 				else
 					rtf2[1] = -std::asin(center_coords[1]/rtf2[0])+PI;
 				// std::cout << "theta = " << rtf1[1]/PI*180 << std::endl;
-				rtf2[2] = center_coords[2];
+				
 			}
+			
+			rtf2[2] = center_coords[2];
 			
 			if (prof == "gaussian")
 			{

@@ -264,12 +264,14 @@ class Discretization
 		DateAndTime();
 		bool probes_out_of_mesh = false;
 		bool dipoles_out_of_mesh = false;
-		std::cout << "Preprocessing... ";
-		std::cout.flush();
+
 		
 		timecounter t_preproc;
-		t_preproc.tic();
-		
+		// std::cout << "Preprocessing... ";
+		// std::cout.flush();
+		// t_preproc.tic();
+		// t_preproc.toc();
+		// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 		current_simulation = sim_label;
 		this->excitation_freq = Sources[*(Simulations[current_simulation].Src().begin())].GetFreq();
 		// auto sim_sources = s.Src();
@@ -317,7 +319,9 @@ class Discretization
 		loaded_mesh_label = s.MeshLabel();
 		
 		/***********************************MESH PARSING************************************/
+		
 		ReadMesh(m);
+		
 		/***********************************MESH PARSING************************************/
 		
 		have_analytic = s.HaveAnalytic();
@@ -336,6 +340,9 @@ class Discretization
 			// is_bnd_of_antenna[bnds] = true;
 		// }
 		
+		std::cout << "Preparing output... ";
+		std::cout.flush();
+		t_preproc.tic();
 		if ( mod_out == "probepoint" || mod_out == "maxerror")
 		{
 			// std::cout << "ci sono" << std::endl;
@@ -473,6 +480,7 @@ class Discretization
 			}
 		}
 		
+		
 		double step_time_average=0;
 		uint64_t i;
 		uint32_t N_of_steps;
@@ -481,6 +489,8 @@ class Discretization
 		export_time_average=bcs_time_average=mag_time_average=ele_time_average=iter_time_average=0;
 		bool store_E = (mod_out == "l2norm")? true : false;
 		
+		t_preproc.toc();
+		std::cout << " ...done (" << t_preproc << " seconds)" << std::endl;
 		// if (store_E && meth == "dga")
 		// {
 			// meth = "fraco2"; //to get the actual energy norm, we need to use the fully fractured grid
@@ -488,8 +498,17 @@ class Discretization
 		// }
 		// Actual simulation!
 		if (meth == "dga")
-		{				
+		{	
+			std::cout << "Setting up system... ";
+			std::cout.flush();
+			t_preproc.tic();
+			
 			ConstructCodecasaMaterialMatrices();
+			
+			t_preproc.toc();
+			std::cout << " ...done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
+			
+			
 			if (store_E)
 				ConstructerrorFEMaterialMatrices(s.Courant());
 				
@@ -522,8 +541,8 @@ class Discretization
 			Eigen::Map<Eigen::VectorXd> Old_F_a(start_of_old_f,N_size), Old_F_b(start_of_old_f+N_size,R_size), Old_F_c(start_of_old_u+N_size+R_size,S_size);
 			
 			N_of_steps=simulation_time/t_step;
-			t_preproc.toc();
-			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
+			// t_preproc.toc();
+			//std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
@@ -671,7 +690,7 @@ class Discretization
 				tdbg.toc();
 				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 
-				tdbg.tic();
+				
 				
 				//Computing losses:
 				// double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
@@ -680,27 +699,36 @@ class Discretization
 							
 				// Electric Part:
 				// Eigen::VectorXd rhs_vec = RHSmat1*(U-U_old)+RHSmat2*(U+U_old);
+				tdbg.tic();
+				
 				Eigen::VectorXd rhs_vec = Eigen::VectorXd::Zero(edges_size());
 				curl_f     = C.transpose()*F+Ctb*Fb-I;
+				
+				tdbg.toc();
+				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
 				U_a       += H*(t_step*curl_f-rhs_vec);
 				U_b        = P_p.cwiseProduct(Old_U_b) + Mp*(t_step*curl_f-rhs_vec);
 				U_c        = Q*Old_U_c + Mq*(t_step*curl_f-rhs_vec);
 				U = M*U_frac;
-				
-				tdbg.toc();
-				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 
-				tdbg.tic();				
+
+				tdbg.tic();	
 				
 				F_old = F;
 				Old_F_frac = F_frac;
 				
 				curl_u     = C*U;
 				
+				tdbg.toc();
+				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+				
 				B -= t_step*curl_u;
 				// Psi = this->E*U;
 				// if (store_E)
-
+				
+				
+				
 				F_a       -= t_step*N*curl_u;
 				F_b        = R_r.cwiseProduct(Old_F_b) - t_step*Tr*curl_u;
 				F_c        = S*Old_F_c - t_step*Ts*curl_u;
@@ -708,8 +736,7 @@ class Discretization
 				F          = T*F_frac;
 				// B          = Mu*F;
 				
-				tdbg.toc();
-				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+
 
 				
 				step_cost.toc();
@@ -734,11 +761,18 @@ class Discretization
 			U_old = U;
 		}
 		else if (meth == "frac")
-		{	
-			// t_step = estimate_time_step_bound();
+		{
+			std::cout << "Setting up system... ";
+			std::cout.flush();
+			t_preproc.tic();
+			
 			ConstructFracMaterialMatrices();
-			// ConstructerrorFEMaterialMatrices(s.Courant());
+			
+			t_preproc.toc();
+			std::cout << " ...done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
+			
 			Eigen::VectorXd curl_u(surfaces_size()), curl_f(edges_size());
+			// ConstructerrorFEMaterialMatrices(s.Courant());e()), curl_f(edges_size());
 			Fb = Eigen::VectorXd::Zero(bnd_dual_edge_vectors.size());
 			auto U_fold = U_fracs;
 			auto U_folder = U_fracs;
@@ -746,8 +780,8 @@ class Discretization
 			// auto F_old = F;
 			
 			N_of_steps=simulation_time/t_step;
-			t_preproc.toc();
-			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
+			// t_preproc.toc();
+			//std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
@@ -919,7 +953,15 @@ class Discretization
 		}
 		else if (meth == "fem")
 		{
+			std::cout << "Setting up system... ";
+			std::cout.flush();
+			t_preproc.tic();
+			
 			ConstructFEMaterialMatrices(s.Courant());
+			
+			t_preproc.toc();
+			std::cout << " ...done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
+			
 			auto solver_name = s.GetSolver();
 			// Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower> cg;
 			ConjugateGradientSolver cg;
@@ -951,8 +993,8 @@ class Discretization
 			Fb = Eigen::VectorXd::Zero(bnd_dual_edge_vectors.size());
 			auto Fb_old = Fb;
 			
-			t_preproc.toc();
-			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
+			// t_preproc.toc();
+			// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
@@ -1119,8 +1161,8 @@ class Discretization
 			double t_step_geom = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
 			
 			N_of_steps=simulation_time/t_step;
-			t_preproc.toc();
-			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
+			// t_preproc.toc();
+			//std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
 				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
@@ -1329,7 +1371,7 @@ class Discretization
 						}
 						else
 						{
-							Mconvert <<  1, 1, 0,
+							Mconvert <<  0, 0, 0,
 										 0, 0, 0,
 										 0, 0, 1;
 						}
@@ -1400,7 +1442,7 @@ class Discretization
 						}
 						else
 						{
-							Mconvert <<  1, 1, 1,
+							Mconvert <<  0, 0, 0,
 										 0, 0, 0,
 										 0, 0, 0;
 						}
@@ -3521,6 +3563,11 @@ class Discretization
 		timecounter tc, tctot;
 		timecounter t_mesh;
 		t_mesh.tic();
+		
+		timecounter t_preproc;
+		std::cout << "Loading mesh... ";
+		std::cout.flush();
+		t_preproc.tic();
 		double scale = msh.Scale();
 		
 		std::string input_mesh_file = msh.FileName();
@@ -4436,6 +4483,12 @@ class Discretization
 			 pz+=Lz;
 		}
 
+		t_preproc.toc();
+		std::cout << " ...done (" << t_preproc << " seconds)" << std::endl;
+		
+		std::cout << "Setting up system... ";
+		std::cout.flush();
+		t_preproc.tic();
 		// t_step *= Simulations[current_simulation].Courant();
 		// std::cout << "CFL time step = " << t_step << std::endl;
 		std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
@@ -4542,8 +4595,9 @@ class Discretization
 		}
 		
 		// std::cout << "vaff" << std::endl;
+		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFDTDTimeStep(N_vec,H_vec);
-		
+		timestep_timer.toc();
 		// std::ofstream os_nuvec("nuvec.dat");
 		for (uint32_t i=0; i<nf; ++i)
 		{
@@ -4668,8 +4722,11 @@ class Discretization
 		this->boundary_face = std::move(boundary_face);
 
 		t_mesh.toc();
+		
+		t_preproc.toc();
+		std::cout << " ...done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
 		  // std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
-		  return true;
+		return true;
 	}
 	
 	bool ConvertFromGMSH(const std::string& _filename)
@@ -4850,6 +4907,10 @@ class Discretization
 
 	bool ReadUnstructuredMesh(Mesh& msh)
 	{	
+		timecounter t_preproc;
+		std::cout << "Loading mesh... ";
+		std::cout.flush();
+		t_preproc.tic();
 		timecounter tc, tctot;
 		double scale = msh.Scale();
 		std::string input_mesh_file = msh.FileName();
@@ -5776,6 +5837,9 @@ class Discretization
 		tctot.toc();
 		// std::cout << my_hack_number << std::endl;
 		// new_neutral_file.close();
+			
+		t_preproc.toc();
+		std::cout << " ...done (" << t_preproc << " seconds)" << std::endl;
 		
 		return true;
 	}
@@ -6938,9 +7002,9 @@ class Discretization
 		this->T=std::move(T); this->Tr=std::move(Tr); this->Ts=std::move(Ts);
 		this->N=std::move(N); this->R=std::move(R); this->S=std::move(S);
 		
-		timecounter t_spec; t_spec.tic();
+		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep();
-		t_spec.toc();
+		timestep_timer.toc();
 		// std::cout << std::endl<< "Time step computation took " << t_spec << " seconds" << std::endl;
 		
 		Eigen::SparseMatrix<double> SysMat(E.rows(),E.cols());
@@ -7440,7 +7504,9 @@ class Discretization
 			h_out.close();
 		}
 		
+		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+		timestep_timer.toc();
 		Eigen::SparseMatrix<double>().swap(Einv);
 		
 		for (uint32_t vv=0; vv < volumes_size(); ++vv)
@@ -8272,9 +8338,9 @@ class Discretization
 			h_out.close();
 		}
 		
-		timecounter t_spec; t_spec.tic();
+		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
-		t_spec.toc();
+		timestep_timer.toc();
 		// std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
 		n_mat_fill_in = 0;
 		for (uint32_t vv=0; vv < volumes_size(); ++vv)
@@ -9125,6 +9191,7 @@ class Discretization
 	std::vector<Eigen::VectorXd> 				U_fracs, I_fracs;
 	std::vector<Eigen::Matrix4d>				N_fracs,M_fracs,R_fracs,Z_fracs;
 	std::vector<Eigen::SparseMatrix<double>>	E_fracs,H_fracs,S_fracs,P_fracs,RHS_fracs;
+	timecounter									timestep_timer;
 	// std::vector<Eigen:Vector3d>					dual_faces_areas;
 	// std::array<std::vector<uint32_t>,20>		sources_by_label; 						/* Each label has a vector containing all the sources active on that label */
 };
