@@ -68,6 +68,7 @@
 #include <Eigen/Eigenvalues>
 #include <Spectra/SymEigsSolver.h>
 #include <Spectra/SymGEigsSolver.h>
+#include <Spectra/GenEigsSolver.h> 
 #include <Spectra/MatOp/SparseSymMatProd.h>
 #include <Spectra/MatOp/SparseCholesky.h>
 

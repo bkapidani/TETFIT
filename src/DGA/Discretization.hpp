@@ -5844,7 +5844,7 @@ class Discretization
 		return true;
 	}
 
-	double ComputeFEMTimeStep(void)
+	double ComputeFEMTimeStep(Eigen::SparseMatrix<double>& C, Eigen::SparseMatrix<double>& N, Eigen::SparseMatrix<double>& E)
 	{
 		
 		class MyAOp
@@ -5932,52 +5932,22 @@ class Discretization
 			uint32_t size;
 		};	
 		
-		// Construct matrix operation object using the wrapper class MyAOp
-		// if ((this->E).rows() < 5000)
-		// {
-			// std::ofstream Bmat("Bmatrix.dat");
-			// std::ofstream Amat("Amatrix.dat");
-			// Bmat << this->E;
-			// Eigen::SparseMatrix<double> lhs = C.transpose()*(this->N*C);
-			// Amat << lhs;
-			// Amat.close();
-			// Bmat.close();
-		// }
-		
-		timecounter t_dbg;
-		// t_dbg.tic();
-		MyAOp aop(this->edges_size(),this->C,this->N);
-		// t_dbg.toc();
-		// std::cout << "constructing aop takes " << t_dbg << std::endl;
-		// t_dbg.tic();
-		MyBOp bop(this->edges_size(),this->E);
-		// Spectra::SparseCholesky<double>  Bop(this->E);
-		// t_dbg.toc();
-		// std::cout << "constructing bop takes " << t_dbg << std::endl;
-		// t_dbg.tic();
+		MyAOp aop(this->edges_size(),C,N);
+		MyBOp bop(this->edges_size(),E);
 		
 		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
 		Spectra::SymGEigsSolver<double, Spectra::LARGEST_MAGN, MyAOp, MyBOp, Spectra::GEIGS_REGULAR_INVERSE> geigs(&aop, &bop, 1, 10);
-		// t_dbg.toc();
-		// std::cout << "constructing geigs_solver takes " << t_dbg << std::endl;
-		t_dbg.tic();
+
 		// Initialize and compute
-		// Eigen::VectorXd pippo = Eigen::VectorXd::Random(edges_size());
 		geigs.init();
-		t_dbg.toc();
-		// std::cout << "Initializing geigs_solver takes " << t_dbg << std::endl;
-		// t_dbg.tic();
 		int nconv = geigs.compute(1000,1e-2,Spectra::LARGEST_MAGN);
-		// t_dbg.toc();
-		// std::cout << "Solving takes " << t_dbg << std::endl;
-		// t_dbg.tic();
 		
 		// Retrieve results
-		double lambda;
+		double lambda = 0;
 		if (geigs.info() == Spectra::SUCCESSFUL)
 		{
 			auto eig_vec = geigs.eigenvalues();
-			lambda = eig_vec(0);
+			lambda = std::fabs(eig_vec(0));
 		}
 		return double(2)/sqrt(lambda);
 	}
@@ -6049,7 +6019,7 @@ class Discretization
 		MyAOp op(this->edges_size(),this->C_vec,this->Ct_vec,N,Einv, this->curl, this->dual_curl);
 // std::cout << "vaff2" << std::endl;
 		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
-		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
+		Spectra::GenEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
 		
 // std::cout << "vaff3" << std::endl;
 
@@ -6062,7 +6032,7 @@ class Discretization
 		if(eigs.info() == Spectra::SUCCESSFUL)
 		{
 			auto eig_vec = eigs.eigenvalues();
-			lambda = eig_vec(0);
+			lambda = std::fabs(eig_vec(0));
 		}
 		return double(2)/sqrt(lambda);
 	}
@@ -6106,7 +6076,7 @@ class Discretization
 		MyAOp op(this->edges_size(),C,N,Einv);
 
 		// Construct eigen solver object, requesting the largest eigenvalue in magnitude
-		Spectra::SymEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
+		Spectra::GenEigsSolver< double, Spectra::LARGEST_MAGN, MyAOp > eigs(&op, 1, 10);
 
 		// Initialize and compute
 		eigs.init();
@@ -6117,7 +6087,7 @@ class Discretization
 		if(eigs.info() == Spectra::SUCCESSFUL)
 		{
 			auto eig_vec = eigs.eigenvalues();
-			lambda = eig_vec(0);
+			lambda = std::fabs(eig_vec(0));
 		}
 		return double(2)/sqrt(lambda);
 	}
@@ -7003,7 +6973,7 @@ class Discretization
 		this->N=std::move(N); this->R=std::move(R); this->S=std::move(S);
 		
 		timestep_timer.tic();
-		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep();
+		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C, this->N, this->E);
 		timestep_timer.toc();
 		// std::cout << std::endl<< "Time step computation took " << t_spec << " seconds" << std::endl;
 		
@@ -7506,6 +7476,7 @@ class Discretization
 		
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+		// t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C,N,E);
 		timestep_timer.toc();
 		Eigen::SparseMatrix<double>().swap(Einv);
 		
@@ -8340,6 +8311,7 @@ class Discretization
 		
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+		// t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C,N,E);
 		timestep_timer.toc();
 		// std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
 		n_mat_fill_in = 0;
