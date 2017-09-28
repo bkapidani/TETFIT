@@ -202,7 +202,7 @@ class Solid
 						if (k < 3)
 						{
 							size(k)= std::stod(coord);
-							if (size(k) <= 0)
+							if (size(k) < 0)
 							{
 								std::cout << mesh_throw_preamble;
 								MyThrow(input_line,solid_negative_value);
@@ -271,6 +271,7 @@ class Solid
 		if (size.norm() == 0)
 			return false;
 		
+		// std::cout << "Trying for a cylinder at (" << p(0) << "," << p(1) << "," << p(2) << ")" << std::endl;
 		double dot, dsq;
 		Eigen::Vector3d pd = p - center; 
 		dot = pd.dot(size);
@@ -283,6 +284,7 @@ class Solid
 		if( dsq > (squareradius+1e-12) )
 			return false;
 		
+		// std::cout << "I'm in a cylinder at (" << p(0) << "," << p(1) << "," << p(2) << ")" << std::endl;
 		return true;
 	}
 	

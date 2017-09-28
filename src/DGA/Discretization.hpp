@@ -424,7 +424,7 @@ class Discretization
 							
 							// if (edge_src[ed_e].size() == 0)
 							// {
-								edge_src[ed_e].push_back(*p);
+							edge_src[ed_e].push_back(*p);
 							// }
 						}
 						else 
@@ -3787,7 +3787,7 @@ class Discretization
 				px=xmin;
 				for (uint32_t i=0;i<Nx;++i)
 				{
-					vol_material.push_back(WhichSolid(px,py,pz));
+					vol_material.push_back(WhichSolid(px+0.5*Lx,py+0.5*Ly,pz+0.5*Lz)); //take the material at barycenter for the full elements
 					
 					auto ep_nv = Materials[vol_material[nv]].Epsilon();
 					auto mu_nv = Materials[vol_material[nv]].Mu();
