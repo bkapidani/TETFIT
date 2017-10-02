@@ -36,15 +36,16 @@
 	public:
 	Source()
 	{
-		is_set  = false;
-		carrier = "sin";
-		prof    = "dc";
-		dir   	= "x";
-		amp   	= 0;
-		freq  	= 0;
-		radius   = 1;
-		decay   = 0;
-		width = 1;
+		is_set  	= false;
+		carrier 	= "sin";
+		prof    	= "dc";
+		dir   		= "x";
+		amp   		= 0;
+		freq  		= 0;
+		radius   	= 1;
+		decay   	= 0;
+		width 		= 1;
+		delay 		= 0;
 		impedance = 50; //Ohm (only real allowed for now)
 		kvec[0] = kvec[1] = kvec[2] = 0;
 		location[0] = location[1] = location[2] = 0;
@@ -275,6 +276,8 @@
 		}
 		else if (param == "amplitude")
 			this->amp = std::stod(value);
+		else if (param == "delay")
+			this->delay = std::stod(value);
 		else if (param == "impedance")
 			this->impedance = std::stod(value);
 		else if (param == "frequency")
@@ -314,13 +317,13 @@
 			ret *= impedance;
 		/*Time profile of source*/
 		if (carrier == "sin")
-			ret *= sin(2*PI*freq*p[3]); 
+			ret *= sin(2*PI*freq*(p[3]-delay)); 
 		else if (carrier == "cos")
-			ret *= amp*cos(2*PI*freq*p[3]);
+			ret *= amp*cos(2*PI*freq*(p[3]-delay));
 		else if (carrier == "gaussian")
-			ret *= std::exp(-std::pow(p[3]-(1/freq),2)/std::pow(width,2));
+			ret *= std::exp(-std::pow(p[3]-delay,2)/std::pow(width,2));
 		else if (carrier == "ricker")
-			ret *= (1 - 2*std::pow(PI*freq*(p[3]-1/freq),2))*exp(-std::pow(PI*freq*(p[3]-(1/freq)),2));
+			ret *= (1 - 2*std::pow(PI*freq*(p[3]-delay),2))*exp(-std::pow(PI*freq*(p[3]-(1/freq)),2));
 			
 		if (decay != 0)
 			ret *= std::pow(std::pow(p[0]-center_coords[0],2)+
@@ -573,7 +576,7 @@
 	Carrier carrier;
 	Frequency freq;
 	Amplitude amp;
-	double    radius, decay, width, impedance;
+	double    radius, decay, delay, width, impedance;
 	Direction dir;
 	WaveVector kvec, center_coords;
 	Eigen::Vector3d location;
