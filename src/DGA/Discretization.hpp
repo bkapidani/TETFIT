@@ -5571,7 +5571,9 @@ class Discretization
 		// std::vector<bool> edge_done(edges_size(),false);
 		uint32_t trinum=0;
 		
-		std::ofstream debug_faces("debug_faces.txt");
+		std::ofstream debug_faces;
+		if (Simulations[current_simulation].DebugMatrices())
+			debug_faces.open("debug_faces.txt");
 		// new_neutral_file << lines << std::endl;
 		// my_hack_number=0;
 		
@@ -5615,7 +5617,8 @@ class Discretization
 				boundary_face[face_label]=bid;
 				if (BCs[bid].Type() == "pec") // boundary conditions override sources!
 				{	
-					debug_faces << print_face(1,face_label,true,0,255,0);
+					if (Simulations[current_simulation].DebugMatrices())
+						debug_faces << print_face(1,face_label,true,0,255,0);
 					
 					for (auto ee : fte_list[face_label])
 					{
@@ -5651,7 +5654,8 @@ class Discretization
 							}
 							else
 							{
-								debug_faces << print_face(2,face_label,true,255,0,0);
+								if (Simulations[current_simulation].DebugMatrices())
+									debug_faces << print_face(2,face_label,true,255,0,0);
 								for (auto ee : edgs)
 								{
 									if (std::find(edge_src[ee].begin(),edge_src[ee].end(),src_label) == edge_src[ee].end())
@@ -5681,7 +5685,8 @@ class Discretization
 			// dummyo.close();
 		}
 		
-		debug_faces.close();
+		if (Simulations[current_simulation].DebugMatrices())
+			debug_faces.close();
 		//debug_cage << print_edge(3,0,0,0,0,0,0.01);
 		//debug_cage.close();
 		// std::cout << "n. of bnd dual edges " << nbde << std::endl;
