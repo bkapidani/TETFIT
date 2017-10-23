@@ -323,7 +323,7 @@
 		else if (carrier == "gaussian")
 			ret *= std::exp(-std::pow(p[3]-delay,2)/std::pow(width,2));
 		else if (carrier == "ricker")
-			ret *= (1 - 2*std::pow(PI*freq*(p[3]-delay),2))*exp(-std::pow(PI*freq*(p[3]-(1/freq)),2));
+			ret *= (1 - 2*std::pow(PI*freq*(p[3]-delay),2))*exp(-std::pow(PI*freq*(p[3]-delay),2));
 			
 		if (decay != 0)
 			ret *= std::pow(std::pow(p[0]-center_coords[0],2)+

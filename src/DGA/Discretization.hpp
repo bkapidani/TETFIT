@@ -509,7 +509,7 @@ class Discretization
 			std::cout << " ...done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
 			
 			
-			if (store_E)
+			if (store_E) //puzzle that I need solve, why do I need to use the FEM L^2 norm?
 				ConstructerrorFEMaterialMatrices(s.Courant());
 				
 			// std::ofstream h_tang("h_tang.dat");
@@ -689,20 +689,14 @@ class Discretization
 				
 				tdbg.toc();
 				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
-
-				
-				
-				//Computing losses:
-				// double Joule_L = 0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U));
-				// if (i>1)
-					// Losses.push_back(-Joule_L);
 							
 				// Electric Part:
 				// Eigen::VectorXd rhs_vec = RHSmat1*(U-U_old)+RHSmat2*(U+U_old);
 				tdbg.tic();
 				
 				Eigen::VectorXd rhs_vec = Eigen::VectorXd::Zero(edges_size());
-				curl_f     = C.transpose()*F+Ctb*Fb-I;
+				Eigen::VectorXd curl_b = Ctb*Fb;
+				curl_f     = C.transpose()*F+curl_b-I;
 				
 				tdbg.toc();
 				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
@@ -712,7 +706,9 @@ class Discretization
 				U_c        = Q*Old_U_c + Mq*(t_step*curl_f-rhs_vec);
 				U = M*U_frac;
 
-
+				poynting_flux.push_back(0.5*(U_old+U).dot(curl_b));
+				Losses.push_back(0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U)));
+				
 				tdbg.tic();	
 				
 				F_old = F;
@@ -758,6 +754,13 @@ class Discretization
 			
 			// double Joule_L = 0.25*((U_old+U).dot(SigMat*(U_old+U)));
 			// Losses.push_back(Joule_L);
+			std::ofstream poynting_file("poynting.dat");
+			for (uint32_t kk=0; kk<poynting_flux.size(); ++kk)
+			{
+				poynting_file << double(kk+0.5)*t_step << "\t" << poynting_flux[kk] << "\t" << Losses[kk] << std::endl;
+			}
+			poynting_file.close();
+			
 			U_old = U;
 		}
 		else if (meth == "frac")
@@ -942,7 +945,7 @@ class Discretization
 			std::ofstream poynting_file("poynting.dat");
 			for (uint32_t kk=0; kk<poynting_flux.size(); ++kk)
 			{
-				poynting_file << double(kk)*t_step << "\t" << poynting_flux[kk] << std::endl;
+				poynting_file << double(kk)*t_step << "\t" << poynting_flux[kk] << "\t" << Losses[kk] << std::endl;
 			}
 			poynting_file.close();
 			//Computing losses for last time step:
@@ -1096,6 +1099,9 @@ class Discretization
 				Eigen::VectorXd curlcurl = C.transpose()*nucurl;
 				Psi = double(2)*(E*U_old)*(1/t_step/t_step) - curlcurl + (1/t_step)*Ctb*(Fb-Fb_old) - (E*U_older)*(1/t_step/t_step) + (0.5/t_step)*(SigMat*U_older) - RHSmat1*SrcFld - (1/t_step)*I;
 				
+				poynting_flux.push_back((U_old).dot(0.5*Ctb*(Fb+Fb_old)));
+				Losses.push_back(0.5*(U_old.transpose())*(SigMat*(U_old)));
+				
 				//Find solution for U
 				for (uint32_t k=0; k<compressed_dirichlet.size(); ++k)
 					rhs[k] = Psi[compressed_dirichlet[k]];
@@ -1143,6 +1149,13 @@ class Discretization
 			double Joule_L = U.transpose()*(SigMat*U);
 			if (i>1)
 				Losses.push_back(Joule_L);
+			
+			std::ofstream poynting_file("poynting.dat");
+			for (uint32_t kk=0; kk<poynting_flux.size(); ++kk)
+			{
+				poynting_file << double(kk+1)*t_step << "\t" << poynting_flux[kk] << "\t" << Losses[kk] << std::endl;
+			}
+			poynting_file.close();
 		}
 		else if (meth == "fdtd")
 		{
@@ -1213,7 +1226,7 @@ class Discretization
 				}
 				tdbg.toc();
 				bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
-			
+					
 				tdbg.tic();				
 				
 				for (auto j : common_edges)
@@ -1247,6 +1260,9 @@ class Discretization
 				// std::cout << "i suspect i won't see this" << std::endl;
 				tdbg.toc();
 				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();			
+							
+				poynting_flux.push_back(0.5*(U_old+U).dot(curl_fb));
+				Losses.push_back(0.25*(U_old.transpose()+U.transpose())*(Si_vec.cwiseProduct(U_old+U)));
 				
 				tdbg.tic();
 				F_old=F;
@@ -1278,6 +1294,13 @@ class Discretization
 							  << std::setw(8) << step_time_average/i << std::setw(7) << " s/step" << "-----------" << std::endl;
 			}
 			
+			
+			std::ofstream poynting_file("poynting.dat");
+			for (uint32_t kk=0; kk<poynting_flux.size(); ++kk)
+			{
+				poynting_file << double(kk+0.5)*t_step << "\t" << poynting_flux[kk] <<"\t" << Losses[kk] << std::endl;
+			}
+			poynting_file.close();
 			// bnd_debug_os.close();
 		}
 
@@ -1639,9 +1662,6 @@ class Discretization
 		std::cout << std::setw(20) <<     "Average Efield time:    "	<< std::setw(20) << ele_time_average/double(i)      << " sec" << std::endl;
 		std::cout << std::setw(20) <<     "Average true step cost: "						<< std::setw(20) 
 		              << (bcs_time_average+mag_time_average+ele_time_average)/double(i)  	<< std::endl;
-
-		
-		// delete this;
 	}
 	
     bool ExportMesh(std::string meshname)
@@ -6565,10 +6585,11 @@ class Discretization
 		
 		N.setFromTriplets(N_trip.begin(),N_trip.end(), ass);
 		E.setFromTriplets(E_trip.begin(),E_trip.end(), ass);
-		// SigMat.setFromTriplets(Sig_trip.begin(),Sig_trip.end(), ass);
+		SigMat.setFromTriplets(Sig_trip.begin(),Sig_trip.end(), ass);
 		
 		
-		this->E=std::move(E); //this->SigMat=std::move(SigMat);
+		this->E=std::move(E);
+		this->SigMat=std::move(SigMat);
 		this->N=std::move(N);
 		t_material.toc();
 		// std::cout << "done - " << t_material << " seconds" << std::endl;
