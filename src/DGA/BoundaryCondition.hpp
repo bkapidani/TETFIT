@@ -66,15 +66,56 @@ class BoundaryCondition
 		}
 		else if (param == "thickness")
 			thickness = std::stod(value);
+		else if (param == "surface")
+			surfs.push_back(std::stoi(value));
+		else if (param == "surfaces")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				
+				while (*i != '}' && i != value.end())
+				{
+					std::string coord;
+					
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					
+					// std::cout << value << std::endl;
+					
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						surfs.push_back(std::stoi(coord));
+						
+						if (*i == ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+		}
 		else	
 			MyThrow(input_line,bc_unknown_parameter);
 	}
 	const std::string& 		Type(void) { return type; }
 	const double& 			GetThickness(void) { return thickness; }
 	const double&			GetValue(void) { return val; }
+	const std::vector<uint32_t> Surfaces(void) { return surfs; }
 	
 	private:
 	std::string type;
 	bool is_set;
 	double thickness, val;
+	std::vector<uint32_t> surfs;
 };

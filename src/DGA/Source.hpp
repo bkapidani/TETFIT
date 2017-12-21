@@ -550,15 +550,11 @@
 					if (bfuncs[j] == "sin")
 						ret *= sin(2*PI*kvec[j]*(p[j]-center_coords[j]));
 					else if (bfuncs[j] == "cos")
-					{
 						ret *= cos(2*PI*kvec[j]*(p[j]-center_coords[j]));
-					}
-					
-					// std::cout << ret << std::endl;
 				}
 			}
 			
-			/*One candle one direction of R^3 per source!
+			/*Can handle one principal direction of R^3 per source!
 			  For arbitrarily oriented sources, 
 			  use the principle of superposition, i.e. define another source...*/
 			if (dir == "x")

@@ -36,33 +36,283 @@ class Material
 	public:
 	Material()
 	{
-		epsilon = epsilon0;
-		sigma = 0;
-		mu = mu0;
-		chi = 0;
+		epsilon_scalar = epsilon0;
+		sigma_scalar   = 0;
+		mu_scalar      = mu0;
+		chi_scalar     = 0;
+		epsilon = epsilon0*Eigen::Matrix3d::Identity();
+		sigma = 0*Eigen::Matrix3d::Identity();
+		mu = mu0*Eigen::Matrix3d::Identity();
+		chi = 0*Eigen::Matrix3d::Identity();
+		// type = "normal";
 	}
 	
 	//setters
 	void SetParam(uint32_t input_line, std::string param, std::string value)
 	{
 		if (param == "epsilon")
-			epsilon = epsilon0*std::stod(value);
+		{
+			epsilon_scalar = epsilon0*std::stod(value);
+			epsilon        = epsilon_scalar*Eigen::Matrix3d::Identity();
+		}
+		else if (param == "epsilon_xy")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			epsilon(0,1) = epsilon(1,0) = std::stod(value);
+		}
+		else if (param == "epsilon_xz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			epsilon(0,2) = epsilon(2,0) = std::stod(value);
+		}
+		else if (param == "epsilon_yz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			epsilon(1,2) = epsilon(2,1) = std::stod(value);
+		}
 		else if (param == "mu")
-			mu = mu0*std::stod(value);
+		{
+			mu_scalar = mu0*std::stod(value);
+			mu		  = mu_scalar*Eigen::Matrix3d::Identity();
+		}
+		else if (param == "mu_xy")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			mu(0,1) = mu(1,0) = std::stod(value);
+		}
+		else if (param == "mu_xz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			mu(0,2) = mu(2,0) = std::stod(value);
+		}
+		else if (param == "mu_yz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			mu(1,2) = mu(2,1) = std::stod(value);
+		}
 		else if (param == "sigma")
-			sigma = std::stod(value);
+		{
+			sigma_scalar = std::stod(value);
+			sigma 		 = sigma_scalar*Eigen::Matrix3d::Identity();
+		}
+		else if (param == "sigma_xy")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			sigma(0,1) = sigma(1,0) = std::stod(value);
+		}
+		else if (param == "sigma_xz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			sigma(0,2) = sigma(2,0) = std::stod(value);
+		}
+		else if (param == "sigma_yz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			sigma(1,2) = sigma(2,1) = std::stod(value);
+		}
 		else if (param == "chi")
-			chi = std::stod(value);
+		{
+			chi_scalar = std::stod(value);
+			chi 	   = chi_scalar*Eigen::Matrix3d::Identity();
+		}
+		else if (param == "chi_xy")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			chi(0,1) = chi(1,0) = std::stod(value);
+		}
+		else if (param == "chi_xz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			chi(0,2) = chi(2,0) = std::stod(value);
+		}
+		else if (param == "chi_yz")
+		{
+			// epsilon_scalar = epsilon0*std::stod(value);
+			chi(1,2) = chi(2,1) = std::stod(value);
+		}
+		else if (param == "eps_vec")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					
+					// std::cout << value << std::endl;
+					
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k < 3)
+						{
+							epsilon(k,k) = epsilon0*std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+		}
+		else if (param == "mu_vec")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					
+					// std::cout << value << std::endl;
+					
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k < 3)
+						{
+							mu(k,k) = mu0*std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+		}
+		else if (param == "sigma_vec")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					
+					// std::cout << value << std::endl;
+					
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k < 3)
+						{
+							sigma(k,k) = std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+		}
+		else if (param == "chi_vec")
+		{
+			auto  i = value.begin();
+			if (*i != '{')
+				MyThrow(input_line,coordinates_syntax);
+			else
+			{
+				uint8_t k=0;
+				i++;
+				
+				while (*i != ',' && *i != '}' && i != value.end())
+				{
+					std::string coord;
+					
+					while (*i != ',' && *i != '}' && i != value.end())
+					{
+						coord.push_back(*i);
+						i++;
+					}
+					
+					// std::cout << value << std::endl;
+					
+					if (i == value.end())
+						MyThrow(input_line,unbalanced_bracket);
+					else 
+					{
+						if (k < 3)
+						{
+							chi(k,k) = std::stod(coord);
+							k++;
+						}
+						else
+							MyThrow(input_line,too_many_coords);
+						
+						if (*i == ',')
+							i++;
+					}
+				}
+				
+				if (i == value.end())
+					MyThrow(input_line,too_few_coords);
+			}
+		}
 		else
 			MyThrow(input_line,material_unknown_parameter);
 	}
 
 	//getters
-	double Epsilon(void) { return epsilon; }
-	double Mu(void) { return mu; }
-	double Sigma(void) { return sigma; }
-	double Chi(void) { return chi; }
+	Eigen::Matrix3d Epsilon(void) { return epsilon; }
+	Eigen::Matrix3d Mu(void) { return mu; }
+	Eigen::Matrix3d Sigma(void) { return sigma; }
+	Eigen::Matrix3d Chi(void) { return chi; }
 	
 	private:
-	double epsilon, sigma, mu, chi;
+	double epsilon_scalar, sigma_scalar, mu_scalar, chi_scalar;
+	Eigen::Matrix3d epsilon, sigma, mu, chi;
 };
