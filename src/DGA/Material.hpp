@@ -44,12 +44,13 @@ class Material
 		sigma = 0*Eigen::Matrix3d::Identity();
 		mu = mu0*Eigen::Matrix3d::Identity();
 		chi = 0*Eigen::Matrix3d::Identity();
-		// type = "normal";
+		pml = true;
 	}
 	
 	//setters
 	void SetParam(uint32_t input_line, std::string param, std::string value)
 	{
+		pml = false;
 		if (param == "epsilon")
 		{
 			epsilon_scalar = epsilon0*std::stod(value);
@@ -311,8 +312,10 @@ class Material
 	Eigen::Matrix3d Mu(void) { return mu; }
 	Eigen::Matrix3d Sigma(void) { return sigma; }
 	Eigen::Matrix3d Chi(void) { return chi; }
+	bool IsPML(void) { return pml; }
 	
 	private:
 	double epsilon_scalar, sigma_scalar, mu_scalar, chi_scalar;
+	bool pml;
 	Eigen::Matrix3d epsilon, sigma, mu, chi;
 };

@@ -102,7 +102,7 @@ class BoundaryCondition
 				}
 				
 				if (i == value.end())
-					MyThrow(input_line,too_few_coords);
+					MyThrow(input_line,unbalanced_bracket);
 			}
 		}
 		else	

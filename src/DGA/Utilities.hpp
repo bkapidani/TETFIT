@@ -270,7 +270,7 @@ const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
 const std::vector<Meshtype>								meshers		    = { "netgen", "gmsh", "none"};
 const std::vector<OutputMode>							outputmodes		= { "silo", "probepoint", "maxerror", "l2norm"};
-const std::vector<SimMethod>							simmethods		= { "fdtd", "dga", "fem", "dgao2", "frac", "fraco2", "fdtdo2"};
+const std::vector<SimMethod>							simmethods		= { "fdtd", "dga", "fem", "dgao2", "frac", "gfdtd", "fraco2", "fdtdo2"};
 const std::vector<Solver>								solvers			= { "cg", "agmg"};
 
 const std::runtime_error main_missing_file(std::string("Input file missing! Correct use is: \"tetfit input_file\" "));
