@@ -115,6 +115,7 @@ class agmg_solver
     int         m_agmg_iprint;
     int         m_agmg_nrest;
     int         m_agmg_iter;
+	int			iter_iter;
     double      m_agmg_tol;
 	int     	N;
 	T 			*data;
@@ -126,7 +127,7 @@ class agmg_solver
 public:
     agmg_solver()
         : m_agmg_ijob(0), m_agmg_iprint(6), m_agmg_nrest(1),
-          m_agmg_iter(50), m_agmg_tol(1e-8)
+          m_agmg_iter(50), iter_iter(0), m_agmg_tol(1e-8)
     {}
 
     void ijob(int val) {
@@ -149,7 +150,7 @@ public:
 	// double   error(void) const { return final_error; }
 	void setMaxIterations(const uint32_t& maxit) { m_agmg_iter = static_cast<int>(maxit); }
 	void setTolerance(const double& t) { m_agmg_tol = t; }
-	
+	uint32_t iterations(void) const { return static_cast<uint32_t>(iter_iter); }
     template<int _Options, typename _Index>
     Eigen::Matrix<T, 1, Eigen::Dynamic>
     solve(Eigen::SparseMatrix<T, _Options, _Index>& A,
@@ -220,7 +221,7 @@ public:
         Eigen::Matrix<T, Eigen::Dynamic, 1> ret=x_guess;
         T * x = ret.data();
 		m_agmg_ijob = 12; //solves only, usingthe guess in x
-		auto iter_iter = m_agmg_iter;
+		iter_iter = m_agmg_iter;
         agmg_priv::call_agmg<T>(N, data, ja, ia, f, x, m_agmg_ijob, m_agmg_iprint,
                                 m_agmg_nrest, iter_iter, m_agmg_tol);
 								
