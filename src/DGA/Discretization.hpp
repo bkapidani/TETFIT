@@ -4226,9 +4226,9 @@ class Discretization
 		this->area_y_vec=area_y_vec;
 		this->area_z_vec=area_z_vec;
 
-		Nx = (fabs(xmax-xmin)) / Lx;// + 1;
-		Ny = (fabs(ymax-ymin)) / Ly;// + 1;
-		Nz = (fabs(zmax-zmin)) / Lz;// + 1;
+		Nx = (fabs(xmax-xmin)) / Lx /*+ N_pml_x_pos + N_pml_y_neg*/;// + 1;
+		Ny = (fabs(ymax-ymin)) / Ly /*+ N_pml_y_pos + N_pml_y_neg*/;// + 1;
+		Nz = (fabs(zmax-zmin)) / Lz /*+ N_pml_z_pos + N_pml_z_neg*/;// + 1;
 
 		tot_E= Nx*(Ny+1)*(Nz+1)+(Nx+1)*Ny*(Nz+1)+(Nx+1)*(Ny+1)*Nz;
 		tot_F= Nx*Ny*(Nz+1)+Nz*Nx*(Ny+1)+Ny*Nz*(Nx+1);
@@ -7829,12 +7829,12 @@ class Discretization
 				auto vol_domain = vol_material[vv];
 				auto face_vecs = primal_area_vectors(vv);
 				auto elem_volume = fabs(CellVolumes[vv]);
+				double omegar_vol  = elem_volume/double(4);
 				auto eps_vol   = Materials[vol_domain].Epsilon();
 				auto sigma_vol = Materials[vol_domain].Sigma();
 
 				if (sigma_vol.determinant() != 0)
 					sigma_node[nid]=true;
-				// eps_vol = 1;
 				
 				auto D = vtf_list[vv];
 				
@@ -7855,184 +7855,216 @@ class Discretization
 				{
 					e1 = edgs_l2g[0]; e2 = edgs_l2g[2]; e3 = edgs_l2g[3];
 					
-					E_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[1]*
-												  (-2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[1]*
+												  // (-2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
 										
-					if (sigma_vol.determinant() != 0)
-					{
-						Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[1]*
-													  (-2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[2]*
-													  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(sigma_vol*face_vecs[3]*
-													  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
-													  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
-													  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
-													  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
-													  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
-													  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
-													  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));													  
-					}
+					// if (sigma_vol.determinant() != 0)
+					// {
+						// Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[1]*
+													  // (-2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[2]*
+													  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(sigma_vol*face_vecs[3]*
+													  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
+													  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
+													  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
+													  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(-2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
+													  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
+													  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
+													  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));													  
+					// }
 				}
 				else if (k==1)
 				{					
 					e1 = edgs_l2g[0]; e2 = edgs_l2g[1]; e3 = edgs_l2g[4];
 					
-					E_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[0]*
-												  (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[0]*
+												  // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
 										
-					if (sigma_vol.determinant() != 0)
-					{
-						Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[0]*
-												  (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(sigma_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
-												  (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));													  
-					}
+					// if (sigma_vol.determinant() != 0)
+					// {
+						// Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[0]*
+												  // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(sigma_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (-2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[2]*(-2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[3]*
+												  // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));													  
+					// }
 					
 				}
 				else if (k==2)
 				{
 					e1 = edgs_l2g[1]; e2 = edgs_l2g[2]; e3 = edgs_l2g[5];
 					
-					E_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[1]*
-												 (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[0]*
-												 (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(eps_vol*face_vecs[3]*
-												 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[0]*
-																 (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[0]*
-																 (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[1]*
+												 // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[0]*
+												 // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(eps_vol*face_vecs[3]*
+												 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[0]*
+																 // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[0]*
+																 // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
 										
-					if (sigma_vol.determinant() != 0)
-					{
-						Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[1]*
-												 (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[0]*
-												 (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(sigma_vol*face_vecs[3]*
-												 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[0]*
-																 (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[0]*
-																 (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
-																 (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));													  
-					}
+					// if (sigma_vol.determinant() != 0)
+					// {
+						// Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[1]*
+												 // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[0]*
+												 // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[3]*(-2.0/3.0/elem_volume*(D[3].Sgn()))).dot(sigma_vol*face_vecs[3]*
+												 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[0]*
+																 // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[0]*
+																 // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[3]*
+																 // (-2.0/3.0/elem_volume*(D[3].Sgn())))*elem_volume/4));													  
+					// }
 				}
 				else if (k==3)
 				{					
 					e1 = edgs_l2g[3]; e2 = edgs_l2g[4]; e3 = edgs_l2g[5];
 					
-					E_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[0]*
-												  (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[1]*
-												  (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e3,(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[1]*
-												  (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[1]*
-												  (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e2,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-					E_trip.push_back(double_triplet(e3,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[0]*
+												  // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[1]*
+												  // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e3,(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[1]*
+												  // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[1]*
+												  // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e2,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+					// E_trip.push_back(double_triplet(e3,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(eps_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
 										
-					if (sigma_vol.determinant() != 0)
-					{
-						Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[0]*
-												  (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[1]*
-												  (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[1]*
-												  (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[1]*
-												  (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
-						Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
-												  (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));													  
-					}
+					// if (sigma_vol.determinant() != 0)
+					// {
+						// Sig_trip.push_back(double_triplet(e1,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[0]*
+												  // (2.0/3.0/elem_volume*(D[0].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[1]*
+												  // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e3,(face_vecs[2]*(2.0/3.0/elem_volume*(D[2].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e2,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[1]*
+												  // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[1]*
+												  // (2.0/3.0/elem_volume*(D[1].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e1,e3,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e1,(face_vecs[0]*(2.0/3.0/elem_volume*(D[0].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e2,e3,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));
+						// Sig_trip.push_back(double_triplet(e3,e2,(face_vecs[1]*(2.0/3.0/elem_volume*(D[1].Sgn()))).dot(sigma_vol*face_vecs[2]*
+												  // (2.0/3.0/elem_volume*(D[2].Sgn())))*elem_volume/4));													  
+					// }
 				}
 				
+				Eigen::Vector3d a1 = edge_barycenter(e1)-pts[nid];
+				Eigen::Vector3d a2 = edge_barycenter(e2)-pts[nid];
+				Eigen::Vector3d a3 = edge_barycenter(e3)-pts[nid];
+				
+				double normcoeff = std::pow(a1.dot(a2.cross(a3)),-1);
+				
+				Eigen::Vector3d f1 = normcoeff*(a2.cross(a3));
+				Eigen::Vector3d f2 = normcoeff*(a3.cross(a1));
+				Eigen::Vector3d f3 = normcoeff*(a1.cross(a2));
+				
+				E_trip.push_back(double_triplet(e1,e1,f1.dot(omegar_vol*eps_vol*f1)));
+				E_trip.push_back(double_triplet(e2,e2,f2.dot(omegar_vol*eps_vol*f2)));
+				E_trip.push_back(double_triplet(e3,e3,f3.dot(omegar_vol*eps_vol*f3)));
+				E_trip.push_back(double_triplet(e1,e2,f1.dot(omegar_vol*eps_vol*f2)));
+				E_trip.push_back(double_triplet(e2,e1,f2.dot(omegar_vol*eps_vol*f1)));
+				E_trip.push_back(double_triplet(e1,e3,f1.dot(omegar_vol*eps_vol*f3)));
+				E_trip.push_back(double_triplet(e3,e1,f3.dot(omegar_vol*eps_vol*f1)));
+				E_trip.push_back(double_triplet(e2,e3,f2.dot(omegar_vol*eps_vol*f3)));
+				E_trip.push_back(double_triplet(e3,e2,f3.dot(omegar_vol*eps_vol*f2)));
+				
+				if (sigma_vol.determinant() != 0)
+				{
+					Sig_trip.push_back(double_triplet(e1,e1,f1.dot(omegar_vol*sigma_vol*f1)));
+					Sig_trip.push_back(double_triplet(e2,e2,f2.dot(omegar_vol*sigma_vol*f2)));
+					Sig_trip.push_back(double_triplet(e3,e3,f3.dot(omegar_vol*sigma_vol*f3)));
+					Sig_trip.push_back(double_triplet(e1,e2,f1.dot(omegar_vol*sigma_vol*f2)));
+					Sig_trip.push_back(double_triplet(e2,e1,f2.dot(omegar_vol*sigma_vol*f1)));
+					Sig_trip.push_back(double_triplet(e1,e3,f1.dot(omegar_vol*sigma_vol*f3)));
+					Sig_trip.push_back(double_triplet(e3,e1,f3.dot(omegar_vol*sigma_vol*f1)));
+					Sig_trip.push_back(double_triplet(e2,e3,f2.dot(omegar_vol*sigma_vol*f3)));
+					Sig_trip.push_back(double_triplet(e3,e2,f3.dot(omegar_vol*sigma_vol*f2)));
+				}
 			}
 
 			jj=kk=0;
@@ -9512,6 +9544,7 @@ class Discretization
 			   return sol.Material();
 	   }
 	   
+	   // if ()
 	   return 0; // default material (empty space)
    }
 	
