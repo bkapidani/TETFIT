@@ -551,6 +551,8 @@ class Discretization
 			Fb = Eigen::VectorXd::Zero(bnd_dual_edge_vectors.size());
 			
 			auto Fb_old(Fb);
+			Eigen::VectorXd PMLF_frac = Eigen::VectorXd::Ones(F_frac_size);
+			Eigen::VectorXd PMLU_frac = Eigen::VectorXd::Ones(U_frac_size);
 			auto Old_F_frac = F_frac;
 			auto Old_U_frac = U_frac;
 			auto U_old = U;
@@ -560,11 +562,16 @@ class Discretization
 			
 			auto start_of_u = U_frac.data(); //pointer to the start of the big electric vector
 			auto start_of_f = F_frac.data(); //pointer to the start of the big magnetic vector
+			auto start_of_pmlu = PMLU_frac.data();
+			auto start_of_pmlf = PMLF_frac.data();
 			auto start_of_old_u = Old_U_frac.data(); //pointer to the start of the big electric vector
 			auto start_of_old_f = Old_F_frac.data(); //pointer to the start of the big magnetic vector
 			
 			Eigen::Map<Eigen::VectorXd> U_a(start_of_u,H_size), U_b(start_of_u+H_size,P_size), U_c(start_of_u+H_size+P_size,Q_size);
 			Eigen::Map<Eigen::VectorXd> U_d(start_of_u+H_size+P_size+Q_size,B_size);
+			Eigen::Map<Eigen::VectorXd> PMLF_a(start_of_pmlf,N_size), PMLF_b(start_of_pmlf+N_size,R_size), PMLF_c(start_of_pmlf+N_size+R_size,S_size);
+			Eigen::Map<Eigen::VectorXd> PMLU_a(start_of_pmlu,H_size), PMLU_b(start_of_pmlu+H_size,P_size);
+			Eigen::Map<Eigen::VectorXd> PMLU_c(start_of_pmlu+H_size+P_size,Q_size), PMLU_d(start_of_pmlu+H_size+P_size+Q_size,B_size);
 			Eigen::Map<Eigen::VectorXd> Old_U_a(start_of_old_u,H_size), Old_U_b(start_of_old_u+H_size,P_size), Old_U_c(start_of_old_u+H_size+P_size,Q_size);
 			Eigen::Map<Eigen::VectorXd> Old_U_d(start_of_old_u+H_size+P_size+Q_size,B_size);
 			Eigen::Map<Eigen::VectorXd> F_a(start_of_f,N_size), F_b(start_of_f+N_size,R_size), F_c(start_of_f+N_size+R_size,S_size);
@@ -602,8 +609,107 @@ class Discretization
 
 			//******************************************************************************************************//
 			//First instant electric sources
+			for (uint32_t ff = 0; ff < surfaces_size(); ff++)
+			{
+				/***************************************************************************************************/
+				auto fbar = face_barycenter(ff);
+				double cf1,cf2;
+				cf1=cf2=1;
+				if (fbar(0)<xmin)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/max_edge_len);
+				}
+				else if (fbar(0)>xmax)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/max_edge_len);
+				}
+				
+				if (fbar(1)<ymin)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/max_edge_len);
+				}
+				else if (fbar(1)>ymax)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/max_edge_len);
+				}
+			
+				if (fbar(2)<zmin)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/max_edge_len);
+				}
+				else if (fbar(2)>zmax)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/max_edge_len);
+				}
+				
+				for (auto ii : associated_n_surfaces[ff])
+				{
+					PMLF_a[ii] = cf1;
+				}
+				for (auto ii : associated_r_surfaces[ff])
+				{
+					PMLF_b[ii] = cf1;
+				}
+				for (auto ii : associated_frac_surfaces[ff])
+				{
+					PMLF_c[ii] = cf1;
+				}
+				// upmlcoeff1.push_back(cf1);
+				// upmlcoeff2.push_back(cf2);
+
+				/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+			}
+			
 			for (uint32_t ee = 0; ee < edges_size(); ee++)
 			{
+				/***************************************************************************************************/
+				auto fbar = edge_barycenter(ee);
+				double cf1,cf2;
+				cf1=cf2=1;
+				if (fbar(0)<xmin)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/max_edge_len);
+				}
+				else if (fbar(0)>xmax)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/max_edge_len);
+				}
+				
+				if (fbar(1)<ymin)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/max_edge_len);
+				}
+				else if (fbar(1)>ymax)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/max_edge_len);
+				}
+			
+				if (fbar(2)<zmin)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/max_edge_len);
+				}
+				else if (fbar(2)>zmax)
+				{
+					cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/max_edge_len);
+				}
+				
+				// upmlcoeff1.push_back(cf1);
+				// upmlcoeff2.push_back(cf2);
+
+				/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+				
 				if (edge_bcs[ee] != 0  && BCs[edge_bcs[ee]].Type() != "none")
 				{
 					U(ee) = U_d[boundary_index[ee]] = ComputeEdgeBC(ee,0); //only boundary edges can have boundary conditions
@@ -622,22 +728,39 @@ class Discretization
 					for (auto ii : associated_h_edges[ee])
 					{
 						U_a[ii] = usrc;
-						// std::cout << "debuggy buggy" << std::endl;
 					}
 					for (auto ii : associated_p_edges[ee])
 					{
 						U_b[ii] = usrc;
-						// std::cout << "debuggy buggy" << std::endl;
 					}
 					for (auto ii : associated_frac_edges[ee])
 					{
 						U_c[ii] = 0.5*usrc;
-						// std::cout << "debuggy buggy" << std::endl;
 					}
 					for (auto ii : associated_bnd_edges[ee])
 					{
 						U_d[ii] = usrc;
-						// std::cout << "debuggy not buggy" << std::endl;
+					}
+				}
+				else
+				{
+					// auto usrc = ComputeEfieldSource(ee, 0);
+					// U(ee) = usrc;
+					for (auto ii : associated_h_edges[ee])
+					{
+						PMLU_a[ii] = cf1;
+					}
+					for (auto ii : associated_p_edges[ee])
+					{
+						PMLU_b[ii] = cf1;
+					}
+					for (auto ii : associated_frac_edges[ee])
+					{
+						PMLU_c[ii] = cf1;
+					}
+					for (auto ii : associated_bnd_edges[ee])
+					{
+						PMLU_d[ii] = cf1;
 					}
 				}
 			}
@@ -733,9 +856,9 @@ class Discretization
 				tdbg.toc();
 				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				
-				U_a       += H*(t_step*curl_f-rhs_vec);
-				U_b        = P_p.cwiseProduct(Old_U_b) + Mp*(t_step*curl_f-rhs_vec);
-				U_c        = Q*Old_U_c + Mq*(t_step*curl_f-rhs_vec);
+				U_a        = PMLU_a.cwiseProduct(PMLU_a.cwiseProduct(U_a)) + PMLU_a.cwiseProduct(H*(t_step*curl_f-rhs_vec));
+				U_b        = PMLU_b.cwiseProduct(PMLU_b.cwiseProduct(P_p.cwiseProduct(Old_U_b))) + PMLU_b.cwiseProduct(Mp*(t_step*curl_f-rhs_vec));
+				U_c        = PMLU_c.cwiseProduct(PMLU_c.cwiseProduct(Q*Old_U_c)) + PMLU_c.cwiseProduct(Mq*(t_step*curl_f-rhs_vec));
 				U = M*U_frac;
 
 				poynting_flux.push_back(0.5*(U_old+U).dot(curl_b));
@@ -757,9 +880,9 @@ class Discretization
 				
 				
 				
-				F_a       -= t_step*N*curl_u;
-				F_b        = R_r.cwiseProduct(Old_F_b) - t_step*Tr*curl_u;
-				F_c        = S*Old_F_c - t_step*Ts*curl_u;
+				F_a        = PMLF_a.cwiseProduct(PMLF_a.cwiseProduct(F_a)) - PMLF_a.cwiseProduct(t_step*N*curl_u);
+				F_b        = PMLF_b.cwiseProduct(PMLF_b.cwiseProduct(R_r.cwiseProduct(Old_F_b))) - PMLF_b.cwiseProduct(t_step*Tr*curl_u);
+				F_c        = PMLF_c.cwiseProduct(PMLF_c.cwiseProduct(S*Old_F_c)) - PMLF_c.cwiseProduct(t_step*Ts*curl_u);
 				
 				F          = T*F_frac;
 				// B          = Mu*F;
@@ -1691,7 +1814,7 @@ class Discretization
 					// std::cout << Ct_vec[j].size() << std::endl;
 					assert(Ct_vec[j].size()==4);
 					auto abs_ct_vec = std::vector<uint32_t>({abs(Ct_vec[j][0]),abs(Ct_vec[j][1]),abs(Ct_vec[j][2]),abs(Ct_vec[j][3])});
-					U(j) = upmlcoeff1[j]*M_h[j]*(M_q[j]*U_old(j) + upmlcoeff2[j]*t_step*(dual_curl[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3]))-I(j)));
+					U(j) = std::pow(upmlcoeff1[j],2)*M_h[j]*(M_q[j]*U_old(j) + upmlcoeff1[j]*t_step*(dual_curl[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3]))-I(j)));
 					// U(j) = U_old(j) + M_h[j]*t_step*(dual_curl[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3]))-I(j));
 				}
 				
@@ -1727,7 +1850,8 @@ class Discretization
 				// {
 				for (auto j : this->tbc_surfaces)
 				{
-					B(j) = (fpmlcoeff1[j]*M_mu[j]*F_old(j) - fpmlcoeff2[j]*t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
+					B(j) = (std::pow(fpmlcoeff1[j],2)*M_mu[j]*F_old(j) 
+					     - fpmlcoeff1[j]*t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
 					F(j) =  M_nu[j]*B(j);
 					// std::cout << "Face " << j << " is normal: " << F(j) << std::endl;
 					// std::cout << "and has magnetic mass matrix entry " << M_nu[j] << std::endl;
@@ -4183,15 +4307,15 @@ class Discretization
 		uint32_t nv,nf,ne,np;
 		nv=nf=ne=np=0;
 		
-		auto true_xmin = xmin = scale*msh.GetXmin();
-		auto true_ymin = ymin = scale*msh.GetYmin();
-		auto true_zmin = zmin = scale*msh.GetZmin();
+		true_xmin = xmin = scale*msh.GetXmin();
+		true_ymin = ymin = scale*msh.GetYmin();
+		true_zmin = zmin = scale*msh.GetZmin();
 		Lx	 = scale*msh.GetXstep();
 		Ly   = scale*msh.GetYstep();
 		Lz   = scale*msh.GetZstep();
-		auto true_xmax = xmax = scale*msh.GetXmax();
-		auto true_ymax = ymax = scale*msh.GetYmax();
-		auto true_zmax = zmax = scale*msh.GetZmax();		
+		true_xmax = xmax = scale*msh.GetXmax();
+		true_ymax = ymax = scale*msh.GetYmax();
+		true_zmax = zmax = scale*msh.GetZmax();		
 		
 		for (auto refref : this->Refinements)
 		{
@@ -5293,39 +5417,39 @@ class Discretization
 			cf1=cf2=1;
 			if (fbar(0)<xmin)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/150/PI/Lx);
-				cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*8/150/PI/Lx);
+				cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/Lx);
+				//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/Lx);
 			}
 			else if (fbar(0)>xmax)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/150/PI/Lx);
-				cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*8/150/PI/Lx);
+				cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/Lx);
+				//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/Lx);
 			}
 			
 			if (fbar(1)<ymin)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/150/PI/Ly);
-				cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*8/150/PI/Ly);
+				cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/Ly);
+				//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/Ly);
 			}
 			else if (fbar(1)>ymax)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/150/PI/Ly);
-				cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*8/150/PI/Ly);
+				cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/Ly);
+				//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/Ly);
 			}
 		
 			if (fbar(2)<zmin)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/150/PI/Lz);
-				cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*8/150/PI/Lz);
+				cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/Lz);
+				//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/Lz);
 			}
 			else if (fbar(2)>zmax)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/150/PI/Lz);
-				cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*8/150/PI/Lz);
+				cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/Lz);
+				//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/Lz);
 			}
 			
 			fpmlcoeff1.push_back(cf1);
-			fpmlcoeff2.push_back(cf2);
+			// fpmlcoeff2.push_back(cf2);
 		}
 		// os_nuvec.close();
 		// std::ofstream os_epvec("epvec.dat");
@@ -5383,39 +5507,39 @@ class Discretization
 			cf1=cf2=1;
 			if (fbar(0)<xmin)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/150/PI/Lx);
-				cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*8/150/PI/Lx);
+				cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/Lx);
+				//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*2/150/PI/Lx);
 			}
 			else if (fbar(0)>xmax)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/150/PI/Lx);
-				cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*8/150/PI/Lx);
+				cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/Lx);
+				//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*2/150/PI/Lx);
 			}
 			
 			if (fbar(1)<ymin)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/150/PI/Ly);
-				cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*8/150/PI/Ly);
+				cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/Ly);
+				//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*2/150/PI/Ly);
 			}
 			else if (fbar(1)>ymax)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/150/PI/Ly);
-				cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*8/150/PI/Ly);
+				cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/Ly);
+				//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*2/150/PI/Ly);
 			}
 		
 			if (fbar(2)<zmin)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/150/PI/Lz);
-				cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*8/150/PI/Lz);
+				cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/Lz);
+				//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*2/150/PI/Lz);
 			}
 			else if (fbar(2)>zmax)
 			{
-				cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/150/PI/Lz);
-				cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*8/150/PI/Lz);
+				cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/Lz);
+				//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*2/150/PI/Lz);
 			}
 			
 			upmlcoeff1.push_back(cf1);
-			upmlcoeff2.push_back(cf2);
+			// upmlcoeff2.push_back(cf2);
 		}
 	 
 		// os_epvec.close();
@@ -5719,6 +5843,27 @@ class Discretization
 			Eigen::Vector3d point(std::get<0>(t),std::get<1>(t),std::get<2>(t));
 			pts.push_back(scale*point);
 			associated_volumes.push_back(dummy_ass_vols);
+			if (!linecount)
+			{
+				xmax = xmin = true_xmax = true_xmin = point(0);
+				ymax = ymin = true_ymax = true_ymin = point(1);
+				zmax = zmin = true_zmax = true_zmin = point(2);
+			}
+			else
+			{
+				if (point(0)<true_xmin)
+					xmin = true_xmin = point(0);
+				if (point(0)>true_xmax)
+					xmax = true_xmax = point(0);
+				if (point(1)<true_ymin)
+					ymin = true_ymin = point(1);
+				if (point(1)>true_ymax)
+					ymax = true_ymax = point(1);
+				if (point(2)<true_zmin)
+					zmin = true_zmin = point(2);
+				if (point(2)>true_zmax)
+					zmax = true_zmax = point(2);
+			}
 			
 			/* Do something with that point */
 			// new_neutral_file << std::get<0>(t) << " " << std::get<1>(t) << " " << std::get<2>(t) << std::endl;
@@ -5726,6 +5871,57 @@ class Discretization
 			linecount++;
 		}
 		tc.toc();
+		
+		
+		for (auto mappedbcc : BCs)
+		{
+			auto bcc = mappedbcc.second;
+			if (bcc.Type() == "pml")
+			{
+				auto dir = bcc.GetDirection();
+				auto bccwidth = bcc.Width();
+				if (dir == "-x")
+				{
+					this->xmin = true_xmin + bccwidth;
+				}
+				else if (dir == "-y")
+				{
+					this->ymin = true_ymin + bccwidth;
+				}
+				else if (dir == "-z")
+				{
+					this->zmin = true_zmin + bccwidth;
+				}
+				if (dir == "+x")
+				{
+					this->xmax = true_xmax - bccwidth;
+				}
+				else if (dir == "+y")
+				{
+					this->ymax = true_ymax - bccwidth;
+				}
+				else if (dir == "+z")
+				{
+					this->zmax = true_zmax - bccwidth;
+				}
+				else if (dir == "r")
+				{
+					//mumble mumble, need to work this out
+				}
+				else if (dir == "rho")
+				{					
+					//mumble mumble, need to work this out
+				}
+				else if (dir == "t")
+				{
+					//mumble mumble, need to work this out
+				}
+				else if (dir == "-t")
+				{
+					//mumble mumble, need to work this out
+				}
+			}
+		}
 		
 		// std::cout << "Reading points: " << linecount;
 		// std::cout << "/" << lines << " - " << tc << " seconds" << std::endl;
@@ -5993,6 +6189,9 @@ class Discretization
 		std::vector<cluster_list> dummye2(edges_size());
 		etf_list = std::move(dummye2);
 		
+		std::vector<std::vector<uint32_t>> associated_frac_surfaces(surfaces.size()), associated_r_surfaces(surfaces.size()); 
+		std::vector<std::vector<uint32_t>> associated_n_surfaces(surfaces.size());
+		
 		std::vector<double_triplet> tripletList, tripletListBND;
 		tripletList.reserve(3*surfaces_size());
 		Eigen::SparseMatrix<double> C(surfaces_size(),edges_size());
@@ -6187,12 +6386,14 @@ class Discretization
 			if (recombine && Materials[vol_material[abs(vols[0])]].Chi() == Eigen::Matrix3d::Zero())
 			{
 				classify_surfaces.push_back(1);
+				associated_n_surfaces[k].push_back(n_index[k]);
 				n_index[k]=N_size++;
 				
 			}
 			else if (recombine)
 			{
 				classify_surfaces.push_back(2);
+				associated_r_surfaces[k].push_back(r_index[k]);
 				r_index[k]=R_size++;
 			}
 			else
@@ -6204,8 +6405,11 @@ class Discretization
 				if (!primal_is_fractured[vol1])
 				{
 					primal_is_fractured[vol1]=S_size+1;
+					associated_frac_surfaces[k].push_back(4+S_size);
 					S_size+=4;
 				}
+				else
+					associated_frac_surfaces[k].push_back(4+(primal_is_fractured[vol1]-1));
 
 				if (vols.size()==2)
 				{
@@ -6214,9 +6418,11 @@ class Discretization
 					if (!primal_is_fractured[vol2])
 					{
 						primal_is_fractured[vol2]=S_size+1;
+						associated_frac_surfaces[k].push_back(4+S_size);
 						S_size+=4;
 					}
-				
+					else
+						associated_frac_surfaces[k].push_back(4+(primal_is_fractured[vol2]-1));
 				}
 			}
 		}
@@ -6373,19 +6579,19 @@ class Discretization
 							
 						}
 					}
-					else if (BCs[which_bc].Type() == "pml") // boundary conditions override sources!
-					{	
-						if (Simulations[current_simulation].DebugMatrices())
-							debug_faces << print_face(1,face_label,true,0,255,0);
+					// else if (BCs[which_bc].Type() == "pml") // boundary conditions override sources!
+					// {	
+						// if (Simulations[current_simulation].DebugMatrices())
+							// debug_faces << print_face(1,face_label,true,0,255,0);
 						
-						for (auto vv : ftv_list[face_label])
-						{
-							if (Materials[vol_material[abs(vv)]].IsPML())
-							{
-								pml_queue.push_back(abs(vv));
-							}
-						}
-					}
+						// for (auto vv : ftv_list[face_label])
+						// {
+							// if (Materials[vol_material[abs(vv)]].IsPML())
+							// {
+								// pml_queue.push_back(abs(vv));
+							// }
+						// }
+					// }
 				}
 				else
 				{	
@@ -6583,11 +6789,13 @@ class Discretization
 			}
 		}
 		
-		
 		this->associated_frac_edges = std::move(associated_frac_edges);
 		this->associated_bnd_edges = std::move(associated_bnd_edges);
 		this->associated_p_edges = std::move(associated_p_edges);
 		this->associated_h_edges = std::move(associated_h_edges);
+		this->associated_frac_surfaces = std::move(associated_frac_surfaces);
+		this->associated_n_surfaces = std::move(associated_n_surfaces);
+		this->associated_r_surfaces = std::move(associated_r_surfaces);
 		this->dual_is_fractured   = std::move(dual_is_fractured);
 		this->primal_is_fractured = std::move(primal_is_fractured);
 		this->bnd_nodes = std::move(bnd_nodes);
@@ -10430,7 +10638,8 @@ class Discretization
 	std::vector<uint32_t>				        edge_bcs, probe_elem, compressed_dirichlet;
 	std::vector<uint8_t>						classify_edges, classify_surfaces;
 	std::vector<std::vector<uint32_t>>          associated_volumes, dual_star_offsets, vol_edges, M_vec; //tet_nodes;
-	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 	
+	std::vector<std::vector<uint32_t>>			associated_frac_edges, associated_p_edges, associated_h_edges, associated_bnd_edges; 
+	std::vector<std::vector<uint32_t>>			associated_frac_surfaces, associated_r_surfaces, associated_n_surfaces;
 	std::vector<std::vector<uint32_t>>			edge_src, face_src;
 	std::vector<int32_t> 						bnd_edges;
 	std::vector<bool> 							bnd_nodes, is_bnd_of_antenna;
@@ -10469,6 +10678,7 @@ class Discretization
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;
 	double										xmax,ymax,zmax,xmin,ymin,zmin;
+	double										true_xmax,true_ymax,true_zmax,true_xmin,true_ymin,true_zmin;
 	std::vector<uint32_t> 						boundary_face;
 	//fractured formulation stuff
 	std::vector<std::array<uint32_t, 4>>		F_maps;
