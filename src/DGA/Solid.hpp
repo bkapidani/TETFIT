@@ -289,6 +289,66 @@ class Solid
 	}
 	
 	const uint32_t& Material(void) const { return material; }
+	const SolidType& Type(void) const { return type; }
+	const double Radius(void) const { return std::sqrt(squareradius); }
+	const Eigen::Vector3d& Center(void) const { return center; }
+	const Eigen::Vector3d& Corner(void) const { return corner; }
+	const Eigen::Vector3d& Size(void) const { return size; }
+	void ConstructPMLExtension(const uint32_t label, const std::string filename, std::vector<double> thicknesses)
+	{
+		// std::assert(thicknesses.size() == 6);
+		std::ofstream solids_file(filename.c_str(), std::ofstream::out | std::ofstream::app);
+		solids_file << std::endl << "#-------PML REGION (AUTOMATICALLY GENERATED)-------" << std::endl;
+		
+		solids_file << "DEFINE solid " << label << std::endl;
+		solids_file << '\t' << "SET type " << type << std::endl;
+		solids_file << '\t' << "SET material " << material << std::endl;
+		
+		if (type == "box")
+		{
+			assert(thicknesses.size() == 6);
+			auto new_corner = corner;
+			new_corner(0) -= thicknesses[0];
+			new_corner(1) -= thicknesses[1];
+			new_corner(2) -= thicknesses[2];
+			solids_file << '\t' << "SET corner {" << new_corner(0) << "," << new_corner(1) << "," << new_corner(2) << "}" << std::endl;
+			auto new_size = size;
+			new_size(0) += thicknesses[3];
+			new_size(1) += thicknesses[4];
+			new_size(2) += thicknesses[5];
+			solids_file << '\t' << "SET size {" << new_size(0) << "," << new_size(1) << "," << new_size(2) << "}" << std::endl;			
+			
+		}
+		else if (type == "sphere")
+		{
+			assert(thicknesses.size() == 1);
+			solids_file << '\t' << "SET center {" << center(0) << "," << center(1) << "," << center(2) << "}" << std::endl;
+			auto new_radius = std::sqrt(squareradius);
+			new_radius += thicknesses[0];
+			solids_file << '\t' << "SET radius " << new_radius << std::endl;
+		}
+		else if (type == "cylinder")
+		{
+			assert(thicknesses.size() == 3);
+			double old_size_norm = (size-center).norm();
+			
+			auto new_center = center;
+			Eigen::Vector3d versor = (size-center)/old_size_norm;
+			new_center -= thicknesses[1]*versor;
+			
+			solids_file << '\t' << "SET center {" << new_center(0) << "," << new_center(1) << "," << new_center(2) << "}" << std::endl;
+			auto new_size = size;
+			new_size += thicknesses[2]*versor;
+			solids_file << '\t' << "SET size {" << new_size(0) << "," << new_size(1) << "," << new_size(2) << "}" << std::endl;	
+			auto new_radius = std::sqrt(squareradius);
+			new_radius += thicknesses[0];
+			solids_file << '\t' << "SET radius " << new_radius << std::endl;
+		}
+		
+		solids_file << "END solid " << label << std::endl;
+		solids_file              << "#--------------------------------------------------" << std::endl;
+		solids_file.close();
+	}
 	
 	private:
 	SolidType type;

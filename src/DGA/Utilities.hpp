@@ -265,6 +265,7 @@ const std::vector<Sourcetype>   						sourcetypes   	= { "e", "b", "j", "h", "d"
 const std::vector<Profile>   							profiles   		= { "wave", "gaussian", "const" };
 const std::vector<Carrier>   							carriers   		= { "sin", "cos", "gaussian", "dc", "ricker" };
 const std::vector<Direction>    						directions    	= { "x", "y", "z", "r", "psi", "rho", "phi", "theta" };
+const std::vector<Direction>    						bc_directions   = { "+x", "+y", "+z", "r", "+t", "rho", "-t", "-x", "-y", "-z"};
 const std::vector<BaseFunction> 						modes 			= { "sin", "cos" };
 const std::vector<BoundaryConditionType>				bctypes			= { "pec", "pmc", "pml" };
 const std::vector<Meshtype>								meshtypes		= { "tetrahedral", "cartesian", "none"};
@@ -277,7 +278,8 @@ const std::runtime_error main_missing_file(std::string("Input file missing! Corr
 const std::runtime_error pml_missing(std::string("Sorry, PML not implemented yet, getting there!"));
 const std::runtime_error pmc_missing(std::string("Sorry, PMC not implemented yet, getting there!"));
 const std::runtime_error bc_unknown_type(std::string("Unrecognized boundary condition type! Available: pec, pmc, pml"));
-const std::runtime_error bc_unknown_parameter(std::string("Unrecognized boundary condition parameter! Available: type"));	
+const std::runtime_error bc_unknown_parameter(std::string("Unrecognized boundary condition parameter! Available: type"));
+const std::runtime_error bc_unknown_direction(std::string("Unrecognized direction! Available: +-x, +-y, +-z, r, +-t, rho"));
 const std::runtime_error src_unknown_direction(std::string("Unrecognized direction! Available: x, y, z"));
 const std::runtime_error src_unknown_type(std::string("Unrecognized source type!") + 
                                           std::string("Available: e (electric field), b (magnetic field), j (current density)"));

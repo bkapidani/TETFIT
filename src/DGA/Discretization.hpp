@@ -352,7 +352,7 @@ class Discretization
 		
 		ReadMesh(m);
 		
-		/***********************************MESH PARSING************************************/
+		/***********************************************************************************/
 		
 		have_analytic = s.HaveAnalytic();
 
@@ -1691,7 +1691,7 @@ class Discretization
 					// std::cout << Ct_vec[j].size() << std::endl;
 					assert(Ct_vec[j].size()==4);
 					auto abs_ct_vec = std::vector<uint32_t>({abs(Ct_vec[j][0]),abs(Ct_vec[j][1]),abs(Ct_vec[j][2]),abs(Ct_vec[j][3])});
-					U(j) = M_h[j]*(M_q[j]*U_old(j) +t_step*(dual_curl[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3]))-I(j)));
+					U(j) = upmlcoeff1[j]*M_h[j]*(M_q[j]*U_old(j) + upmlcoeff2[j]*t_step*(dual_curl[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3]))-I(j)));
 					// U(j) = U_old(j) + M_h[j]*t_step*(dual_curl[j]*(F(abs_ct_vec[0])-F(abs_ct_vec[1])+F(abs_ct_vec[2])-F(abs_ct_vec[3]))-I(j));
 				}
 				
@@ -1727,7 +1727,7 @@ class Discretization
 				// {
 				for (auto j : this->tbc_surfaces)
 				{
-					B(j) = (M_mu[j]*F_old(j) - t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
+					B(j) = (fpmlcoeff1[j]*M_mu[j]*F_old(j) - fpmlcoeff2[j]*t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
 					F(j) =  M_nu[j]*B(j);
 					// std::cout << "Face " << j << " is normal: " << F(j) << std::endl;
 					// std::cout << "and has magnetic mass matrix entry " << M_nu[j] << std::endl;
@@ -4035,18 +4035,8 @@ class Discretization
 		return false;
 	}
 	
-	bool ReadStructuredMesh(Mesh& msh)
+	bool ReadSolidsFile(Mesh& msh)
 	{
-		timecounter tc, tctot;
-		timecounter t_mesh;
-		t_mesh.tic();
-		
-		timecounter t_preproc;
-		std::cout << "Loading mesh... ";
-		std::cout.flush();
-		t_preproc.tic();
-		double scale = msh.Scale();
-		
 		std::string input_mesh_file = msh.FileName();
 		
 		if (msh.IsLoaded())
@@ -4065,7 +4055,6 @@ class Discretization
 		std::ifstream ReadFile;//(inputfile.c_str());
 		ReadFile.open(input_mesh_file.c_str());
 		bool in_definition = false;
-		bool geometry_added = false;
 		
 		char action[10], token[20], value[64];
 		std::string thing_being_defined;
@@ -4172,21 +4161,37 @@ class Discretization
 		}
 		
 		ReadFile.close();
+	}
+	
+	bool ReadStructuredMesh(Mesh& msh)
+	{
+		timecounter tc, tctot;
+		timecounter t_mesh;
+		t_mesh.tic();
 		
+		timecounter t_preproc;
+		std::cout << "Loading mesh... ";
+		std::cout.flush();
+		t_preproc.tic();
+		double scale = msh.Scale();
+		
+		if (!ReadSolidsFile(msh))
+			return false;
+
 		// Here the actual construction
 
 		uint32_t nv,nf,ne,np;
 		nv=nf=ne=np=0;
 		
-		auto xmin = scale*msh.GetXmin();
-		auto ymin = scale*msh.GetYmin();
-		auto zmin = scale*msh.GetZmin();
+		auto true_xmin = xmin = scale*msh.GetXmin();
+		auto true_ymin = ymin = scale*msh.GetYmin();
+		auto true_zmin = zmin = scale*msh.GetZmin();
 		Lx	 = scale*msh.GetXstep();
 		Ly   = scale*msh.GetYstep();
 		Lz   = scale*msh.GetZstep();
-		xmax = scale*msh.GetXmax();
-		ymax = scale*msh.GetYmax();
-		zmax = scale*msh.GetZmax();		
+		auto true_xmax = xmax = scale*msh.GetXmax();
+		auto true_ymax = ymax = scale*msh.GetYmax();
+		auto true_zmax = zmax = scale*msh.GetZmax();		
 		
 		for (auto refref : this->Refinements)
 		{
@@ -4197,7 +4202,8 @@ class Discretization
 		
 		auto px = xmin;
 		auto py = ymin;
-		auto pz = zmin;  
+		auto pz = zmin;
+		
 		
 		// t_step = 0.5*sqrt(pow(Lx,2)+pow(Ly,2)+pow(Lz,2))/c0/sqrt(3);
 		const double volume = Lx*Ly*Lz;
@@ -4225,11 +4231,137 @@ class Discretization
 		this->area_x_vec=area_x_vec;
 		this->area_y_vec=area_y_vec;
 		this->area_z_vec=area_z_vec;
-
-		Nx = (fabs(xmax-xmin)) / Lx /*+ N_pml_x_pos + N_pml_y_neg*/;// + 1;
-		Ny = (fabs(ymax-ymin)) / Ly /*+ N_pml_y_pos + N_pml_y_neg*/;// + 1;
-		Nz = (fabs(zmax-zmin)) / Lz /*+ N_pml_z_pos + N_pml_z_neg*/;// + 1;
-
+		
+		/*********************RE COME THE PML (BERNARD'S VERSION)*******************************************/
+		std::vector<double> boxpmlthickness(6,0), ballpmlthickness(1,0), cylpmlthickness(2,0);
+		uint32_t N_pml_x_pos, N_pml_x_neg, N_pml_y_pos, N_pml_y_neg, N_pml_z_pos, N_pml_z_neg;
+		N_pml_x_pos=N_pml_x_neg=N_pml_y_pos=N_pml_y_neg=N_pml_z_pos=N_pml_z_neg=0;
+		
+		for (auto mappedbcc : BCs)
+		{
+			auto bcc = mappedbcc.second;
+			if (bcc.Type() == "pml")
+			{
+				auto dir = bcc.GetDirection();
+				auto bccwidth = bcc.Width();
+				if (dir == "-x")
+				{
+					boxpmlthickness[0] = std::fabs(bccwidth);
+					N_pml_x_neg = boxpmlthickness[0]*scale/Lx;
+				}
+				else if (dir == "-y")
+				{
+					boxpmlthickness[1] = std::fabs(bccwidth);
+					N_pml_y_neg = boxpmlthickness[1]*scale/Ly;
+				}
+				else if (dir == "-z")
+				{
+					boxpmlthickness[2] = std::fabs(bccwidth);
+					N_pml_z_neg = boxpmlthickness[2]*scale/Lz;	
+				}
+				if (dir == "+x")
+				{
+					boxpmlthickness[3] = std::fabs(bccwidth);
+					N_pml_x_pos = boxpmlthickness[3]*scale/Lx;
+				}
+				else if (dir == "+y")
+				{
+					boxpmlthickness[4] = std::fabs(bccwidth);
+					N_pml_y_pos = boxpmlthickness[4]*scale/Ly;
+				}
+				else if (dir == "+z")
+				{
+					boxpmlthickness[5] = std::fabs(bccwidth);
+					N_pml_z_pos = boxpmlthickness[5]*scale/Lz;
+				}
+				else if (dir == "r")
+				{
+					cylpmlthickness[0] = std::fabs(bccwidth);
+					if (cylpmlthickness[0]>cylpmlthickness[1] && cylpmlthickness[0]>cylpmlthickness[2])
+					{
+						N_pml_x_pos = cylpmlthickness[0]*scale/Lx;
+						N_pml_y_pos = cylpmlthickness[0]*scale/Ly;
+						N_pml_z_pos = cylpmlthickness[0]*scale/Lz;
+						N_pml_x_neg = cylpmlthickness[0]*scale/Lx;
+						N_pml_y_neg = cylpmlthickness[0]*scale/Ly;
+						N_pml_z_neg = cylpmlthickness[0]*scale/Lz;
+					}
+				}
+				else if (dir == "rho")
+				{
+					ballpmlthickness[0] = std::fabs(bccwidth);
+					// if (cylpmlthickness[2]>cylpmlthickness[1] && cylpmlthickness[2]>cylpmlthickness[0])
+					// {
+					N_pml_x_pos = ballpmlthickness[0]*scale/Lx;
+					N_pml_y_pos = ballpmlthickness[0]*scale/Ly;
+					N_pml_z_pos = ballpmlthickness[0]*scale/Lz;
+					N_pml_x_neg = ballpmlthickness[0]*scale/Lx;
+					N_pml_y_neg = ballpmlthickness[0]*scale/Ly;
+					N_pml_z_neg = ballpmlthickness[0]*scale/Lz;
+					// }
+				}
+				else if (dir == "t")
+				{
+					cylpmlthickness[2] = std::fabs(bccwidth);
+					if (cylpmlthickness[2]>cylpmlthickness[1] && cylpmlthickness[2]>cylpmlthickness[0])
+					{
+						N_pml_x_pos = cylpmlthickness[2]*scale/Lx;
+						N_pml_y_pos = cylpmlthickness[2]*scale/Ly;
+						N_pml_z_pos = cylpmlthickness[2]*scale/Lz;
+						N_pml_x_neg = cylpmlthickness[2]*scale/Lx;
+						N_pml_y_neg = cylpmlthickness[2]*scale/Ly;
+						N_pml_z_neg = cylpmlthickness[2]*scale/Lz;
+					}
+				}
+				else if (dir == "-t")
+				{
+					cylpmlthickness[1] = std::fabs(bccwidth);
+					if (cylpmlthickness[1]>cylpmlthickness[2] && cylpmlthickness[1]>cylpmlthickness[0])
+					{
+						N_pml_x_pos = cylpmlthickness[1]*scale/Lx;
+						N_pml_y_pos = cylpmlthickness[1]*scale/Ly;
+						N_pml_z_pos = cylpmlthickness[1]*scale/Lz;
+						N_pml_x_neg = cylpmlthickness[1]*scale/Lx;
+						N_pml_y_neg = cylpmlthickness[1]*scale/Ly;
+						N_pml_z_neg = cylpmlthickness[1]*scale/Lz;
+					}					
+				}
+			}
+		}
+		
+		uint32_t pml_solid_label = (*Solids.rbegin()).first;
+		for (auto ritor = Solids.rbegin(); ritor != Solids.rend(); ++ritor)
+		{
+			auto sld = (*ritor).second;
+			if (sld.Type() == "box")
+				sld.ConstructPMLExtension(++pml_solid_label, msh.FileName(), boxpmlthickness);
+			else if (sld.Type() == "sphere")
+				sld.ConstructPMLExtension(++pml_solid_label, msh.FileName(), ballpmlthickness);
+			else if (sld.Type() == "cylinder")
+				sld.ConstructPMLExtension(++pml_solid_label, msh.FileName(), cylpmlthickness);
+		}
+		
+		/* Re-read solids file with added PML */
+		if (!ReadSolidsFile(msh))
+			return false;
+		
+		/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+		
+		
+		Nx = (fabs(xmax-xmin)) / Lx + N_pml_x_pos + N_pml_x_neg;// + 1;
+		Ny = (fabs(ymax-ymin)) / Ly + N_pml_y_pos + N_pml_y_neg;// + 1;
+		Nz = (fabs(zmax-zmin)) / Lz + N_pml_z_pos + N_pml_z_neg;// + 1;
+		
+		px -= double(N_pml_x_neg)*Lx;
+		py -= double(N_pml_y_neg)*Ly;
+		pz -= double(N_pml_z_neg)*Lz;
+		
+		true_xmin = px; true_ymin = py; true_zmin = pz;
+		
+		true_xmax += double(N_pml_x_pos)*Lx;
+		true_ymax += double(N_pml_y_pos)*Ly;
+		true_zmax += double(N_pml_z_pos)*Lz; 
+		
 		tot_E= Nx*(Ny+1)*(Nz+1)+(Nx+1)*Ny*(Nz+1)+(Nx+1)*(Ny+1)*Nz;
 		tot_F= Nx*Ny*(Nz+1)+Nz*Nx*(Ny+1)+Ny*Nz*(Nx+1);
 
@@ -4250,7 +4382,7 @@ class Discretization
 		
 		max_circum_diameter = 0;
 		
-		  for(uint32_t k=0;k<Nz;k++)
+		  for(uint32_t k=0;k<Nz;++k)
 		  {
 			 py=ymin;
 			 // std::vector<uint32_t> old_col;
@@ -4617,6 +4749,7 @@ class Discretization
 					  }
 					  
 					  
+					 //std::cout << "Still loading 0... ";
 					  
 					  Dt[D[nv][0]].push_back( sgnint32_t<int32_t>({nv,-1})); 
 					  Dt[D[nv][1]].push_back( sgnint32_t<int32_t>({nv,-1}));
@@ -4747,7 +4880,7 @@ class Discretization
 						dual_curl.push_back(1);
 						//U.push_back(0);
 					 }
-					 
+					 //std::cout << "Still loading 0.1... " << std::endl;
 					 if (!C_vec[D[nv][0]].size())
 					 {
 						C_vec[D[nv][0]] = std::vector<uint32_t>({E_cluster[nv][0],E_cluster[nv][1],E_cluster[nv][3],E_cluster[nv][5]});
@@ -4771,7 +4904,7 @@ class Discretization
 						 boundary_face[D[nv][0]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][0]]= tbc_surfaces[D[nv][0]] || vol_material[nv];
 					 }	
-					 
+					 //std::cout << "Still loading 0.11... " << std::endl;
 					 if (!C_vec[D[nv][1]].size())
 					 {
 						C_vec[D[nv][1]] = std::vector<uint32_t>({E_cluster[nv][0],E_cluster[nv][2],E_cluster[nv][4],E_cluster[nv][8]});
@@ -4796,7 +4929,7 @@ class Discretization
 						 boundary_face[D[nv][1]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][1]]= tbc_surfaces[D[nv][1]] || vol_material[nv];
 					 }	
-					 
+					 //std::cout << "Still loading 0.12... " << std::endl;
 					 if (!C_vec[D[nv][2]].size())
 					 {
 						C_vec[D[nv][2]] = std::vector<uint32_t>({E_cluster[nv][1],E_cluster[nv][2],E_cluster[nv][6],E_cluster[nv][9]});
@@ -4820,7 +4953,7 @@ class Discretization
 						 boundary_face[D[nv][2]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][2]]= tbc_surfaces[D[nv][2]] || vol_material[nv];
 					 }	
-					 
+					 //std::cout << "Still loading 0.13... " << std::endl;
 					 if (!C_vec[D[nv][3]].size())
 					 {
 						C_vec[D[nv][3]] = std::vector<uint32_t>({E_cluster[nv][3],E_cluster[nv][4],E_cluster[nv][7],E_cluster[nv][10]});
@@ -4844,7 +4977,7 @@ class Discretization
 						 boundary_face[D[nv][3]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][3]]= tbc_surfaces[D[nv][3]] || vol_material[nv];
 					 }	
-					 
+					 //std::cout << "Still loading 0.14... " << std::endl;
 					 if (!C_vec[D[nv][4]].size())
 					 {
 						C_vec[D[nv][4]] = std::vector<uint32_t>({E_cluster[nv][5],E_cluster[nv][6],E_cluster[nv][7],E_cluster[nv][11]});
@@ -4869,7 +5002,7 @@ class Discretization
 						 boundary_face[D[nv][4]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][4]]= tbc_surfaces[D[nv][4]] || vol_material[nv];
 					 }	
-					 
+					 //std::cout << "Still loading 0.15... " << std::endl;
 					 if (!C_vec[D[nv][5]].size())
 					 {
 						C_vec[D[nv][5]] = std::vector<uint32_t>({E_cluster[nv][8],E_cluster[nv][9],E_cluster[nv][10],E_cluster[nv][11]});
@@ -4894,6 +5027,7 @@ class Discretization
 						 tbc_surfaces[D[nv][5]]= tbc_surfaces[D[nv][5]] || vol_material[nv];
 					 }
 					
+					//std::cout << "Still loading 0.2... " << std::endl;
 					if (mu_nv(0,0) != 0)
 					{
 						average_ni[D[nv][2]] += Lx/2/mu_nv(0,0);
@@ -4912,6 +5046,7 @@ class Discretization
 						average_ni[D[nv][5]] += Lz/2/mu_nv(2,2);
 					}
 					
+					//std::cout << "Still loading 0.21... " << std::endl;
 					if (ch_nv(0,0) != 0)
 					{
 						average_mag_sigma[D[nv][2]] += Lx/2/ch_nv(0,0); is_mag_lossy[D[nv][2]]++;
@@ -4930,6 +5065,7 @@ class Discretization
 						average_mag_sigma[D[nv][5]] += Lz/2/ch_nv(2,2); is_mag_lossy[D[nv][5]]++;
 					}
 					
+					//std::cout << "Still loading 0.22... " << std::endl;
 					if (ep_nv(0,0) != 0)
 					{
 						average_eps[E_cluster[nv][ 0]] += da_x*ep_nv(0,0);
@@ -4954,6 +5090,7 @@ class Discretization
 						average_eps[E_cluster[nv][ 7]] += da_z*ep_nv(2,2);
 					}
 					
+					//std::cout << "Still loading 0.23... " << std::endl;
 					if (si_nv(0,0) != 0)
 					{
 						average_sigma[E_cluster[nv][ 0]] += da_x*si_nv(0,0); is_ele_lossy[E_cluster[nv][ 0]]++;
@@ -4982,15 +5119,21 @@ class Discretization
 					nv++;
 				   
 				   px+=Lx;
+				   //std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
+				   //std::cout << "Still loading 1... ";
 				}
 				
 				// old_col=std::move(this_col);
 				py+=Ly;
+				//std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
+				//std::cout << "Still loading 2... ";
 			 }
 
 			 // this_layer.setFromTriplets(tripletList.begin(), tripletList.end());
 			 // previous_layer=std::move(this_layer);
 			 pz+=Lz;
+			 //std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
+			 //std::cout << "Still loading 3... ";
 		}
 
 		t_preproc.toc();
@@ -5000,7 +5143,7 @@ class Discretization
 		std::cout.flush();
 		t_preproc.tic();
 		// t_step *= Simulations[current_simulation].Courant();
-		std::cout << "CFL time step = " << t_step << std::endl;
+		// std::cout << "CFL time step = " << t_step << std::endl;
 		std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
 		std::vector<std::vector<uint32_t>> dumb_face(surfaces_size());
 		std::vector<uint32_t> dumb(edges_size(),0);
@@ -5023,6 +5166,7 @@ class Discretization
 		for (uint32_t i=0; i<nf; ++i)
 		{
 			N_vec(i) = average_ni[i]/face_area[i];
+			
 			if (tbc_surfaces[i])
 				this->tbc_surfaces.push_back(i);
 		}
@@ -5112,8 +5256,8 @@ class Discretization
 		// std::ofstream os_nuvec("nuvec.dat");
 		for (uint32_t i=0; i<nf; ++i)
 		{
-				// Nvec(i)=average_ni[i]/face_area[i];
-
+			// Nvec(i)=average_ni[i]/face_area[i];			
+			
 			if (average_ni[i] != 0)
 			{
 				if (is_mag_lossy[i])
@@ -5144,7 +5288,44 @@ class Discretization
 					// Mu_vec(i) = 0;
 			}
 			
-
+			auto fbar = face_barycenter(i);
+			double cf1,cf2;
+			cf1=cf2=1;
+			if (fbar(0)<xmin)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/150/PI/Lx);
+				cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*8/150/PI/Lx);
+			}
+			else if (fbar(0)>xmax)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/150/PI/Lx);
+				cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*8/150/PI/Lx);
+			}
+			
+			if (fbar(1)<ymin)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/150/PI/Ly);
+				cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*8/150/PI/Ly);
+			}
+			else if (fbar(1)>ymax)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/150/PI/Ly);
+				cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*8/150/PI/Ly);
+			}
+		
+			if (fbar(2)<zmin)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/150/PI/Lz);
+				cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*8/150/PI/Lz);
+			}
+			else if (fbar(2)>zmax)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/150/PI/Lz);
+				cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*8/150/PI/Lz);
+			}
+			
+			fpmlcoeff1.push_back(cf1);
+			fpmlcoeff2.push_back(cf2);
 		}
 		// os_nuvec.close();
 		// std::ofstream os_epvec("epvec.dat");
@@ -5196,7 +5377,45 @@ class Discretization
 				// if (store_E)
 					// Ep_vec(i) = 0;
 			 }
-
+			 
+			auto fbar = edge_barycenter(i);
+			double cf1,cf2;
+			cf1=cf2=1;
+			if (fbar(0)<xmin)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/150/PI/Lx);
+				cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*8/150/PI/Lx);
+			}
+			else if (fbar(0)>xmax)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/150/PI/Lx);
+				cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*8/150/PI/Lx);
+			}
+			
+			if (fbar(1)<ymin)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/150/PI/Ly);
+				cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*8/150/PI/Ly);
+			}
+			else if (fbar(1)>ymax)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/150/PI/Ly);
+				cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*8/150/PI/Ly);
+			}
+		
+			if (fbar(2)<zmin)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/150/PI/Lz);
+				cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*8/150/PI/Lz);
+			}
+			else if (fbar(2)>zmax)
+			{
+				cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/150/PI/Lz);
+				cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*8/150/PI/Lz);
+			}
+			
+			upmlcoeff1.push_back(cf1);
+			upmlcoeff2.push_back(cf2);
 		}
 	 
 		// os_epvec.close();
@@ -9535,11 +9754,11 @@ class Discretization
 	
    uint32_t WhichSolid(const double& x, const double& y, const double& z)
    {
-	   for (auto ritor = Solids.rbegin(); ritor != Solids.rend(); ++ritor) // start from end of map, so successive definitions can override the previous ones
+	   for (auto ritor = Solids.begin(); ritor != Solids.end(); ++ritor) // start from end of map, so successive definitions can override the previous ones
 	   {
 		   auto sol = (*ritor).second;
-		   bool found = (sol.Rule(x,y,z) && sol.Rule(x+Lx,y,z) && sol.Rule(x,y+Ly,z) && sol.Rule(x,y,z+Lz) &&
-		            sol.Rule(x+Lx,y+Ly,z) && sol.Rule(x+Lx,y,z+Lz) && sol.Rule(x,y+Ly,z+Lz) && sol.Rule(x+Lx,y+Ly,z+Lz));
+		   bool found = (sol.Rule(x,y,z)/* && sol.Rule(x+Lx,y,z) && sol.Rule(x,y+Ly,z) && sol.Rule(x,y,z+Lz) &&
+		            sol.Rule(x+Lx,y+Ly,z) && sol.Rule(x+Lx,y,z+Lz) && sol.Rule(x,y+Ly,z+Lz) && sol.Rule(x+Lx,y+Ly,z+Lz)*/);
 		   if (found)
 			   return sol.Material();
 	   }
@@ -10246,10 +10465,10 @@ class Discretization
 	std::vector<std::array<uint32_t, 8>>		P_cluster;
 	std::vector<int32_t> 						curl, dual_curl;
 	std::vector<uint32_t> 						src_edges, common_edges, uncommon_edges, bc_edges, tbc_surfaces;
-	std::vector<double> 						M_nu, M_h, M_q, M_e, M_mu;
+	std::vector<double> 						M_nu, M_h, M_q, M_e, M_mu, fpmlcoeff1, fpmlcoeff2, upmlcoeff1, upmlcoeff2;
 	DBfile 										*_siloDb=NULL;
 	Duration									simulation_time;
-	double										xmax,ymax,zmax;
+	double										xmax,ymax,zmax,xmin,ymin,zmin;
 	std::vector<uint32_t> 						boundary_face;
 	//fractured formulation stuff
 	std::vector<std::array<uint32_t, 4>>		F_maps;

@@ -38,6 +38,7 @@ class BoundaryCondition
 	: type("none")
 	{
 		thickness=0; //just for PML, otherwise unused
+		dir = "none";
 		is_set = false;
 	}
 	
@@ -50,7 +51,11 @@ class BoundaryCondition
 		{
 			// Temporary error messages
 			if (value == "pml")
-				MyThrow(input_line,pml_missing);
+			{
+				// MyThrow(input_line,pml_missing);
+				type = value;
+				// this->val=0;
+			}
 			else if (value == "pmc")
 			{
 				type = value;
@@ -64,7 +69,14 @@ class BoundaryCondition
 			else
 				MyThrow(input_line,bc_unknown_type);
 		}
-		else if (param == "thickness")
+		else if (param == "direction")
+		{
+			if (std::find(bc_directions.begin(),bc_directions.end(),value) == bc_directions.end())
+				MyThrow(input_line,bc_unknown_direction);
+			else
+				this->dir = value;
+		}
+		else if (param == "width")
 			thickness = std::stod(value);
 		else if (param == "surface")
 			surfs.push_back(std::stoi(value));
@@ -108,13 +120,16 @@ class BoundaryCondition
 		else	
 			MyThrow(input_line,bc_unknown_parameter);
 	}
+	
 	const std::string& 		Type(void) { return type; }
-	const double& 			GetThickness(void) { return thickness; }
+	const double& 			Width(void) { return thickness; }
 	const double&			GetValue(void) { return val; }
 	const std::vector<uint32_t> Surfaces(void) { return surfs; }
+	const Direction&		GetDirection(void) { return dir; }
 	
 	private:
 	std::string type;
+	Direction dir;
 	bool is_set;
 	double thickness, val;
 	std::vector<uint32_t> surfs;
