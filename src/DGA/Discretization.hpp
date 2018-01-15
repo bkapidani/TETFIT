@@ -619,46 +619,47 @@ class Discretization
 				cf1=cf2=1;
 				if (fbar(0)<xmin)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/max_edge_len);
-					std::cout << "orrore1" << std::endl;
-					//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/min_edge_len);
+					// std::cout << "orrore1" << std::endl;
+					//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/min_edge_len);
 				}
 				else if (fbar(0)>xmax)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/max_edge_len);
-					std::cout << "orrore2" << std::endl;
-					//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/min_edge_len);
+					// std::cout << "orrore2" << std::endl;
+					//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/min_edge_len);
 				}
 				
 				if (fbar(1)<ymin)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/max_edge_len);
-					std::cout << "orrore3" << std::endl;
-					//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/min_edge_len);
+					// std::cout << "orrore3" << std::endl;
+					//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/min_edge_len);
 				}
 				else if (fbar(1)>ymax)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/max_edge_len);
-					std::cout << "orrore4" << std::endl;
-					//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/min_edge_len);
+					// std::cout << "orrore4" << std::endl;
+					//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/min_edge_len);
 				}
 			
 				if (fbar(2)<zmin)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/min_edge_len);
 					std::cout << "orrore5" << std::endl;
-					//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/min_edge_len);
 				}
 				else if (fbar(2)>zmax)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/min_edge_len);
 					// std::cout << "benone6" << std::endl;
-					//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/max_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/min_edge_len);
 				}
 				
 				for (auto ii : associated_n_surfaces[ff])
 				{
 					PMLF_a[ii] = cf1;
+					std::cout << "si! ";
 				}
 				for (auto ii : associated_r_surfaces[ff])
 				{
@@ -681,35 +682,35 @@ class Discretization
 				cf1=cf2=1;
 				if (fbar(0)<xmin)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/max_edge_len);
-					//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/min_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(xmin-fbar(0))/std::fabs(xmin-true_xmin),3)*4/2/150/PI/min_edge_len);
 				}
 				else if (fbar(0)>xmax)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/max_edge_len);
-					//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/min_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(xmax-fbar(0))/std::fabs(xmax-true_xmax),3)*4/2/150/PI/min_edge_len);
 				}
 				
 				if (fbar(1)<ymin)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/max_edge_len);
-					//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/min_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(ymin-fbar(1))/std::fabs(ymin-true_ymin),3)*4/2/150/PI/min_edge_len);
 				}
 				else if (fbar(1)>ymax)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/max_edge_len);
-					//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/min_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(ymax-fbar(1))/std::fabs(ymax-true_ymax),3)*4/2/150/PI/min_edge_len);
 				}
 			
 				if (fbar(2)<zmin)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/max_edge_len);
-					//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/min_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmin-fbar(2))/std::fabs(zmin-true_zmin),3)*4/2/150/PI/min_edge_len);
 				}
 				else if (fbar(2)>zmax)
 				{
-					cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/max_edge_len);
-					//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/max_edge_len);
+					cf1 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/min_edge_len);
+					//cf2 *= std::exp(-std::pow(std::fabs(zmax-fbar(2))/std::fabs(zmax-true_zmax),3)*4/2/150/PI/min_edge_len);
 				}
 				
 				eigen_upmlcoeff1(ee) = cf1;
@@ -817,8 +818,7 @@ class Discretization
 							double usrc;
 							if (exc_type == "j" )
 							{
-								usrc = ComputeCurrentSource(ee,current_time);
-								U(ee) = usrc;
+								I(ee) = ComputeCurrentSource(ee,current_time);
 							}
 							else
 							{
@@ -882,7 +882,7 @@ class Discretization
 				tdbg.toc();
 				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				
-				B -= t_step*curl_u;
+				B =  eigen_fpmlcoeff1.cwiseProduct(B) -  t_step*curl_u;
 				// Psi = this->E*U;
 				// if (store_E)
 				
@@ -1406,7 +1406,7 @@ class Discretization
 					if (exc_type != "h")
 					{						
 						if (exc_type == "j")
-							U(ee) = ComputeCurrentSource(ee, 0);
+							I(ee) = ComputeCurrentSource(ee, 0);
 						else
 							U(ee) = ComputeEfieldSource(ee, 0);
 						SrcFld[ee] = U[ee];
@@ -1456,7 +1456,7 @@ class Discretization
 						else
 						{						
 							if (exc_type == "j")
-								U(ee) = ComputeCurrentSource(ee, current_time);
+								I(ee) = ComputeCurrentSource(ee, current_time);
 							else
 								U(ee) = ComputeEfieldSource(ee, current_time);
 							SrcFld[ee] = U(ee);
@@ -1617,7 +1617,7 @@ class Discretization
 					if (exc_type != "h")
 					{						
 						if (exc_type == "j")
-							U(ee) = ComputeCurrentSource(ee, 0);
+							I(ee) = ComputeCurrentSource(ee, 0);
 						else
 							U(ee) = ComputeEfieldSource(ee, 0);
 						SrcFld[ee] = U[ee];
@@ -1666,7 +1666,7 @@ class Discretization
 						else
 						{						
 							if (exc_type == "j")
-								U(ee) = ComputeCurrentSource(ee, current_time);
+								I(ee) = ComputeCurrentSource(ee, current_time);
 							else
 								U(ee) = ComputeEfieldSource(ee, current_time);
 							SrcFld[ee] = U(ee);
@@ -1805,7 +1805,7 @@ class Discretization
 				{
 					auto exc_type = Sources[*(edge_src[j].begin())].Type();
 					if (exc_type == "j")
-						U(j) = ComputeCurrentSource(j, current_time);
+						I(j) = ComputeCurrentSource(j, current_time);
 					else
 						U(j) = ComputeEfieldSource(j, current_time);
 					// std::cout << "Edge " << j << " is dirichlet: " << U(j) << std::endl;
@@ -1856,9 +1856,9 @@ class Discretization
 				// {
 				for (auto j : this->tbc_surfaces)
 				{
-					B(j) = (std::pow(fpmlcoeff1[j],2)*M_mu[j]*F_old(j) 
-					     - fpmlcoeff1[j]*t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3])));
-					F(j) =  M_nu[j]*B(j);
+					B(j) = M_mu[j]*(fpmlcoeff1[j]*F_old(j)) 
+					     - t_step*curl[j]*(U(C_vec[j][0])-U(C_vec[j][1])+U(C_vec[j][2])-U(C_vec[j][3]));
+					F(j) =  fpmlcoeff1[j]*M_nu[j]*B(j);
 					// std::cout << "Face " << j << " is normal: " << F(j) << std::endl;
 					// std::cout << "and has magnetic mass matrix entry " << M_nu[j] << std::endl;
 				}
@@ -7612,7 +7612,7 @@ class Discretization
 				bool is_dirich=false;
 				for (auto esrc : edge_src[i] )
 				{
-					if (Sources[esrc].Type() == "e" || Sources[esrc].Type() == "j")
+					if (Sources[esrc].Type() == "e"/* || Sources[esrc].Type() == "j"*/)
 					{
 						is_dirich = true;
 						break;
@@ -8047,7 +8047,7 @@ class Discretization
 				bool is_dirich=false;
 				for (auto esrc : edge_src[i] )
 				{
-					if (Sources[esrc].Type() == "e" || Sources[esrc].Type() == "j")
+					if (Sources[esrc].Type() == "e" /*|| Sources[esrc].Type() == "j"*/)
 					{
 						is_dirich = true;
 						break;
@@ -10370,15 +10370,19 @@ class Discretization
 				auto n1 = pts[std::get<0>(edges[edge_bars.size()])];
 				auto n2 = pts[std::get<1>(edges[edge_bars.size()])];
 				max_edge_len = (n2-n1).norm();
+				min_edge_len = max_edge_len;
 				for (uint32_t e = edge_bars.size(); e < edges_size(); e++)
 				{
 					Eigen::Vector3d bc(0,0,0);
 					
 					auto n1 = pts[std::get<0>(edges[e])];
 					auto n2 = pts[std::get<1>(edges[e])];
+					auto dummy_norm = (n2-n1).norm();
 					
-					if ((n2-n1).norm()>max_edge_len)
-						max_edge_len = (n2-n1).norm();
+					if (dummy_norm>max_edge_len)
+						max_edge_len = dummy_norm;
+					else if (dummy_norm<min_edge_len)
+						min_edge_len = dummy_norm;
 					// for (const auto& signed_nn : etn_list[e])
 					// {
 						// uint32_t nn = signed_nn.Val();
@@ -10671,8 +10675,8 @@ class Discretization
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;
 	std::vector<cluster_list> 					Dt;
-	double                                      t_step, min_h, average_diameter, excitation_freq, max_rel_err, max_circum_diameter, max_edge_len;
-	double										Lx,Ly,Lz;
+	double                                      t_step, min_h, average_diameter, excitation_freq;
+	double										Lx,Ly,Lz, max_rel_err, max_circum_diameter, max_edge_len, min_edge_len;
 	std::string									have_analytic;
 	uint32_t									loaded_mesh_label, current_simulation, root;
 	// std::string									method_line;

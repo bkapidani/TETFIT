@@ -41,6 +41,7 @@ class Output
 		name = "simulation";
 		output_period = 0;
 		nextprint = 1e-15;
+		delay     = 0;
 		grid = false;
 		error_norm = false;
 		xstart = ystart = zstart = 0;
@@ -52,7 +53,7 @@ class Output
 	
 	void Initialize(void)
 	{
-		nextprint = 0;
+		nextprint = delay;
 	}
 	
 	void SetParam(uint32_t input_line, std::string param, std::string value)
@@ -65,6 +66,10 @@ class Output
 		}
 		else if (param == "radiator")
 			radiating_vol_bnd.push_back(std::stof(value));
+		else if (param == "delay")
+		{
+			nextprint = delay = std::stod(value);
+		}
 		else if (param == "coordinates")
 		{
 			if (value == "cartesian")
@@ -339,8 +344,8 @@ class Output
 	bool grid, error_norm;
 	std::vector<uint32_t> radiating_vol_bnd;
 	std::string name;
-	double nextprint, xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
-	double output_period;
+	double xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
+	double output_period, nextprint, delay;
 	std::vector<Eigen::Vector3d> probepoints;
 	OutputMode mode;
 	uint8_t ref_sys;
