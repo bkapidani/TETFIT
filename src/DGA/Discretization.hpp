@@ -425,6 +425,8 @@ class Discretization
 
 			}
 			
+			std::cout << "ciao pa" << std::endl;
+			
 			for (auto p = Simulations[current_simulation].Src().begin(); p != Simulations[current_simulation].Src().end(); ++p)
 			{
 				if (Sources[*p].Type() == "j")
@@ -496,6 +498,8 @@ class Discretization
 					}
 				}
 			}
+			
+			std::cout << "ciao ma" << std::endl;
 			
 			if (mod_out == "maxerror")
 			{
@@ -4459,6 +4463,7 @@ class Discretization
 			}
 		}
 		
+		copy_file(msh.FileName().c_str(), "dummy_solid_file.txt");
 		uint32_t pml_solid_label = (*Solids.rbegin()).first;
 		for (auto ritor = Solids.rbegin(); ritor != Solids.rend(); ++ritor)
 		{
@@ -4474,13 +4479,17 @@ class Discretization
 		/* Re-read solids file with added PML */
 		if (!ReadSolidsFile(msh))
 			return false;
-		
+		copy_file("dummy_solid_file.txt", msh.FileName().c_str());
+		assert(!std::remove("dummy_solid_file.txt"));
 		/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 		
 		
 		Nx = (fabs(xmax-xmin)) / Lx + N_pml_x_pos + N_pml_x_neg;// + 1;
 		Ny = (fabs(ymax-ymin)) / Ly + N_pml_y_pos + N_pml_y_neg;// + 1;
 		Nz = (fabs(zmax-zmin)) / Lz + N_pml_z_pos + N_pml_z_neg;// + 1;
+		
+		std::cout << Nx << "---" << Ny << "---" << Nz << std::endl;
+		
 		
 		px -= double(N_pml_x_neg)*Lx;
 		py -= double(N_pml_y_neg)*Ly;
@@ -4512,9 +4521,11 @@ class Discretization
 		
 		max_circum_diameter = 0;
 		
+		// std::cout << "ciao ma1" << std::endl;
+		
 		  for(uint32_t k=0;k<Nz;++k)
 		  {
-			 py=ymin;
+			 py=true_ymin;
 			 // std::vector<uint32_t> old_col;
 			 // Eigen::SparseMatrix<uint32_t> this_layer(Nx,Ny);
 			 std::vector<Q> tripletList;
@@ -4523,7 +4534,7 @@ class Discretization
 			 for (uint32_t j=0;j<Ny;++j)
 			 {
 				// std::vector<uint32_t> this_col(Nx,0);
-				px=xmin;
+				px=true_xmin;
 				for (uint32_t i=0;i<Nx;++i)
 				{
 					vol_material.push_back(WhichSolid(px+0.5*Lx,py+0.5*Ly,pz+0.5*Lz)); //take the material at barycenter for the full elements
@@ -4879,7 +4890,7 @@ class Discretization
 					  }
 					  
 					  
-					 //std::cout << "Still loading 0... ";
+					 // // std::cout << "Still loading 0... ";
 					  
 					  Dt[D[nv][0]].push_back( sgnint32_t<int32_t>({nv,-1})); 
 					  Dt[D[nv][1]].push_back( sgnint32_t<int32_t>({nv,-1}));
@@ -5010,7 +5021,7 @@ class Discretization
 						dual_curl.push_back(1);
 						//U.push_back(0);
 					 }
-					 //std::cout << "Still loading 0.1... " << std::endl;
+					 // // std::cout << "Still loading 0.1... " << std::endl;
 					 if (!C_vec[D[nv][0]].size())
 					 {
 						C_vec[D[nv][0]] = std::vector<uint32_t>({E_cluster[nv][0],E_cluster[nv][1],E_cluster[nv][3],E_cluster[nv][5]});
@@ -5034,7 +5045,7 @@ class Discretization
 						 boundary_face[D[nv][0]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][0]]= tbc_surfaces[D[nv][0]] || vol_material[nv];
 					 }	
-					 //std::cout << "Still loading 0.11... " << std::endl;
+					  // std::cout << "Still loading 0.11... " << std::endl;
 					 if (!C_vec[D[nv][1]].size())
 					 {
 						C_vec[D[nv][1]] = std::vector<uint32_t>({E_cluster[nv][0],E_cluster[nv][2],E_cluster[nv][4],E_cluster[nv][8]});
@@ -5059,7 +5070,7 @@ class Discretization
 						 boundary_face[D[nv][1]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][1]]= tbc_surfaces[D[nv][1]] || vol_material[nv];
 					 }	
-					 //std::cout << "Still loading 0.12... " << std::endl;
+					 // // std::cout << "Still loading 0.12... " << std::endl;
 					 if (!C_vec[D[nv][2]].size())
 					 {
 						C_vec[D[nv][2]] = std::vector<uint32_t>({E_cluster[nv][1],E_cluster[nv][2],E_cluster[nv][6],E_cluster[nv][9]});
@@ -5083,7 +5094,7 @@ class Discretization
 						 boundary_face[D[nv][2]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][2]]= tbc_surfaces[D[nv][2]] || vol_material[nv];
 					 }	
-					 //std::cout << "Still loading 0.13... " << std::endl;
+					  // std::cout << "Still loading 0.13... " << std::endl;
 					 if (!C_vec[D[nv][3]].size())
 					 {
 						C_vec[D[nv][3]] = std::vector<uint32_t>({E_cluster[nv][3],E_cluster[nv][4],E_cluster[nv][7],E_cluster[nv][10]});
@@ -5107,7 +5118,7 @@ class Discretization
 						 boundary_face[D[nv][3]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][3]]= tbc_surfaces[D[nv][3]] || vol_material[nv];
 					 }	
-					 //std::cout << "Still loading 0.14... " << std::endl;
+					  // std::cout << "Still loading 0.14... " << std::endl;
 					 if (!C_vec[D[nv][4]].size())
 					 {
 						C_vec[D[nv][4]] = std::vector<uint32_t>({E_cluster[nv][5],E_cluster[nv][6],E_cluster[nv][7],E_cluster[nv][11]});
@@ -5132,7 +5143,7 @@ class Discretization
 						 boundary_face[D[nv][4]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][4]]= tbc_surfaces[D[nv][4]] || vol_material[nv];
 					 }	
-					 //std::cout << "Still loading 0.15... " << std::endl;
+					 // // std::cout << "Still loading 0.15... " << std::endl;
 					 if (!C_vec[D[nv][5]].size())
 					 {
 						C_vec[D[nv][5]] = std::vector<uint32_t>({E_cluster[nv][8],E_cluster[nv][9],E_cluster[nv][10],E_cluster[nv][11]});
@@ -5157,7 +5168,7 @@ class Discretization
 						 tbc_surfaces[D[nv][5]]= tbc_surfaces[D[nv][5]] || vol_material[nv];
 					 }
 					
-					//std::cout << "Still loading 0.2... " << std::endl;
+					 // std::cout << "Still loading 0.2... " << std::endl;
 					if (mu_nv(0,0) != 0)
 					{
 						average_ni[D[nv][2]] += Lx/2/mu_nv(0,0);
@@ -5176,7 +5187,7 @@ class Discretization
 						average_ni[D[nv][5]] += Lz/2/mu_nv(2,2);
 					}
 					
-					//std::cout << "Still loading 0.21... " << std::endl;
+					// // std::cout << "Still loading 0.21... " << std::endl;
 					if (ch_nv(0,0) != 0)
 					{
 						average_mag_sigma[D[nv][2]] += Lx/2/ch_nv(0,0); is_mag_lossy[D[nv][2]]++;
@@ -5195,7 +5206,7 @@ class Discretization
 						average_mag_sigma[D[nv][5]] += Lz/2/ch_nv(2,2); is_mag_lossy[D[nv][5]]++;
 					}
 					
-					//std::cout << "Still loading 0.22... " << std::endl;
+					 // std::cout << "Still loading 0.22... " << std::endl;
 					if (ep_nv(0,0) != 0)
 					{
 						average_eps[E_cluster[nv][ 0]] += da_x*ep_nv(0,0);
@@ -5220,7 +5231,7 @@ class Discretization
 						average_eps[E_cluster[nv][ 7]] += da_z*ep_nv(2,2);
 					}
 					
-					//std::cout << "Still loading 0.23... " << std::endl;
+					 // std::cout << "Still loading 0.23... " << std::endl;
 					if (si_nv(0,0) != 0)
 					{
 						average_sigma[E_cluster[nv][ 0]] += da_x*si_nv(0,0); is_ele_lossy[E_cluster[nv][ 0]]++;
@@ -5248,22 +5259,24 @@ class Discretization
 					
 					nv++;
 				   
+				   std::cout << "x comp {" << px << "," << py << "," << pz << "}" << std::endl;
 				   px+=Lx;
-				   //std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
-				   //std::cout << "Still loading 1... ";
+				   // std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
+				   // // std::cout << "Still loading 1... ";
 				}
 				
 				// old_col=std::move(this_col);
+				std::cout << "y comp {" << px << "," << py << "," << pz << "}" << std::endl;
 				py+=Ly;
-				//std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
-				//std::cout << "Still loading 2... ";
+				// std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
+				// // std::cout << "Still loading 2... ";
 			 }
 
 			 // this_layer.setFromTriplets(tripletList.begin(), tripletList.end());
 			 // previous_layer=std::move(this_layer);
+			 std::cout << "z comp {" << px << "," << py << "," << pz << "}" << std::endl;
 			 pz+=Lz;
-			 //std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
-			 //std::cout << "Still loading 3... ";
+			 // // std::cout << "Still loading 3... ";
 		}
 
 		t_preproc.toc();

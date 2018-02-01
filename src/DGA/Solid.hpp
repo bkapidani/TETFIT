@@ -313,6 +313,9 @@ class Solid
 			new_corner(2) -= thicknesses[2];
 			solids_file << '\t' << "SET corner {" << new_corner(0) << "," << new_corner(1) << "," << new_corner(2) << "}" << std::endl;
 			auto new_size = size;
+			new_size(0) += thicknesses[0];
+			new_size(1) += thicknesses[1];
+			new_size(2) += thicknesses[2];
 			new_size(0) += thicknesses[3];
 			new_size(1) += thicknesses[4];
 			new_size(2) += thicknesses[5];

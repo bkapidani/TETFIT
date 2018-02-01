@@ -38,6 +38,7 @@
 #include <cstdlib>
 #include <utility> 
 #include <fstream>
+// #include <filesystem>
 #include <vector>
 #include <bitset>
 #include <string>
@@ -378,6 +379,15 @@ void DateAndTime(void)
 	using namespace date;
 	using namespace std::chrono;
 	std::cout << "On " << system_clock::now() << '\n';
+}
+
+void copy_file( const char* srce_file, const char* dest_file )
+{
+    std::ifstream srce( srce_file, std::ios::binary ) ;
+    std::ofstream dest( dest_file, std::ios::binary ) ;
+    dest << srce.rdbuf();
+	srce.close();
+	dest.close();
 }
 
 std::pair<Eigen::Vector3d,Eigen::Vector3d> analytic_value_excite_h(SpaceTimePoint p, double sigma, double eps, double mu, double freq)
