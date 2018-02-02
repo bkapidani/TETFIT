@@ -868,10 +868,15 @@ class Discretization
 				tdbg.toc();
 				ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				
-				U_a        = PMLU_a.cwiseProduct(U_a) + t_step*(H*curl_f);
-				U_b        = P_p.cwiseProduct(PMLU_b.cwiseProduct(Old_U_b)) + t_step*(Mp*curl_f);
-				U_c        = Q*(PMLU_c.cwiseProduct(Old_U_c)) + t_step*(Mq*curl_f);
-				U = eigen_upmlcoeff1.cwiseProduct(M*U_frac);
+				// U_a        = PMLU_a.cwiseProduct(U_a) + t_step*(H*curl_f);
+				// U_b        = P_p.cwiseProduct(PMLU_b.cwiseProduct(Old_U_b)) + t_step*(Mp*curl_f);
+				// U_c        = Q*(PMLU_c.cwiseProduct(Old_U_c)) + t_step*(Mq*curl_f);
+				// U = eigen_upmlcoeff1.cwiseProduct(M*U_frac);
+				
+				U_a        = U_a + t_step*(H*curl_f);
+				U_b        = P_p.cwiseProduct(Old_U_b) + t_step*(Mp*curl_f);
+				U_c        = Q*Old_U_c + t_step*(Mq*curl_f);
+				U 		   = M*U_frac;
 
 				poynting_flux.push_back(0.5*(U_old+U).dot(curl_b));
 				Losses.push_back(0.25*(U_old.transpose()+U.transpose())*(SigMat*(U_old+U)));
@@ -886,15 +891,20 @@ class Discretization
 				tdbg.toc();
 				mag_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
 				
-				B =  eigen_fpmlcoeff1.cwiseProduct(B) -  t_step*curl_u;
+				// B =  eigen_fpmlcoeff1.cwiseProduct(B) -  t_step*curl_u;
 				// Psi = this->E*U;
 				// if (store_E)
 				
-				F_a        = PMLF_a.cwiseProduct(F_a) - t_step*N*curl_u;
-				F_b        = R_r.cwiseProduct(PMLF_b.cwiseProduct(Old_F_b)) - t_step*Tr*curl_u;
-				F_c        = S*(PMLF_c.cwiseProduct(Old_F_c)) - t_step*Ts*curl_u;
+				// F_a        = PMLF_a.cwiseProduct(F_a) - t_step*N*curl_u;
+				// F_b        = R_r.cwiseProduct(PMLF_b.cwiseProduct(Old_F_b)) - t_step*Tr*curl_u;
+				// F_c        = S*(PMLF_c.cwiseProduct(Old_F_c)) - t_step*Ts*curl_u;
+				// F          = eigen_fpmlcoeff1.cwiseProduct(T*F_frac);
 				
-				F          = eigen_fpmlcoeff1.cwiseProduct(T*F_frac);
+				B          = B   -  t_step*curl_u;
+				F_a        = F_a - t_step*N*curl_u;
+				F_b        = R_r.cwiseProduct(Old_F_b) - t_step*Tr*curl_u;
+				F_c        = S*Old_F_c - t_step*Ts*curl_u;
+				F          = T*F_frac;
 				// B          = Mu*F;
 				
 
