@@ -5946,11 +5946,11 @@ class Discretization
 			}
 		}
 		
-		std::cout << "and it was..." << std::endl;
+		// std::cout << "and it was..." << std::endl;
 		
-		std::cout << xmin << " " << xmax << std::endl;
-		std::cout << ymin << " " << ymax << std::endl;
-		std::cout << zmin << " " << zmax << std::endl;
+		// std::cout << xmin << " " << xmax << std::endl;
+		// std::cout << ymin << " " << ymax << std::endl;
+		// std::cout << zmin << " " << zmax << std::endl;
 		// std::cout << "Reading points: " << linecount;
 		// std::cout << "/" << lines << " - " << tc << " seconds" << std::endl;
 		
