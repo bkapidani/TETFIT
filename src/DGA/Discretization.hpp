@@ -294,7 +294,7 @@ class Discretization
 		DateAndTime();
 		bool probes_out_of_mesh = false;
 		bool dipoles_out_of_mesh = false;
-
+		
 		
 		timecounter t_preproc;
 		// std::cout << "Preprocessing... ";
@@ -319,7 +319,7 @@ class Discretization
 		simulation_time = s.Time();
 		double current_time;
 		max_rel_err = 0;
-		
+		i_silo = 0;
 		// if (mod_out == "l2norm" && meth == "dga")
 			// meth = "frac"; //don't need to use fractured grid to correctly account for discrete energy
 		
@@ -768,7 +768,7 @@ class Discretization
 					}
 					for (auto ii : associated_frac_edges[ee])
 					{
-						std::cout << "ciccio" << std::endl;
+						// std::cout << "ciccio" << std::endl;
 						PMLU_c[ii] = cf1;
 					}
 					for (auto ii : associated_bnd_edges[ee])
@@ -2563,7 +2563,7 @@ class Discretization
 			std::stringstream ss;
 			ss << op.Name() 
 			   << std::setw(5) << std::setfill('0') << current_simulation << "_" 
-			   << std::setw(5) << std::setfill('0') << i << ".silo";
+			   << std::setw(5) << std::setfill('0') << i_silo++ << ".silo";
 			
 			auto filename = ss.str();
 			_siloDb = DBCreate(filename.c_str(), DB_CLOBBER, DB_LOCAL, NULL, DB_PDB);
@@ -3016,7 +3016,7 @@ class Discretization
 				std::stringstream ss;
 				ss << op.Name() 
 				   << std::setw(5) << std::setfill('0') << current_simulation << "_" 
-				   << std::setw(5) << std::setfill('0') << i << ".silo";
+				   << std::setw(5) << std::setfill('0') << i_silo++ << ".silo";
 				
 				auto filename = ss.str();
 				_siloDb = DBCreate(filename.c_str(), DB_CLOBBER, DB_LOCAL, NULL, DB_PDB);
@@ -3241,7 +3241,7 @@ class Discretization
 			std::stringstream ss;
 			ss << op.Name() 
 			   << std::setw(5) << std::setfill('0') << current_simulation << "_" 
-			   << std::setw(5) << std::setfill('0') << i << ".silo";
+			   << std::setw(5) << std::setfill('0') << i_silo++ << ".silo";
 			
 			auto filename = ss.str();
 			_siloDb = DBCreate(filename.c_str(), DB_CLOBBER, DB_LOCAL, NULL, DB_PDB);
@@ -5891,10 +5891,10 @@ class Discretization
 		}
 		tc.toc();
 		
-		std::cout << "C++ said let there be..." << std::endl;
-		std::cout << xmin << " " << xmax << std::endl;
-		std::cout << ymin << " " << ymax << std::endl;
-		std::cout << zmin << " " << zmax << std::endl;
+		// std::cout << "C++ said let there be..." << std::endl;
+		// std::cout << xmin << " " << xmax << std::endl;
+		// std::cout << ymin << " " << ymax << std::endl;
+		// std::cout << zmin << " " << zmax << std::endl;
 		
 		for (auto mappedbcc : BCs)
 		{
@@ -10654,7 +10654,7 @@ class Discretization
 	uint32_t									method_line;
 	
 	private:
-	uint32_t									input_line, h_mat_fill_in, n_mat_fill_in;
+	uint32_t									input_line, h_mat_fill_in, n_mat_fill_in, i_silo;
 	uint32_t									H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
 	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv, SigMat, A, E, Mu, RHSmat1, RHSmat2, Ctb;
 	Eigen::VectorXd								U,Psi,F,Fb,I,P_p,R_r,B,Mu_vec,Ep_vec,Si_vec, Nu_vec;
