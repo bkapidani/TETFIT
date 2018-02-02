@@ -663,7 +663,7 @@ class Discretization
 				for (auto ii : associated_n_surfaces[ff])
 				{
 					PMLF_a[ii] = cf1;
-					std::cout << "si! ";
+					// std::cout << "si! ";
 				}
 				for (auto ii : associated_r_surfaces[ff])
 				{
