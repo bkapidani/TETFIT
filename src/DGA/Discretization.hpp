@@ -425,7 +425,7 @@ class Discretization
 
 			}
 			
-			std::cout << "ciao pa" << std::endl;
+			// std::cout << "ciao pa" << std::endl;
 			
 			for (auto p = Simulations[current_simulation].Src().begin(); p != Simulations[current_simulation].Src().end(); ++p)
 			{
@@ -499,7 +499,7 @@ class Discretization
 				}
 			}
 			
-			std::cout << "ciao ma" << std::endl;
+			// std::cout << "ciao ma" << std::endl;
 			
 			if (mod_out == "maxerror")
 			{
