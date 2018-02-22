@@ -599,9 +599,9 @@ class Discretization
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 			<< std::endl;
 			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 			<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
-			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << xmin << "," << xmax << "} X "
-																					 << "{" << ymin << "," << ymax << "} X "
-																					 << "{" << zmin << "," << zmax << "}" << std::endl;
+			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << true_xmin << "," << true_xmax << "} X "
+																					 << "{" << true_ymin << "," << true_ymax << "} X "
+																					 << "{" << true_zmin << "," << true_zmax << "}" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;
@@ -797,6 +797,9 @@ class Discretization
 			// Old_F_frac = F_frac;
 			
 			//******************************************************************************************************//
+			if ((*o).AllowPrint(current_time/*-t_step*/))
+				ExportFields(mod_out, current_time/*-t_step*/, uint32_t(i/*-1*/));
+			
 			
 		    // timecounter tdbg;
 			for (i=1; double(i)*t_step <= simulation_time; ++i)
@@ -976,9 +979,9 @@ class Discretization
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 			<< std::endl;
 			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 			<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
-			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << xmin << "," << xmax << "} X "
-																					 << "{" << ymin << "," << ymax << "} X "
-																					 << "{" << zmin << "," << zmax << "}" << std::endl;
+			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << true_xmin << "," << true_xmax << "} X "
+																					 << "{" << true_ymin << "," << true_ymax << "} X "
+																					 << "{" << true_zmin << "," << true_zmax << "}" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       			<< " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 			<< std::endl;
@@ -1404,9 +1407,9 @@ class Discretization
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
 			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 << "   m" << std::endl;
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
-			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << xmin << "," << xmax << "} X "
-																					 << "{" << ymin << "," << ymax << "} X "
-																					 << "{" << zmin << "," << zmax << "}" << std::endl;
+			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << true_xmin << "," << true_xmax << "} X "
+																					 << "{" << true_ymin << "," << true_ymax << "} X "
+																					 << "{" << true_zmin << "," << true_zmax << "}" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;
@@ -1618,9 +1621,9 @@ class Discretization
 			std::cout << std::setw(20) << "Mesh: "             		<< std::setw(20) << m.FileName()              	 << std::endl;
 			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20)  << max_circum_diameter 	 	<< "   m" << std::endl;
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      			<< "   m" << std::endl;
-			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << xmin << "," << xmax << "} X "
-																					 << "{" << ymin << "," << ymax << "} X "
-																					 << "{" << zmin << "," << zmax << "}" << std::endl;
+			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << true_xmin << "," << true_xmax << "} X "
+																					 << "{" << true_ymin << "," << true_ymax << "} X "
+																					 << "{" << true_zmin << "," << true_zmax << "}" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Elements: "         		<< std::setw(20) << volumes_size()     		 	 << std::endl;
@@ -1800,9 +1803,9 @@ class Discretization
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
 			std::cout << std::setw(20) << "Mesh diameter: " 		<< std::setw(20) << max_circum_diameter      << "   m" << std::endl;
 			std::cout << std::setw(20) << "Max edge length: " 		<< std::setw(20) << max_edge_len      		<< "   m" << std::endl;
-			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << xmin << "," << xmax << "} X "
-																					 << "{" << ymin << "," << ymax << "} X "
-																					 << "{" << zmin << "," << zmax << "}" << std::endl;
+			std::cout << std::setw(20) << "Domain bounding box: "	<< std::setw(10) << "{" << true_xmin << "," << true_xmax << "} X "
+																					 << "{" << true_ymin << "," << true_ymax << "} X "
+																					 << "{" << true_zmin << "," << true_zmax << "}" << std::endl;
 			std::cout << std::setw(20) << "Simulation time: "  		<< std::setw(20) << simulation_time              << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step: "  			<< std::setw(20) << t_step                       << " sec" << std::endl;
 			std::cout << std::setw(20) << "Time step (geometric): " << std::setw(20) << t_step_geom                  << " sec" << std::endl;
@@ -2385,10 +2388,10 @@ class Discretization
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
-				if (Simulations[current_simulation].Method() == "fem")
+				// if (Simulations[current_simulation].Method() == "fem")
 					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);					
-				else
-					num_ele = GetElectricField(probe_elem[p]);
+				// else
+					// num_ele = GetElectricField(probe_elem[p]);
 				num_mag = GetMagneticField(probe_elem[p]);
 				
 				probe_numeric_Exvalues[p].push_back(num_ele[0]);
@@ -4515,7 +4518,7 @@ class Discretization
 		Ny = (fabs(ymax-ymin)) / Ly + N_pml_y_pos + N_pml_y_neg;// + 1;
 		Nz = (fabs(zmax-zmin)) / Lz + N_pml_z_pos + N_pml_z_neg;// + 1;
 		
-		std::cout << Nx << "---" << Ny << "---" << Nz << std::endl;
+		// std::cout << Nx << "---" << Ny << "---" << Nz << std::endl;
 		
 		
 		px -= double(N_pml_x_neg)*Lx;
@@ -5286,23 +5289,22 @@ class Discretization
 					
 					nv++;
 				   
-				   // std::cout << "x comp {" << px << "," << py << "," << pz << "}" << std::endl;
 				   px+=Lx;
-				   // std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
+				   // std::cout << "x comp {" << px << "," << py << "," << pz << "}" << std::endl;
 				   // // std::cout << "Still loading 1... ";
 				}
 				
 				// old_col=std::move(this_col);
-				// std::cout << "y comp {" << px << "," << py << "," << pz << "}" << std::endl;
 				py+=Ly;
+				// std::cout << "y comp {" << px << "," << py << "," << pz << "}" << std::endl;
 				// std::cout << "{" << px << "," << py << "," << pz << "}" << std::endl;
 				// // std::cout << "Still loading 2... ";
 			 }
 
 			 // this_layer.setFromTriplets(tripletList.begin(), tripletList.end());
 			 // previous_layer=std::move(this_layer);
-			 // std::cout << "z comp {" << px << "," << py << "," << pz << "}" << std::endl;
 			 pz+=Lz;
+			 // std::cout << "z comp {" << px << "," << py << "," << pz << "}" << std::endl;
 			 // // std::cout << "Still loading 3... ";
 		}
 
@@ -5330,6 +5332,8 @@ class Discretization
 		Si_vec = Eigen::VectorXd::Zero(edges_size());
 		
 		// }
+		// std::cout << C_vec.size() << ":::::" << tot_E << std::endl;
+		// std::cout << Ct_vec.size() << ":::::" << tot_F << std::endl;
 		Eigen::VectorXd H_vec(edges_size());
 		Eigen::VectorXd N_vec(surfaces_size());
 		
