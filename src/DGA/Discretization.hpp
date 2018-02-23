@@ -294,7 +294,7 @@ class Discretization
 		DateAndTime();
 		bool probes_out_of_mesh = false;
 		bool dipoles_out_of_mesh = false;
-		
+		possibly_unstable = false;
 		
 		timecounter t_preproc;
 		// std::cout << "Preprocessing... ";
@@ -532,6 +532,8 @@ class Discretization
 			// meth = "fraco2"; //to get the actual energy norm, we need to use the fully fractured grid
 			// Simulations[current_simulation].ForceMethod(meth); //little hack
 		// }
+
+		
 		// Actual simulation!
 		if (meth == "dga")
 		{	
@@ -589,10 +591,13 @@ class Discretization
 			// double geometric_cfl = estimate_time_step_bound();
 			// std::cout << "The CFL condition says " << geometric_cfl << " seconds." << std::endl;
 			
+			
 			if (probes_out_of_mesh)
-				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more field probes are out of the mesh! (And will be therefore ignored)" << std::endl;
 			if (dipoles_out_of_mesh)
-				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more dipole sources are out of the mesh!" << std::endl;
+			if (possibly_unstable)
+				std::cout << "WARNING: the time step size chosen by the user is possibly unstable! (Upper stable limit will be used instead...)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -969,10 +974,13 @@ class Discretization
 			// t_preproc.toc();
 			//std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
+			
 			if (probes_out_of_mesh)
-				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more field probes are out of the mesh! (And will be therefore ignored)" << std::endl;
 			if (dipoles_out_of_mesh)
-				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more dipole sources are out of the mesh!" << std::endl;
+			if (possibly_unstable)
+				std::cout << "WARNING: the time step size chosen by the user is possibly unstable! (Upper stable limit will be used instead...)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 			<< std::endl;
@@ -1189,9 +1197,9 @@ class Discretization
 			// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
 			if (probes_out_of_mesh)
-				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more field probes are out of the mesh!" << std::endl;
 			if (dipoles_out_of_mesh)
-				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more dipole sources are out of the mesh!" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1397,10 +1405,13 @@ class Discretization
 			// t_preproc.toc();
 			// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
+			
 			if (probes_out_of_mesh)
-				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more field probes are out of the mesh! (And will be therefore ignored)" << std::endl;
 			if (dipoles_out_of_mesh)
-				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more dipole sources are out of the mesh!" << std::endl;
+			if (possibly_unstable)
+				std::cout << "WARNING: the time step size chosen by the user is possibly unstable! (Upper stable limit will be used instead...)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1611,10 +1622,13 @@ class Discretization
 			// t_preproc.toc();
 			// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
+			
 			if (probes_out_of_mesh)
-				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more field probes are out of the mesh! (And will be therefore ignored)" << std::endl;
 			if (dipoles_out_of_mesh)
-				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more dipole sources are out of the mesh!" << std::endl;
+			if (possibly_unstable)
+				std::cout << "WARNING: the time step size chosen by the user is possibly unstable! (Upper stable limit will be used instead...)" << std::endl;
 			
 			std::cout << std::endl << "Simulation parameters:" 		<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -1794,10 +1808,13 @@ class Discretization
 			// t_preproc.toc();
 			//std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 			
+			
 			if (probes_out_of_mesh)
-				std::cout << "BEWARE: one or more field probes are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more field probes are out of the mesh! (And will be therefore ignored)" << std::endl;
 			if (dipoles_out_of_mesh)
-				std::cout << "BEWARE: one or more dipole sources are out of the mesh!" << std::endl;
+				std::cout << "WARNING: one or more dipole sources are out of the mesh!" << std::endl;
+			if (possibly_unstable)
+				std::cout << "WARNING: the time step size chosen by the user is possibly unstable! (Upper stable limit will be used instead...)" << std::endl;
 			
 			std::cout << std::endl     << "Simulation parameters:" 	<< std::endl;
 			std::cout << std::setw(20) << "Method: "             	<< std::setw(20) << meth             	 		 << std::endl;
@@ -3617,7 +3634,7 @@ class Discretization
 			}
 			
 
-			// std::cout << "BEWARE: " << qtop << std::endl;
+			// std::cout << "WARNING: " << qtop << std::endl;
 			colour[qtop]++;
 			k++;
 		}
@@ -3722,7 +3739,7 @@ class Discretization
 				}
 			}
 			colour[qtop]++;
-			// std::cout << "BEWARE: " << qtop << std::endl;
+			// std::cout << "WARNING: " << qtop << std::endl;
 			k++;
 		}
 		
@@ -5456,6 +5473,14 @@ class Discretization
 		// std::cout << "vaff" << std::endl;
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFDTDTimeStep(N_vec,H_vec);
+		hc_t_step = Simulations[current_simulation].HardCoded_TS();
+		if (hc_t_step != 0)
+		{
+			if (hc_t_step > t_step)
+				possibly_unstable = true;
+			else
+				t_step = hc_t_step;
+		}
 		// double pippa = estimate_time_step_bound_algebraic_fdtd(N_vec,H_vec);
 		timestep_timer.toc();
 		// std::ofstream os_nuvec("nuvec.dat");
@@ -8054,6 +8079,14 @@ class Discretization
 		
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C, this->N, this->E);
+		hc_t_step = Simulations[current_simulation].HardCoded_TS();
+		if (hc_t_step != 0)
+		{
+			if (hc_t_step > t_step)
+				possibly_unstable = true;
+			else
+				t_step = hc_t_step;
+		}
 		timestep_timer.toc();
 		// std::cout << std::endl<< "Time step computation took " << t_spec << " seconds" << std::endl;
 		
@@ -8598,6 +8631,14 @@ class Discretization
 		
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C, N, E);
+		hc_t_step = Simulations[current_simulation].HardCoded_TS();
+		if (hc_t_step != 0)
+		{
+			if (hc_t_step > t_step)
+				possibly_unstable = true;
+			else
+				t_step = hc_t_step;
+		}
 		timestep_timer.toc();
 		
 		Eigen::SparseMatrix<double> SysMat(this->edges_size(),this->edges_size());
@@ -9102,6 +9143,14 @@ class Discretization
 		
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+		hc_t_step = Simulations[current_simulation].HardCoded_TS();
+		if (hc_t_step != 0)
+		{
+			if (hc_t_step > t_step)
+				possibly_unstable = true;
+			else
+				t_step = hc_t_step;
+		}
 		// t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C,N,E);
 		timestep_timer.toc();
 		Eigen::SparseMatrix<double>().swap(Einv);
@@ -9921,6 +9970,14 @@ class Discretization
 		
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeDGATimeStep(this->C,N,Einv);
+		hc_t_step = Simulations[current_simulation].HardCoded_TS();
+		if (hc_t_step != 0)
+		{
+			if (hc_t_step > t_step)
+				possibly_unstable = true;
+			else
+				t_step = hc_t_step;
+		}
 		// t_step = Simulations[current_simulation].Courant()*ComputeFEMTimeStep(this->C,N,E);
 		timestep_timer.toc();
 		// std::cout << std::endl << "Time step computation took " << t_spec << " seconds" << std::endl;
@@ -10718,6 +10775,7 @@ class Discretization
 	private:
 	uint32_t									input_line, h_mat_fill_in, n_mat_fill_in, i_silo;
 	uint32_t									H_size, Q_size, P_size, B_size, N_size, R_size, S_size, U_frac_size, F_frac_size;
+	bool										possibly_unstable;
 	Eigen::SparseMatrix<double> 				C,H,M,Mq,Mp,N,P,Q,R,S,T,Tr,Ts,Einv, SigMat, A, E, Mu, RHSmat1, RHSmat2, Ctb;
 	Eigen::VectorXd								U,Psi,F,Fb,I,P_p,R_r,B,Mu_vec,Ep_vec,Si_vec, Nu_vec;
 	std::mutex									meshlock;
@@ -10750,7 +10808,7 @@ class Discretization
 	Eigen::Vector3d								radiator_center;
 	std::vector<cluster_list>    				nte_list, etn_list, etf_list, fte_list, ftv_list, vtf_list;
 	std::vector<cluster_list> 					Dt;
-	double                                      t_step, min_h, average_diameter, excitation_freq;
+	double                                      t_step, hc_t_step, min_h, average_diameter, excitation_freq;
 	double										Lx,Ly,Lz, max_rel_err, max_circum_diameter, max_edge_len, min_edge_len;
 	std::string									have_analytic;
 	uint32_t									loaded_mesh_label, current_simulation, root;

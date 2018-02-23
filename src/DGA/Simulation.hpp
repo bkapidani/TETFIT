@@ -43,6 +43,7 @@ class Simulation
 		method = "dga";
 		solver = "none";
 		courant = 1;
+		hardcoded_time_step = 0;
 		tol = 1e-8;
 		debug_mat = false;
 		analytic = "false";
@@ -61,6 +62,8 @@ class Simulation
 			d = std::stod(value);
 		else if (param == "courant")
 			courant = std::stod(value);
+		else if (param == "step")
+			hardcoded_time_step = std::stod(value);
 		else if (param == "output")
 			output = std::stod(value);
 		else if (param == "method")
@@ -104,6 +107,7 @@ class Simulation
 	const Solver& GetSolver(void) const { return solver; }
 	const double& Tolerance(void) const { return tol; }
 	const double& Courant(void) const { return courant; }
+	const double& HardCoded_TS(void) const { return hardcoded_time_step; }
 	// const Eigen::Vector3d& Probe(void) const { return probepoint; }
 	
 	private:
@@ -112,7 +116,7 @@ class Simulation
 	Solver solver;
 	bool debug_mat;
 	std::string analytic;
-	double tol, courant;
+	double tol, courant, hardcoded_time_step;
 	// Eigen::Vector3d probepoint;
 	std::vector<uint32_t> sources; //can combine multiple sources
 	uint32_t mesh_label, output;
