@@ -4199,12 +4199,12 @@ class Discretization
 		return false;
 	}
 	
-	bool ReadSolidsFile(Mesh& msh)
+	bool ReadSolidsFile(std::string input_mesh_file)
 	{
-		std::string input_mesh_file = msh.FileName();
+		// std::string input_mesh_file = msh.FileName();
 		
-		if (msh.IsLoaded())
-			return true;
+		// if (msh.IsLoaded())
+			// return true;
 			
 		
 		/* Open file */
@@ -4339,7 +4339,7 @@ class Discretization
 		t_preproc.tic();
 		double scale = msh.Scale();
 		
-		if (!ReadSolidsFile(msh))
+		if (!ReadSolidsFile(msh.FileName()))
 			return false;
 
 		// Here the actual construction
@@ -4396,16 +4396,19 @@ class Discretization
 		this->area_y_vec=area_y_vec;
 		this->area_z_vec=area_z_vec;
 		
-		/*********************RE COME THE PML (BERNARD'S VERSION)*******************************************/
+		/*********************HERE COMES THE PML (BERNARD'S VERSION)*******************************************/
 		std::vector<double> boxpmlthickness(6,0), ballpmlthickness(1,0), cylpmlthickness(2,0);
 		uint32_t N_pml_x_pos, N_pml_x_neg, N_pml_y_pos, N_pml_y_neg, N_pml_z_pos, N_pml_z_neg;
 		N_pml_x_pos=N_pml_x_neg=N_pml_y_pos=N_pml_y_neg=N_pml_z_pos=N_pml_z_neg=0;
+		
+		bool pml_present = false;
 		
 		for (auto mappedbcc : BCs)
 		{
 			auto bcc = mappedbcc.second;
 			if (bcc.Type() == "pml")
 			{
+				pml_present = true;
 				auto dir = bcc.GetDirection();
 				auto bccwidth = bcc.Width();
 				if (dir == "-x")
@@ -4493,44 +4496,51 @@ class Discretization
 			}
 		}
 		
-		copy_file(msh.FileName().c_str(), "dummy_solid_file.txt");
-		uint32_t pml_solid_label = (*Solids.rbegin()).first;
-		for (auto ritor = Solids.rbegin(); ritor != Solids.rend(); ++ritor)
+		Nx = (fabs(xmax-xmin)) / Lx;// + N_pml_x_pos + N_pml_x_neg;// + 1;
+		Ny = (fabs(ymax-ymin)) / Ly;// + N_pml_y_pos + N_pml_y_neg;// + 1;
+		Nz = (fabs(zmax-zmin)) / Lz;// + N_pml_z_pos + N_pml_z_neg;// + 1;
+		
+		if (pml_present)
 		{
-			auto sld = (*ritor).second;
-			if (sld.Type() == "box")
-				sld.ConstructPMLExtension(++pml_solid_label, msh.FileName(), boxpmlthickness);
-			else if (sld.Type() == "sphere")
-				sld.ConstructPMLExtension(++pml_solid_label, msh.FileName(), ballpmlthickness);
-			else if (sld.Type() == "cylinder")
-				sld.ConstructPMLExtension(++pml_solid_label, msh.FileName(), cylpmlthickness);
+			copy_file(msh.FileName().c_str(), "dummy_solid_file.txt");
+			std::string aux_filename = "dummy_solid_file.txt";
+			uint32_t pml_solid_label = (*Solids.rbegin()).first;
+			for (auto ritor = Solids.rbegin(); ritor != Solids.rend(); ++ritor)
+			{
+				auto sld = (*ritor).second;
+				if (sld.Type() == "box")
+					sld.ConstructPMLExtension(++pml_solid_label, aux_filename, boxpmlthickness);
+				else if (sld.Type() == "sphere")
+					sld.ConstructPMLExtension(++pml_solid_label, aux_filename, ballpmlthickness);
+				else if (sld.Type() == "cylinder")
+					sld.ConstructPMLExtension(++pml_solid_label, aux_filename, cylpmlthickness);
+			}
+			
+			/* Re-read solids file with added PML */
+			if (!ReadSolidsFile(aux_filename))
+				return false;
+			// copy_file("dummy_solid_file.txt", msh.FileName().c_str());
+			assert(!std::remove("dummy_solid_file.txt"));
+			
+			Nx += N_pml_x_pos + N_pml_x_neg;// + 1;
+			Ny += N_pml_y_pos + N_pml_y_neg;// + 1;
+			Nz += N_pml_z_pos + N_pml_z_neg;// + 1;
+			
+			// std::cout << Nx << "---" << Ny << "---" << Nz << std::endl;
+
+			px -= double(N_pml_x_neg)*Lx;
+			py -= double(N_pml_y_neg)*Ly;
+			pz -= double(N_pml_z_neg)*Lz;
+			
+			true_xmin = px; true_ymin = py; true_zmin = pz;
+			
+			true_xmax += double(N_pml_x_pos)*Lx;
+			true_ymax += double(N_pml_y_pos)*Ly;
+			true_zmax += double(N_pml_z_pos)*Lz; 
 		}
-		
-		/* Re-read solids file with added PML */
-		if (!ReadSolidsFile(msh))
-			return false;
-		copy_file("dummy_solid_file.txt", msh.FileName().c_str());
-		assert(!std::remove("dummy_solid_file.txt"));
+
 		/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-		
-		
-		Nx = (fabs(xmax-xmin)) / Lx + N_pml_x_pos + N_pml_x_neg;// + 1;
-		Ny = (fabs(ymax-ymin)) / Ly + N_pml_y_pos + N_pml_y_neg;// + 1;
-		Nz = (fabs(zmax-zmin)) / Lz + N_pml_z_pos + N_pml_z_neg;// + 1;
-		
-		// std::cout << Nx << "---" << Ny << "---" << Nz << std::endl;
-		
-		
-		px -= double(N_pml_x_neg)*Lx;
-		py -= double(N_pml_y_neg)*Ly;
-		pz -= double(N_pml_z_neg)*Lz;
-		
-		true_xmin = px; true_ymin = py; true_zmin = pz;
-		
-		true_xmax += double(N_pml_x_pos)*Lx;
-		true_ymax += double(N_pml_y_pos)*Ly;
-		true_zmax += double(N_pml_z_pos)*Lz; 
-		
+
 		tot_E= Nx*(Ny+1)*(Nz+1)+(Nx+1)*Ny*(Nz+1)+(Nx+1)*(Ny+1)*Nz;
 		tot_F= Nx*Ny*(Nz+1)+Nz*Nx*(Ny+1)+Ny*Nz*(Nx+1);
 
@@ -5065,6 +5075,8 @@ class Discretization
 						//F.push_back(0);
 						boundary_face.push_back(1); // accordance with netgen
 						tbc_surfaces.push_back(vol_material[nv]);
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
 					 }
 					 else
 					 {
@@ -5074,6 +5086,9 @@ class Discretization
 						 auto vv2 = abs(Dt[D[nv][0]][1]);
 						 boundary_face[D[nv][0]]=matad(vol_material[vv1],vol_material[vv2]);
 						 tbc_surfaces[D[nv][0]]= tbc_surfaces[D[nv][0]] || vol_material[nv];
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
+						 
 					 }	
 					  // std::cout << "Still loading 0.11... " << std::endl;
 					 if (!C_vec[D[nv][1]].size())
@@ -5090,6 +5105,8 @@ class Discretization
 						//F.push_back(0);
 						boundary_face.push_back(5); //accordance with netgen
 						tbc_surfaces.push_back(vol_material[nv]);
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
 					 }
 					 else
 					 {
@@ -5114,6 +5131,8 @@ class Discretization
 						//F.push_back(0);
 						boundary_face.push_back(2); //accordance with netgen
 						tbc_surfaces.push_back(vol_material[nv]);
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
 					 }
 					 else
 					 {
@@ -5138,6 +5157,8 @@ class Discretization
 						//F.push_back(0);
 						boundary_face.push_back(4); //accordance with netgen
 						tbc_surfaces.push_back(vol_material[nv]);
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
 					 }
 					 else
 					 {
@@ -5163,6 +5184,8 @@ class Discretization
 						//F.push_back(0);
 						boundary_face.push_back(3); //accordance with netgen
 						tbc_surfaces.push_back(vol_material[nv]);
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
 					 }
 					 else
 					 {
@@ -5187,6 +5210,8 @@ class Discretization
 						//F.push_back(0);
 						boundary_face.push_back(6); //accordance with netgen
 						tbc_surfaces.push_back(vol_material[nv]);
+						// std::cout << vol_material[nv] << " ";
+						// std::cout.flush();
 					 }
 					 else
 					 {
@@ -5345,6 +5370,7 @@ class Discretization
 				this->tbc_surfaces.push_back(i);
 		}
 		
+		// std::cout << std::endl << std::endl;
 		for (uint32_t i=0; i<ne; ++i)
 		{
 			H_vec(i) = edge_len[i]/average_eps[i];
@@ -5359,10 +5385,11 @@ class Discretization
 				// std::cout << bid << std::endl;
 				if (boundary_face[ff]>0)
 				{
-					in_b++;
 					if (BCs[BndToBC[bid]].Type() == "pec") // boundary conditions override sources!
 					{	
 						// debug_faces << print_face(1,face_label,true,0,255,0);
+						
+						in_b++;
 						edge_bcs[i] = BndToBC[bid];
 						edge_src[i].clear();
 						bc_edges.push_back(i);
@@ -5380,6 +5407,8 @@ class Discretization
 							auto surflab_vec = src.Surface();
 							if (std::find(surflab_vec.begin(),surflab_vec.end(),bid) != surflab_vec.end())
 							{
+								
+								in_b++;
 								// debug_faces << print_face(2,face_label,true,255,0,0);
 								if (src.Type() == "e")
 								{
@@ -5395,6 +5424,8 @@ class Discretization
 								}
 								else if (src.Type() == "h")
 								{
+									// std::cout << boundary_face[ff] << " ";
+									// std::cout.flush();
 									if (break_cond == 1)
 										break;
 									if (std::find(edge_src[i].begin(),edge_src[i].end(),src_label) == edge_src[i].end())
@@ -5425,7 +5456,7 @@ class Discretization
 		// std::cout << "vaff" << std::endl;
 		timestep_timer.tic();
 		t_step = Simulations[current_simulation].Courant()*ComputeFDTDTimeStep(N_vec,H_vec);
-		double pippa = estimate_time_step_bound_algebraic_fdtd(N_vec,H_vec);
+		// double pippa = estimate_time_step_bound_algebraic_fdtd(N_vec,H_vec);
 		timestep_timer.toc();
 		// std::ofstream os_nuvec("nuvec.dat");
 		for (uint32_t i=0; i<nf; ++i)
@@ -6965,7 +6996,7 @@ class Discretization
 
 		// Initialize and compute
 		geigs.init();
-		int nconv = geigs.compute(1000,1e-2,Spectra::LARGEST_MAGN);
+		int nconv = geigs.compute(1000,2e-2,Spectra::LARGEST_MAGN);
 		
 		// Retrieve results
 		double lambda = 0;
@@ -7050,7 +7081,7 @@ class Discretization
 
 		// Initialize and compute
 		eigs.init();
-		int nconv = eigs.compute(1000,1e-2,Spectra::LARGEST_MAGN);
+		int nconv = eigs.compute(1000,2e-2,Spectra::LARGEST_MAGN);
 
 		// Retrieve results
 		double lambda;
@@ -7105,7 +7136,7 @@ class Discretization
 
 		// Initialize and compute
 		eigs.init();
-		int nconv = eigs.compute(1000,1e-2,Spectra::LARGEST_MAGN);
+		int nconv = eigs.compute(1000,2e-2,Spectra::LARGEST_MAGN);
 
 		// Retrieve results
 		double lambda;
@@ -7121,7 +7152,7 @@ class Discretization
 	{
 		Eigen::VectorXd b = Eigen::MatrixXd::Random(Einv.size(), 1);
 		double lambda;
-		double tol = 0.005;
+		double tol = 0.02;
 		std::vector<double> values;
 		uint32_t it = 0;
 
@@ -7405,7 +7436,7 @@ class Discretization
 						}
 						
 						// std::cout << "(" << *j << "," << n_index[*j] << ") ";
-						std::cout.flush();
+						// std::cout.flush();
 						T_trip.push_back(double_triplet(*j,n_index[*j],double(1)));
 						break;
 					}
@@ -7795,7 +7826,7 @@ class Discretization
 						}
 						
 						// std::cout << "(" << *j << "," << n_index[*j] << ") ";
-						std::cout.flush();
+						// std::cout.flush();
 						T_trip.push_back(double_triplet(*j,n_index[*j],double(1)));
 						break;
 					}
@@ -8231,7 +8262,7 @@ class Discretization
 						}
 						
 						// std::cout << "(" << *j << "," << n_index[*j] << ") ";
-						std::cout.flush();
+						// std::cout.flush();
 						T_trip.push_back(double_triplet(*j,n_index[*j],double(1)));
 						break;
 					}
@@ -9123,7 +9154,7 @@ class Discretization
 						}
 						
 						// std::cout << "(" << *j << "," << n_index[*j] << ") ";
-						std::cout.flush();
+						// std::cout.flush();
 						T_trip.push_back(double_triplet(*j,n_index[*j],double(1)));
 						break;
 					}
