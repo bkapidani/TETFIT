@@ -3589,14 +3589,15 @@ class Discretization
 	
 	uint32_t FindFitProbe(const Eigen::Vector3d& pv)
 	{
-		double tol = 1e-12;
+		double tol = 1e-9*(Lx+Ly+Lz)/double(3);
 		uint32_t v = root;
-		std::vector<uint32_t> colour(volumes_size()), p_queue;
+		std::vector<bool> colour(volumes_size(),false);
+		std::vector<uint32_t> p_queue;
 		uint32_t k, j, qtop;
 		uint32_t  curr_n;
 		
-		p_queue.push_back(root);
-		colour[0]++;
+		p_queue.push_back(v);
+		colour[v]=true;
 		k=0;
 		
 		while ( k<p_queue.size() )
@@ -3626,16 +3627,16 @@ class Discretization
 				if (curr_n==qtop)
 					curr_n=abs(*(this->Dt[curr_e].rbegin()));
 
-				if (colour[curr_n]==0)
+				if (!colour[curr_n])
 				{
 					p_queue.push_back(curr_n);
-					colour[curr_n]++;
+					colour[curr_n]=true;
 				}
 			}
 			
 
 			// std::cout << "WARNING: " << qtop << std::endl;
-			colour[qtop]++;
+			// colour[qtop]++;
 			k++;
 		}
 		
@@ -3646,12 +3647,13 @@ class Discretization
 	{
 		double tol = 1e-12;
 		uint32_t v = root;
-		std::vector<uint32_t> colour(volumes_size()), p_queue;
+		std::vector<bool> colour(volumes_size(),false);
+		std::vector<uint32_t> p_queue;
 		uint32_t k, j, qtop;
 		sgnint32_t<int32_t>  curr_n;
 		
-		p_queue.push_back(root);
-		colour[0]++;
+		p_queue.push_back(v);
+		colour[v]=true;
 		k=0;
 		// std::cout << pv << std::endl;
 		while ( k<p_queue.size() )
@@ -3732,13 +3734,13 @@ class Discretization
 				if (abs(curr_n)==qtop)
 					curr_n=*(this->ftv_list[abs(curr_e)].rbegin());
 
-				if (colour[abs(curr_n)]==0)
+				if (!colour[abs(curr_n)])
 				{
 					p_queue.push_back(abs(curr_n));
-					colour[abs(curr_n)]++;
+					colour[abs(curr_n)]=true;
 				}
 			}
-			colour[qtop]++;
+			// colour[qtop]++;
 			// std::cout << "WARNING: " << qtop << std::endl;
 			k++;
 		}
