@@ -349,9 +349,16 @@ class Discretization
 		loaded_mesh_label = s.MeshLabel();
 		
 		/***********************************MESH PARSING************************************/
-		
+		std::cout << "Parsing mesh and constructing adjacencies... ";
+		std::cout.flush();
+		t_preproc.tic();
 		ReadMesh(m);
-		
+		t_preproc.toc();
+		if (m.GetMeshType() == "cartesian")
+			std::cout << " done (" << t_preproc << " seconds, time step computed in " 
+					  << timestep_timer << " seconds)" << std::endl;
+		else
+			std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 		/***********************************************************************************/
 		
 		// std::cout << "Makes no sense!" << std::endl;
@@ -4352,10 +4359,10 @@ class Discretization
 		timecounter t_mesh;
 		t_mesh.tic();
 		
-		timecounter t_preproc;
-		std::cout << "Loading mesh... ";
-		std::cout.flush();
-		t_preproc.tic();
+		// timecounter t_preproc;
+		// std::cout << "Loading mesh... ";
+		// std::cout.flush();
+		// t_preproc.tic();
 		double scale = msh.Scale();
 		
 		if (!ReadSolidsFile(msh.FileName()))
@@ -5352,12 +5359,12 @@ class Discretization
 			 // // std::cout << "Still loading 3... ";
 		}
 
-		t_preproc.toc();
-		std::cout << " done (" << t_preproc << " seconds)" << std::endl;
+		// t_preproc.toc();
+		// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 		
-		std::cout << "Setting up system... ";
-		std::cout.flush();
-		t_preproc.tic();
+		// std::cout << "Setting up system... ";
+		// std::cout.flush();
+		// t_preproc.tic();
 		// t_step *= Simulations[current_simulation].Courant();
 		// std::cout << "CFL time step = " << t_step << std::endl;
 		std::vector<std::vector<uint32_t>> dumb_edge(edges_size());
@@ -5685,8 +5692,8 @@ class Discretization
 
 		t_mesh.toc();
 		
-		t_preproc.toc();
-		std::cout << " done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
+		// t_preproc.toc();
+		// std::cout << " done (" << t_preproc << " seconds, time step computed in " << timestep_timer << " seconds)" << std::endl;
 		  // std::cout << "Meshing and material modeling done in " << t_mesh << " seconds" << std::endl;
 		return true;
 	}
@@ -5869,10 +5876,10 @@ class Discretization
 
 	bool ReadUnstructuredMesh(Mesh& msh)
 	{	
-		timecounter t_preproc;
-		std::cout << "Loading mesh... ";
-		std::cout.flush();
-		t_preproc.tic();
+		// timecounter t_preproc;
+		// std::cout << "Loading mesh... ";
+		// std::cout.flush();
+		// t_preproc.tic();
 		timecounter tc, tctot;
 		double scale = msh.Scale();
 		std::string input_mesh_file = msh.FileName();
@@ -6921,8 +6928,8 @@ class Discretization
 		// std::cout << my_hack_number << std::endl;
 		// new_neutral_file.close();
 			
-		t_preproc.toc();
-		std::cout << " done (" << t_preproc << " seconds)" << std::endl;
+		// t_preproc.toc();
+		// std::cout << " done (" << t_preproc << " seconds)" << std::endl;
 		
 		return true;
 	}
