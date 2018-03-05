@@ -4351,6 +4351,7 @@ class Discretization
 		}
 		
 		ReadFile.close();
+		return true;
 	}
 	
 	bool ReadStructuredMesh(Mesh& msh)
