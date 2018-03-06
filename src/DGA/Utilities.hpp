@@ -186,8 +186,7 @@ namespace parser
 		{
 			t0 = t1;
 			t1 = strtot<T>(*endptr, endptr);
-			t1 = strtot<T>(*endptr, endptr);
-			
+			t1 = strtot<T>(*endptr, endptr);//physical TAG is physical
 			
 			t2 = strtot<T>(*endptr, endptr);
 			t2 = strtot<T>(*endptr, endptr);
@@ -370,7 +369,7 @@ class overwrite_to_sparse
 
 void MyThrow(uint32_t input_line, const std::runtime_error& e)
 {
-	std::cout << "Input file error at line " << input_line << ": " << e.what() << std::endl;
+	std::cout << "    Input file error at line " << input_line << ": " << e.what() << std::endl;
 	throw e;
 }
 
@@ -378,7 +377,7 @@ void DateAndTime(void)
 {
 	using namespace date;
 	using namespace std::chrono;
-	std::cout << "On " << system_clock::now() << '\n';
+	std::cout << "    On " << system_clock::now() << '\n';
 }
 
 void copy_file( const char* srce_file, const char* dest_file )
