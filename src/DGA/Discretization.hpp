@@ -289,7 +289,7 @@ class Discretization
 	void RunSimulation(const Simulation& s, const uint32_t& sim_label)
 	{
 		std::cout  << std::endl << std::endl; 
-		std::cout <<"------------------------ Running Time Domain Simulation ------------------------" << std::endl << std::endl;
+		std::cout <<"    ------------------------ Running Time Domain Simulation ------------------------" << std::endl << std::endl;
 		
 		DateAndTime();
 		bool probes_out_of_mesh = false;
@@ -2113,7 +2113,8 @@ class Discretization
 			osh.close();
 		}
 		
-		std::cout << std::endl 	   << "Simulation statistics:" 	    																	<< std::endl;
+		std::cout << std::endl;
+		std::cout << "    Simulation statistics:" << std::endl;
 		std::cout << "    " << std::setw(20) << "Average step cost:  "		<< std::setw(20) << step_time_average/double(i)  	<< " sec" 	<< std::endl;
 		std::cout << "    " << std::setw(20) << "Total running time: "		<< std::setw(20) << step_time_average              	<< " sec" 	<< std::endl;
 		std::cout << "    " << std::setw(20) << "Average export time: "	<< std::setw(20) << export_time_average/double(i)   	<< " sec" 	<< std::endl;
@@ -2230,15 +2231,18 @@ class Discretization
 	void ExportFields(const std::string s, double t, uint32_t i)
 	{
 		// Eigen::Vector3d num_val;
+		auto op = Outputs[Simulations[current_simulation].Output()];
 		if (s == "probepoint")
 		{
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
-				// if (Simulations[current_simulation].Method() == "fem")
+				if (Simulations[current_simulation].Method() == "fem"
+				|| op.UsingWhitney() == true)
 					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);					
-				// else
-					// num_ele = GetElectricField(probe_elem[p]);
+				else
+					num_ele = GetElectricField(probe_elem[p]);
+				
 				num_mag = GetMagneticField(probe_elem[p]);
 				
 				probe_numeric_Exvalues[p].push_back(num_ele[0]);
@@ -2305,10 +2309,12 @@ class Discretization
 			for (uint32_t p=0; p<probe_elem.size(); ++p)
 			{
 				Eigen::Vector3d num_ele, num_mag;
-				// if (Simulations[current_simulation].Method() == "fem")
+				if (Simulations[current_simulation].Method() == "fem"
+				 || op.UsingWhitney() == true)
 					num_ele = GetWhitneyElectricField(probe_elem[p],probe_points[p]);
-				// else
-					// num_ele = GetElectricField(probe_elem[p]);
+				else
+					num_ele = GetElectricField(probe_elem[p]);
+				
 				num_mag = GetMagneticField(probe_elem[p]);
 				// probe_numeric_Exvalues[p].push_back(num_ele[0]);
 				// probe_numeric_Eyvalues[p].push_back(num_ele[1]);

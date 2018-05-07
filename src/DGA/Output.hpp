@@ -49,6 +49,7 @@ class Output
 		xstep  = ystep  = zstep  = 0;
 		ref_sys = 0; //cartesian coordinates
 		// silo_instant = 0;
+		interp_using_whitney = true;
 	}
 	
 	void Initialize(void)
@@ -309,6 +310,15 @@ class Output
 			else
 				MyThrow(input_line,out_unknown_parameter);
 		}
+		else if (param == "whitney")
+		{
+			if (value == "true")
+				interp_using_whitney = true;
+			else if (value == "false")
+				interp_using_whitney = false;
+			else
+				MyThrow(input_line,out_unknown_parameter);
+		}
 		else if (param == "name")
 			name = value;
 		else
@@ -333,7 +343,8 @@ class Output
 	// const double& Instant(void) const { return silo_instant; }
 	const std::string& Name(void) const { return name; }
 	const OutputMode& Mode(void) const { return mode; }
-	const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; };
+	const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; }
+	const bool UsingWhitney(void) const { return interp_using_whitney; }
 	const Eigen::Vector3d& Probe(uint32_t i) const
 	{ 
 		assert(i<probepoints.size());
@@ -341,7 +352,7 @@ class Output
 	}
 	
 	private:
-	bool grid, error_norm;
+	bool grid, error_norm, interp_using_whitney;
 	std::vector<uint32_t> radiating_vol_bnd;
 	std::string name;
 	double xstart, xstep, xstop, ystart, ystep, ystop, zstart, zstep, zstop;
