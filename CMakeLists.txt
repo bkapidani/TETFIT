@@ -48,19 +48,29 @@ include_directories("${SILO_INCLUDE_DIRS}")
 set(LINK_LIBS "${LINK_LIBS}" "${SILO_LIBRARIES}")
 
 # Find BOOST
-find_package(BOOST REQUIRED)
-include_directories("${BOOST_INCLUDE_DIRS}")
+#~ find_package(BOOST REQUIRED)
+#~ include_directories("${BOOST_INCLUDE_DIRS}")
+
+# Find PYTHON
+find_package(PythonLibs 3.6)
+include_directories("${PYTHON_INCLUDE_DIRS}")
+set(LINK_LIBS "${LINK_LIBS}" "${PYTHON_LIBRARIES}")
 
 # add_subdirectory(mesher)
 # add_subdirectory(fdtd)
 
-include_directories(${INCLUDE_DIRS})
+#~ include_directories(${INCLUDE_DIRS})
 include_directories(tetfit utils)
+include_directories(${PYTHONHOME}/include)
+include_directories(${PYTHONHOME}/Lib/site-packages/numpy/core/include)
+link_directories(${PYTHONHOME}/libs)
 
+add_definitions(-DMATPLOTLIBCPP_PYTHON_HEADER=Python.h)
 add_subdirectory(utils)
 
 add_executable(tetfit ./main/main.cpp ${SOURCE})
 target_link_libraries(tetfit "${LINK_LIBS}" "-lncurses" "-lgsl" "-lblas" "-llapack")
-install (TARGETS tetfit DESTINATION bin)
+install (TARGETS tetfit DESTINATION /home/bernard/installs)
 #~ install (FILES ${INCLUDE_DIRS} DESTINATION include)
+
 

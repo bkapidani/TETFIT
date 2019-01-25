@@ -80,10 +80,10 @@
 #include "mapped_file.h"
 #include "strtot.hpp"
 #include "bessel.h"
-#include "burkardt.h"
-#include "Seb.h" // from Fischer
+//~ #include "burkardt.h"
+//~ #include "Seb.h" // from Fischer
 #include "date.h" //from howard hinnant
-
+#include "matplotlibcpp.h"
 #pragma once
 
 /*general parameters*/
@@ -260,9 +260,9 @@ typedef double                                              WaveNumber;
 typedef double                                              Duration;
 typedef std::array<double,4>                                SpaceTimePoint;
 typedef std::array<double,3>                                WaveVector;
-typedef Seb::Point<double>                                  Point;
-typedef std::vector<Point>                                  PointVector;
-typedef Seb::Smallest_enclosing_ball<double>                Miniball;
+//~ typedef Seb::Point<double>                                  Point;
+//~ typedef std::vector<Point>                                  PointVector;
+//~ typedef Seb::Smallest_enclosing_ball<double>                Miniball;
       
 //lists of allowed string constants
 const std::vector<Primitive>                      definables       = {"material","source","mesh","bc","simulation","geometry","output","refinement"};
@@ -323,6 +323,36 @@ const std::runtime_error solid_negative_value(std::string("Positive definite qua
 const std::runtime_error incompatible_meth_mesh(std::string("If mesh type is tetrahedral, method must be fem or dga. If mesh type is cartesian, method must be fdtd"));
 
 std::string mesh_throw_preamble("In cartesian mesh definition file: ");
+namespace plt = matplotlibcpp;
+
+//~ template<unsigned D>
+std::array<double,3> operator+(const std::array<double,3>& v1, const std::array<double,3>& v2)
+{
+   return std::array<double,3>({v1[0]+v2[0],v1[1]+v2[1],v1[2]+v2[2]});
+}
+
+std::array<double,3> operator-(const std::array<double,3>& v1, const std::array<double,3>& v2)
+{
+   return std::array<double,3>({v1[0]-v2[0],v1[1]-v2[1],v1[2]-v2[2]});
+}
+
+//~ double operator,(const std::array<double,3>& v1, const std::array<double,3>& v2)
+//~ {
+   //~ for (uint32_t i=0; i< D)
+   //~ return (v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]);
+//~ }
+
+std::array<double,3> operator%(const std::array<double,3>& v1, const std::array<double,3>& v2)
+{
+   return std::array<double,3>({v1[1]*v2[2]-v2[1]*v1[2],
+                                v2[0]*v1[2]-v1[0]*v2[2],
+                                v1[0]*v2[1]-v2[0]*v1[1]});
+}
+
+std::array<double,3> operator*(const double& d, const std::array<double,3>& v)
+{
+   return std::array<double,3>({d*v[0],d*v[1],d*v[2]});
+}
 
 template<typename T>
 void sort_unique(std::vector<T>& v) //useful as stand-alone

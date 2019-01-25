@@ -285,7 +285,7 @@ class Discretization
       auto o = &Outputs[s.Output()];
       auto mod_out = (*o).Mode();
       timecounter t_preproc, step_cost;
-      std::vector<double> numeric_values,numeric_times, Losses;
+      std::vector<double> Losses;
 
 
       std::cout << "Preprocessing... ";
@@ -306,6 +306,11 @@ class Discretization
             
       double c_0 = 1; //vacuum speed of light in natural units
       t_step = 0.5*min_height/c_0;
+      
+      if (s.Courant()>1)
+         possibly_unstable = true;
+      else
+         t_step *= s.Courant();
       
       // time counters
       double export_time_average,step_time_average,bcs_time_average,mag_time_average,ele_time_average;
@@ -335,8 +340,10 @@ class Discretization
             auto elem_index = FindProbe(pv);
             
             if (elem_index.first < elements.size())
-               probe_elem.push_back(elem_index);      
-            else 
+            {
+               probe_elem.push_back(elem_index);
+               probe_index.push_back(p);
+            }else 
                probes_out_of_mesh = true;
          }
          std::ofstream op((*o).Name().c_str());
@@ -348,10 +355,11 @@ class Discretization
 
       if (probes_out_of_mesh)
          std::cout << "WARNING: one or more field probes were set out of the mesh! (And will be therefore ignored)" << std::endl;
-
+      if (possibly_unstable)
+         std::cout << "WARNING: Courant factor > 1 leads to instability! (automatically set to 1)" << std::endl;
       
       std::cout << std::endl << "Simulation parameters:"       << std::endl;
-      std::cout << std::setw(20) << "Mesh: "                   << std::setw(20) << m.FileName()                           << std::endl;
+      std::cout << std::setw(20) << "Mesh: "                   << std::setw(20) << m.FileName() << std::endl;
       std::cout << std::setw(20) << "Domain bounding box: "    << std::setw(10) << "{" << xmin << "," << xmax << "} X "
                                                                << "{" << ymin << "," << ymax << "} X "
                                                                << "{" << zmin << "," << zmax << "}" << std::endl;
@@ -369,20 +377,26 @@ class Discretization
       uint32_t i=0;
       blaze::StaticMatrix<double,4UL,6UL> C;
       blaze::StaticMatrix<double,6UL,4UL> CT;
-      C  = {{0,0,1,0,-1,1},{0,-1,0,1,0,-1},{1,0,0,-1,1,0},{-1,1,-1,0,0,0}};
-      CT = {{0,0,1,-1},{0,-1,0,1},{1,0,0,-1},{0,1,-1,0},{-1,0,1,0},{1,-1,0,0}};
+      
+      C  = {{ 0, 0, 1, 0,-1, 1},
+            { 0, 1, 0,-1, 0, 1},
+            { 1, 0, 0,-1, 1, 0},
+            { 1,-1, 1, 0, 0, 0}};
+            
+      CT = {{ 0, 0, 1, 1},
+            { 0, 1, 0,-1},
+            { 1, 0, 0, 1},
+            { 0,-1,-1, 0},
+            {-1, 0, 1, 0},
+            { 1, 1, 0, 0}};
       
       // 2 forms (flux global quantities) for B and D fields
       BlazeDVec B2_form(edges.size()),H1_form(edges.size());
       B2_form = H1_form = 0;
-         
-      //~ BlazeDVec total_F(6UL*elements.size());
-      //~ BlazeDVec total_Psi(4UL*elements.size());
-      
-      //~ std::cout << __FILE__ << ":" << __LINE__ << std::endl;
       
       timecounter step_counter, tdbg;
-      double current_time=0,peak=0.5;
+      double current_time=0;
+      double peak=0.5;
       uint32_t N_of_steps = uint32_t(simulation_time/t_step);
       
       i=0;
@@ -392,11 +406,44 @@ class Discretization
       {
          BlazeDVec new_B2form(edges.size());
          new_B2form = 0;
+
          for (uint32_t vol=0;vol<elements.size();++vol)
          {
+            for (uint32_t ee=0; ee<6; ++ee)
+            {
+               auto edgar = elem_edges[vol][ee];
+               auto n0 = std::get<0>(edges[edgar]);
+               auto n1 = std::get<1>(edges[edgar]);
+               auto p0 = pts[n0];
+               auto p1 = pts[n1];
+               
+               std::array<double,3UL> mp0({(0.75*p0[0]+0.25*p1[0]),
+                                           (0.75*p0[1]+0.25*p1[1]),
+                                           (0.75*p0[2]+0.25*p1[2])});
+                                           
+               std::array<double,3UL> mp1({(0.25*p0[0]+0.75*p1[0]),
+                                           (0.25*p0[1]+0.75*p1[1]),
+                                           (0.25*p0[2]+0.75*p1[2])});
+               
+               Blaze3Vec v0({0.5*(p1[0]-p0[0]),0.5*(p1[1]-p0[1]),0.5*(p1[2]-p0[2])});
+               
+               double sv0 = std::exp(-100*(std::pow(mp0[1]-peak,2)+std::pow(mp0[2]-peak,2)));
+               double sv1 = std::exp(-100*(std::pow(mp1[1]-peak,2)+std::pow(mp1[2]-peak,2)));
+               
+               
+               Blaze3Vec fv0({sv0,0,0});
+               Blaze3Vec fv1({sv1,0,0});
+               
+               
+               uint32_t i0 = dual_index[n0]+global_node_offset_pairs[edgar][0];
+               uint32_t i1 = dual_index[n1]+global_node_offset_pairs[edgar][1];
+               local_F[i0] = (fv0,v0);
+               local_F[i1] = (fv1,v0);
+               H1_form[edgar] = local_F[i0]+local_F[i1];
+            }
+            
             auto LU = blaze::subvector(local_U,4*vol,4);
             LU = 0;
-            //~ Blaze3Vec init_field({1,0,0});
                         
             auto p0 = std::get<0>(elements[vol]);
             auto p1 = std::get<1>(elements[vol]);
@@ -444,11 +491,11 @@ class Discretization
             Blaze3Vec dv1({-(vb0[0]-fb1[0]),-(vb0[1]-fb1[1]),-(vb0[2]-fb1[2])});
             Blaze3Vec dv2({-(vb0[0]-fb2[0]),-(vb0[1]-fb2[1]),-(vb0[2]-fb2[2])});
             Blaze3Vec dv3({-(vb0[0]-fb3[0]),-(vb0[1]-fb3[1]),-(vb0[2]-fb3[2])});
-            
-            double sv0 = std::exp(-100*(std::pow(mp0[0]-peak,2)+std::pow(mp0[1]-peak,2)+std::pow(mp0[2]-peak,2)));
-            double sv1 = std::exp(-100*(std::pow(mp1[0]-peak,2)+std::pow(mp1[1]-peak,2)+std::pow(mp1[2]-peak,2)));
-            double sv2 = std::exp(-100*(std::pow(mp2[0]-peak,2)+std::pow(mp2[1]-peak,2)+std::pow(mp2[2]-peak,2)));
-            double sv3 = std::exp(-100*(std::pow(mp3[0]-peak,2)+std::pow(mp3[1]-peak,2)+std::pow(mp3[2]-peak,2)));
+                        
+            double sv0 = std::exp(-100*(/*std::pow(mp0[0]-peak,2)+*/std::pow(mp0[1]-peak,2)+std::pow(mp0[2]-peak,2)));
+            double sv1 = std::exp(-100*(/*std::pow(mp1[0]-peak,2)+*/std::pow(mp1[1]-peak,2)+std::pow(mp1[2]-peak,2)));
+            double sv2 = std::exp(-100*(/*std::pow(mp2[0]-peak,2)+*/std::pow(mp2[1]-peak,2)+std::pow(mp2[2]-peak,2)));
+            double sv3 = std::exp(-100*(/*std::pow(mp3[0]-peak,2)+*/std::pow(mp3[1]-peak,2)+std::pow(mp3[2]-peak,2)));
             
             Blaze3Vec fv0({sv0,0,0});
             Blaze3Vec fv1({sv1,0,0});
@@ -464,24 +511,29 @@ class Discretization
             local_Phi = CT * LU;
             for (uint8_t k=0;k<6;++k)
                new_B2form[elem_edges[vol][k]] = new_B2form[elem_edges[vol][k]] + 
-                                             local_Phi[k];
-            }
-            B2_form = std::move(new_B2form);
+                                                local_Phi[k];
+         }
+         
+         B2_form = std::move(new_B2form);
       }
       
       while (current_time < simulation_time)
       {
          step_cost.tic();
-         current_time = double(i)*t_step;
          tdbg.tic();
          
-         //~ std::cout << "t = " << current_time << " s" << std::endl;
+         if ((*o).AllowPrint(current_time/*-t_step*/))
+            PlotFields(mod_out, current_time/*-t_step*/,uint32_t(i));
+
+         tdbg.toc();
+         export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+         //~ tdbg.tic();
          
          //sources
          //~ for (auto be : bnd_primal)
             //~ B2_form[be] += ComputeEfieldSource(be,current_time);
-         tdbg.toc();
-         bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
+         //~ tdbg.toc();
+         //~ bcs_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
          tdbg.tic();
          
          // Faraday:
@@ -493,13 +545,23 @@ class Discretization
             auto LF = blaze::subvector(local_F,dual_index[p],n_e[p].size());
             
             for (uint8_t k=0;k<n_e[p].size();++k)
-               local_Phi[k]=B2_form[n_e[p][k]];
+            {
+               //~ auto p0 = std::get<0>(edges[n_e[p][k]]);
+               local_Phi[k] = B2_form[n_e[p][k]];
+               //~ /*local_Phi[k] = (p0 == p) ?  B2_form[n_e[p][k]] :
+                                          //~ -B2_form[n_e[p][k]] ;*/
+            }
             
             LF -= t_step*(NU[p]*local_Phi);
             
             for (uint8_t k=0;k<n_e[p].size();++k)
+            {
+               //~ auto p0 = std::get<0>(edges[n_e[p][k]]);
                new_H1form[n_e[p][k]] += LF[k];
+               //~ new_H1form[n_e[p][k]] += (p0 == p) ? LF[k] : -LF[k];
+            }
          }
+         
          H1_form = std::move(new_H1form);
          
          tdbg.toc();
@@ -515,7 +577,7 @@ class Discretization
             
             for (uint8_t k=0;k<6;++k)
             {
-               local_F0[k] =H1_form[elem_edges[v+0][k]];
+               local_F0[k] = H1_form[elem_edges[v+0][k]];
             }
             
             auto local_Eta0 = blaze::submatrix(ETA,4*(v+0),0UL,4UL,4UL);
@@ -529,18 +591,13 @@ class Discretization
                new_B2form[elem_edges[v+0][k]] += local_Phi0[k];
             }
          }
+         
          B2_form = std::move(new_B2form);
          
          tdbg.toc();
          //~ std::cout << "profiling avx: " << tdbg << std::endl;
          ele_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
-         tdbg.tic();
          
-         if ((*o).AllowPrint(current_time/*-t_step*/))
-            ExportFields(mod_out, current_time/*-t_step*/,uint32_t(i));
-
-         tdbg.toc();
-         export_time_average += (duration_cast<duration<double>>(tdbg.elapsed())).count();
          step_cost.toc();
          step_time_average += (duration_cast<duration<double>>(step_cost.elapsed())).count();
          
@@ -550,20 +607,81 @@ class Discretization
                       << std::setw(8) << step_time_average/double(i) << std::setw(7) << " s/step" 
                       << "-----------" << std::endl;
          ++i;
+         current_time = double(i)*t_step;
       }
       
+      //~ std::stringstream fname;
+      //~ fname << (*o).Name() << ".png";
+      //~ plt::save(fname.str());
+      
+      std::cout << std::endl << "Simulation statistics:"       << std::endl;
+      std::cout << std::setw(20) << "Average step cost in seconds:           "
+                << std::setw(20) << step_time_average/double(i) << std::endl;
+      std::cout << std::setw(20) << "Average plot cost in seconds:           "
+                << std::setw(20) << export_time_average/double(i) << std::endl;
+      std::cout << std::setw(20) << "Average Faraday law cost in seconds:    "
+                << std::setw(20) << mag_time_average/double(i) << std::endl;
+      std::cout << std::setw(20) << "Average Ampere-Maxwell cost in seconds: "
+                << std::setw(20) << ele_time_average/double(i) << std::endl;
       return;
    }
    
-   void ExportFields(const std::string s, double t, uint32_t i)
+   void PlotFields(const std::string s, double t, uint32_t i)
    {
       // Eigen::Vector3d num_val;
       if (s == "probefield")
       {
-         auto op = &Outputs[Simulations[current_simulation].Output()];         
-         std::ofstream probe_file((*op).Name().c_str(),std::ofstream::out | std::ofstream::app);
+         auto op = &Outputs[Simulations[current_simulation].Output()];
+         std::array<std::vector<double>,6> ordinata;
+         if (t<=0)
+         {
+            if ((*op).XG())
+            {
+               for (uint32_t p=0; p<probe_index.size(); ++p)
+               {
+                  auto ppt = (*op).Probe(probe_index[p]);
+                  abscissa.push_back(ppt[0]);
+               }
+            }
+            else if ((*op).YG())
+            {
+               for (uint32_t p=0; p<probe_index.size(); ++p)
+               {
+                  auto ppt = (*op).Probe(probe_index[p]);
+                  abscissa.push_back(ppt[1]);
+               }
+            }
+            else if ((*op).ZG())
+            {
+               for (uint32_t p=0; p<probe_index.size(); ++p)
+               {
+                  auto ppt = (*op).Probe(probe_index[p]);
+                  abscissa.push_back(ppt[2]);
+               }
+            }
+            else
+            {
+               uint32_t p = probe_index.size();
+               
+               std::vector<std::vector<double>> exs(p);
+               std::vector<std::vector<double>> eys(p);
+               std::vector<std::vector<double>> ezs(p);
+               std::vector<std::vector<double>> hxs(p);
+               std::vector<std::vector<double>> hys(p);
+               std::vector<std::vector<double>> hzs(p);
+               
+               this->exs = std::move(exs);
+               this->eys = std::move(eys);
+               this->ezs = std::move(ezs);
+               this->hxs = std::move(hxs);
+               this->hys = std::move(hys);
+               this->hzs = std::move(hzs);
+            }
+         }
          
-         for (uint32_t p=0; p<probe_elem.size(); ++p)
+         
+         //~ std::ofstream probe_file((*op).Name().c_str(),std::ofstream::out | std::ofstream::app);
+         for (uint32_t p=0; p<probe_index.size(); ++p)
          {
             auto vol = probe_elem[p].first;
             Blaze3Vec num_ele(0), num_mag(0);
@@ -589,6 +707,33 @@ class Discretization
             std::array<double,3UL> fb3({(pts[p0][0]+pts[p1][0]+pts[p2][0])/double(3),
                                         (pts[p0][1]+pts[p1][1]+pts[p2][1])/double(3),
                                         (pts[p0][2]+pts[p1][2]+pts[p2][2])/double(3)});
+            
+            //~ std::array<double,3UL> eb0({0.5*(pts[p0][0]+pts[p1][0]),
+                                        //~ 0.5*(pts[p0][1]+pts[p1][1]),
+                                        //~ 0.5*(pts[p0][2]+pts[p1][2])});
+            //~ std::array<double,3UL> eb1({0.5*(pts[p0][0]+pts[p2][0]),
+                                        //~ 0.5*(pts[p0][1]+pts[p2][1]),
+                                        //~ 0.5*(pts[p0][2]+pts[p2][2])});
+            //~ std::array<double,3UL> eb2({0.5*(pts[p1][0]+pts[p2][0]),
+                                        //~ 0.5*(pts[p1][1]+pts[p2][1]),
+                                        //~ 0.5*(pts[p1][2]+pts[p2][2])});
+            //~ std::array<double,3UL> eb3({0.5*(pts[p0][0]+pts[p3][0]),
+                                        //~ 0.5*(pts[p0][1]+pts[p3][1]),
+                                        //~ 0.5*(pts[p0][2]+pts[p3][2])});
+            //~ std::array<double,3UL> eb4({0.5*(pts[p1][0]+pts[p3][0]),
+                                        //~ 0.5*(pts[p1][1]+pts[p3][1]),
+                                        //~ 0.5*(pts[p1][2]+pts[p3][2])});
+            //~ std::array<double,3UL> eb5({0.5*(pts[p2][0]+pts[p3][0]),
+                                        //~ 0.5*(pts[p2][1]+pts[p3][1]),
+                                        //~ 0.5*(pts[p2][2]+pts[p3][2])});
+            
+            //~ auto ae0 = 0.5*((vb0-eb0)%(fb2-fb3));
+            //~ auto ae1 = 0.5*((vb0-eb1)%(fb3-fb1));
+            //~ auto ae2 = 0.5*((vb0-eb2)%(fb0-fb3));
+            //~ auto ae3 = 0.5*((vb0-eb3)%(fb1-fb2));
+            //~ auto ae4 = 0.5*((vb0-eb4)%(fb2-fb0));
+            //~ auto ae5 = 0.5*((vb0-eb5)%(fb0-fb1));
+            
             
             
             Blaze3Mat primmat,dualmat;
@@ -685,12 +830,32 @@ class Discretization
             num_ele = blaze::eval(dualmat*num_ele);
             num_mag = blaze::eval(2*primmat*num_mag);
             
-            auto ppt = (*op).Probe(p);
+            if (abscissa.size()>0)
+            {
+               ordinata[0].push_back(num_ele[0]);
+               ordinata[1].push_back(num_ele[1]);
+               ordinata[2].push_back(num_ele[2]);
+               ordinata[3].push_back(num_mag[0]);
+               ordinata[4].push_back(num_mag[1]);
+               ordinata[5].push_back(num_mag[2]);
+            }
+            else
+            {
+               exs[p].push_back(num_ele[0]);
+               eys[p].push_back(num_ele[1]);
+               ezs[p].push_back(num_ele[2]);
+               hxs[p].push_back(num_mag[0]);
+               hys[p].push_back(num_mag[1]);
+               hzs[p].push_back(num_mag[2]);
+               printed_times.push_back(t);
+            }
             
-            probe_file  << std::setw(15) << ppt[0]     << std::setw(15) << ppt[1]     << std::setw(15) << ppt[2] 
-                        << std::setw(15) << t
-                        << std::setw(15) << num_ele[0] << std::setw(15) << num_ele[1] << std::setw(15) << num_ele[2]
-                        << std::setw(15) << num_mag[0] << std::setw(15) << num_mag[1] << std::setw(15) << num_mag[2];
+            //~ auto ppt = (*op).Probe(p);
+            
+            //~ probe_file  << std::setw(15) << ppt[0]     << std::setw(15) << ppt[1]     << std::setw(15) << ppt[2] 
+                        //~ << std::setw(15) << t
+                        //~ << std::setw(15) << num_ele[0] << std::setw(15) << num_ele[1] << std::setw(15) << num_ele[2]
+                        //~ << std::setw(15) << num_mag[0] << std::setw(15) << num_mag[1] << std::setw(15) << num_mag[2];
             
             
             //~ if (have_analytic)
@@ -726,10 +891,52 @@ class Discretization
                //~ analytic_h_value_vector[p].push_back(anal_value2);
             //~ }
             
-            probe_file  << std::endl;
+            //~ probe_file  << std::endl;
          }
          
-         probe_file.close();
+         // Clear previous plot
+         plt::clf();
+         // Plot a line whose name will show up as "log(x)" in the legend.
+         if (abscissa.size()>0)
+         {
+            plt::named_plot("Ex", abscissa, ordinata[0]);
+            plt::named_plot("Ey", abscissa, ordinata[1]);
+            plt::named_plot("Ez", abscissa, ordinata[2]);
+            plt::named_plot("Hx", abscissa, ordinata[3]);
+            plt::named_plot("Hy", abscissa, ordinata[4]);
+            plt::named_plot("Hz", abscissa, ordinata[5]);
+            plt::xlim(abscissa[0],abscissa[probe_elem.size()-1]);
+         }
+         else
+         {
+            for (uint32_t p=0; p<probe_elem.size(); ++p)
+            {
+               plt::named_plot("Ex", printed_times, exs[p]);
+               plt::named_plot("Ey", printed_times, eys[p]);
+               plt::named_plot("Ez", printed_times, ezs[p]);
+               plt::named_plot("Hx", printed_times, hxs[p]);
+               plt::named_plot("Hy", printed_times, hys[p]);
+               plt::named_plot("Hz", printed_times, hzs[p]);
+            }
+            const double xrightlim(printed_times[i] + t_step);
+            plt::xlim(0.0, xrightlim);
+         }
+         // Set x-axis to interval [0,1000000]
+         //~ plt::ylim(-1.5, 1.5);
+
+         // Add graph title
+         //~ plt::title("Sample figure");
+         // Enable legend and grid
+         plt::legend();
+         plt::grid(true);
+         // Display plot continuously
+         plt::pause(0.01);
+         
+         //~ std::stringstream fname;
+         //~ fname << (*op).Name() << i << ".png";
+         //~ plt::save(fname.str());
+
+         //~ probe_file.close();
       }
       //~ else
       //~ {
@@ -738,7 +945,16 @@ class Discretization
       //~ }
       return;
    }
-   
+
+   bool SameSide(Blaze3Vec v1, Blaze3Vec v2, Blaze3Vec v3, Blaze3Vec v4, Blaze3Vec p)
+   {
+       Blaze3Vec normal = ( (v2 - v1) % (v3 - v1) );
+       double dotV4 = ( normal,(v4 - v1) );
+       double dotP  = ( normal,(p - v1) );
+       return ( (dotV4>-1e-6 && dotP >-1e-6) || (dotV4 < 1e-6 && dotP < 1e-6) );
+       //~ return (std::signbit(dotV4) == std::signbit(dotP));
+   }
+
    std::pair<uint32_t,uint8_t> FindProbe(const std::array<double,3UL>& pp)
    {
       Blaze3Vec pv({pp[0],pp[1],pp[2]});
@@ -760,89 +976,43 @@ class Discretization
          v = qtop;
          
          //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-         std::array<double,3UL> v1(pts[std::get<0>(elements[v])]);
-         std::array<double,3UL> v2(pts[std::get<1>(elements[v])]);
-         std::array<double,3UL> v3(pts[std::get<2>(elements[v])]);
-         std::array<double,3UL> v4(pts[std::get<3>(elements[v])]);
+         std::array<double,3UL> p1(pts[std::get<0>(elements[v])]);
+         std::array<double,3UL> p2(pts[std::get<1>(elements[v])]);
+         std::array<double,3UL> p3(pts[std::get<2>(elements[v])]);
+         std::array<double,3UL> p4(pts[std::get<3>(elements[v])]);
          //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+         
 
-         Blaze4Mat mat1;
-         
-         mat1 = { {v1[0], v1[1], v1[2], 1},
-                  {v2[0], v2[1], v2[2], 1},
-                  {v3[0], v3[1], v3[2], 1},
-                  {v4[0], v4[1], v4[2], 1} };
-                
-         double det0 = blaze::det(mat1);
-         
-         mat1 = { {pv[0], pv[1], pv[2], 1},
-                  {v2[0], v2[1], v2[2], 1},
-                  {v3[0], v3[1], v3[2], 1},
-                  {v4[0], v4[1], v4[2], 1} };
-         
-         
-         double det1 = blaze::det(mat1);
-         
-         auto check1 = ((det0>= -geom_tol &&  det1 >= -geom_tol) ||
-                        (det0<= geom_tol &&  det1 <= geom_tol));
-         
-         mat1 = { {v1[0], v1[1], v1[2], 1},
-                  {pv[0], pv[1], pv[2], 1},
-                  {v3[0], v3[1], v3[2], 1},
-                  {v4[0], v4[1], v4[2], 1} };
-                
-         det1 = blaze::det(mat1);
-         auto check2 = ((det0>= -geom_tol &&  det1 >= -geom_tol) || 
-                        (det0<= geom_tol &&  det1 <= geom_tol));
-         
-         mat1 = { {v1[0], v1[1], v1[2], 1},
-                  {v2[0], v2[1], v2[2], 1},
-                  {pv[0], pv[1], pv[2], 1},
-                  {v4[0], v4[1], v4[2], 1} };
-                  
-         det1 = blaze::det(mat1);
-         auto check3 = ((det0>= -geom_tol &&  det1 >= -geom_tol) || 
-                        (det0<= geom_tol &&  det1 <= geom_tol));
-         
-         mat1 = { {v1[0], v1[1], v1[2], 1},
-                  {v2[0], v2[1], v2[2], 1},
-                  {v3[0], v3[1], v3[2], 1},
-                  {pv[0], pv[1], pv[2], 1} };
-                
-         det1 = blaze::det(mat1);
-         auto check4 = ((det0>= -geom_tol &&  det1 >= -geom_tol) ||
-                        (det0<= geom_tol &&  det1 <= geom_tol));
-         
+         auto v1 = Blaze3Vec({p1[0],p1[1],p1[2]});
+         auto v2 = Blaze3Vec({p2[0],p2[1],p2[2]});
+         auto v3 = Blaze3Vec({p3[0],p3[1],p3[2]});
+         auto v4 = Blaze3Vec({p4[0],p4[1],p4[2]});
+
+         auto check1 = SameSide(v1, v2, v3, v4, pv);
+         auto check2 = SameSide(v2, v3, v4, v1, pv);
+         auto check3 = SameSide(v3, v4, v1, v2, pv);
+         auto check4 = SameSide(v4, v1, v2, v3, pv);
+          
          if (check1 && check2 && check3 && check4)
          {
             root = v; //save root to exploit locality in next probe research
             
-            //~ blaze::StaticMatrix<double,3UL,4UL> mat2;
-            //~ mat2 = { {v1[0], v2[0], v3[0], v4[0]},
-                     //~ {v1[1], v2[1], v3[1], v4[1]},
-                     //~ {v1[2], v2[2], v3[2], v4[2]} };
-
-            auto p1 = Blaze3Vec({v1[0],v1[1],v1[2]});
-            auto p2 = Blaze3Vec({v2[0],v2[1],v2[2]});
-            auto p3 = Blaze3Vec({v3[0],v3[1],v3[2]});
-            auto p4 = Blaze3Vec({v4[0],v4[1],v4[2]});
-            
-            double dist = blaze::norm(p1 - pv);
+            double dist = blaze::norm(v1 - pv);
             uint8_t i = 0;
-            if (blaze::norm(p2-pv) < dist)
+            if (blaze::norm(v2-pv) < dist)
             {
                i = 1;
-               dist = blaze::norm(p2-pv);
+               dist = blaze::norm(v2-pv);
             }
-            if (blaze::norm(p3-pv) < dist)
+            if (blaze::norm(v3-pv) < dist)
             {
                i = 2;
-               dist = blaze::norm(p3-pv);
+               dist = blaze::norm(v3-pv);
             }
-            if (blaze::norm(p4-pv) < dist)
+            if (blaze::norm(v4-pv) < dist)
                i = 3;
             
-            std::cout << v << std::endl;
+            //~ std::cout << v << std::endl;
             return std::make_pair(v,i);
          }
 
@@ -1049,17 +1219,17 @@ class Discretization
                     {pts[p2][0]-pts[p0][0], pts[p2][1]-pts[p0][1], pts[p2][2]-pts[p0][2]},
                     {pts[p3][0]-pts[p0][0], pts[p3][1]-pts[p0][1], pts[p3][2]-pts[p0][2]} };
          
-         prim_1 = { {pts[p1][0]-pts[p0][0], pts[p1][1]-pts[p0][1], pts[p1][2]-pts[p0][2]},
+         prim_1 = { {-pts[p1][0]+pts[p0][0], -pts[p1][1]+pts[p0][1], -pts[p1][2]+pts[p0][2]},
                     {pts[p2][0]-pts[p1][0], pts[p2][1]-pts[p1][1], pts[p2][2]-pts[p1][2]},
                     {pts[p3][0]-pts[p1][0], pts[p3][1]-pts[p1][1], pts[p3][2]-pts[p1][2]} };
          
-         prim_2 = { {pts[p2][0]-pts[p0][0], pts[p2][1]-pts[p0][1], pts[p2][2]-pts[p0][2]},
-                    {pts[p2][0]-pts[p1][0], pts[p2][1]-pts[p1][1], pts[p2][2]-pts[p1][2]},
+         prim_2 = { {-pts[p2][0]+pts[p0][0], -pts[p2][1]+pts[p0][1], -pts[p2][2]+pts[p0][2]},
+                    {-pts[p2][0]+pts[p1][0], -pts[p2][1]+pts[p1][1], -pts[p2][2]+pts[p1][2]},
                     {pts[p3][0]-pts[p2][0], pts[p3][1]-pts[p2][1], pts[p3][2]-pts[p2][2]} };
                     
-         prim_3 = { {pts[p3][0]-pts[p0][0], pts[p3][1]-pts[p0][1], pts[p3][2]-pts[p0][2]},
-                    {pts[p3][0]-pts[p1][0], pts[p3][1]-pts[p1][1], pts[p3][2]-pts[p1][2]},
-                    {pts[p3][0]-pts[p2][0], pts[p3][1]-pts[p2][1], pts[p3][2]-pts[p2][2]} };
+         prim_3 = { {-pts[p3][0]+pts[p0][0], -pts[p3][1]+pts[p0][1], -pts[p3][2]+pts[p0][2]},
+                    {-pts[p3][0]+pts[p1][0], -pts[p3][1]+pts[p1][1], -pts[p3][2]+pts[p1][2]},
+                    {-pts[p3][0]+pts[p2][0], -pts[p3][1]+pts[p2][1], -pts[p3][2]+pts[p2][2]} };
 
 
          auto volume = det(prim_0);
@@ -1071,10 +1241,20 @@ class Discretization
             coeffs[2]=-coeffs[2];
             coeffs[3]=-coeffs[3];
          }
-         const double norm_0 = blaze::norm((blaze::row<1UL>(prim_0) % blaze::row<2UL>(prim_0)));
-         const double norm_1 = blaze::norm((blaze::row<1UL>(prim_1) % blaze::row<2UL>(prim_1)));
-         const double norm_2 = blaze::norm((blaze::row<1UL>(prim_2) % blaze::row<2UL>(prim_2)));
-         const double norm_3 = blaze::norm((blaze::row<1UL>(prim_3) % blaze::row<2UL>(prim_3)));
+         
+         //~ std::cout << blaze::row<1UL>(prim_1) << std::endl;
+         //~ std::cout << blaze::row<2UL>(prim_1) << std::endl;
+         blaze::StaticVector<double,3UL,blaze::rowVector> trig_0 = (blaze::row<1UL>(prim_1) % blaze::row<2UL>(prim_1));
+         blaze::StaticVector<double,3UL,blaze::rowVector> trig_1 = (blaze::row<0UL>(prim_2) % blaze::row<0UL>(prim_3));
+         blaze::StaticVector<double,3UL,blaze::rowVector> trig_2 = (blaze::row<0UL>(prim_0) % blaze::row<0UL>(prim_3));
+         blaze::StaticVector<double,3UL,blaze::rowVector> trig_3 = (blaze::row<0UL>(prim_0) % blaze::row<1UL>(prim_0));
+         
+         std::cout << std::endl;
+         
+         const double norm_0 = blaze::norm(trig_0);
+         const double norm_1 = blaze::norm(trig_1);
+         const double norm_2 = blaze::norm(trig_2);
+         const double norm_3 = blaze::norm(trig_3);
          
          double height_0 = std::fabs(volume)/std::fabs(norm_0);
          double height_1 = std::fabs(volume)/std::fabs(norm_1);
@@ -1108,7 +1288,6 @@ class Discretization
                      {coeffs[1]*(fb1[0]-vb0[0]),coeffs[1]*(fb1[1]-vb0[1]),coeffs[1]*(fb1[2]-vb0[2])},
                      {coeffs[2]*(fb2[0]-vb0[0]),coeffs[2]*(fb2[1]-vb0[1]),coeffs[2]*(fb2[2]-vb0[2])} };
 
-         
          //~ std::cout << __FILE__ << ":" << __LINE__ << std::endl;
          
          //~ std::cout << "dual matrix test:" << std::endl << dual_0;
@@ -1121,21 +1300,16 @@ class Discretization
          blaze::invert(dual_2);
          blaze::invert(dual_3);
          
-         //~ auto pippo = blaze::trans(prim_1); auto pluto = Materials[d].Mu()*prim_1;
-         //~ std::cout << pippo << std::endl << pluto << std::endl;
-         
          prim_0 = volume*blaze::eval(blaze::trans(prim_0)*blaze::eval(Materials[d].Mu()*prim_0));
          prim_1 = volume*blaze::eval(blaze::trans(prim_1)*blaze::eval(Materials[d].Mu()*prim_1));
-         //~ std::cout << (1/volume)*prim_1 << std::endl;
          prim_2 = volume*blaze::eval(blaze::trans(prim_2)*blaze::eval(Materials[d].Mu()*prim_2));
          prim_3 = volume*blaze::eval(blaze::trans(prim_3)*blaze::eval(Materials[d].Mu()*prim_3));
-         
-         //~ std::cout << __FILE__ << ":" << __LINE__ << std::endl;
          
          dual_0 = 0.25*volume*blaze::eval(blaze::trans(dual_0)*blaze::eval(Materials[d].Epsilon()*dual_0));
          dual_1 = 0.25*volume*blaze::eval(blaze::trans(dual_1)*blaze::eval(Materials[d].Epsilon()*dual_1));
          dual_2 = 0.25*volume*blaze::eval(blaze::trans(dual_2)*blaze::eval(Materials[d].Epsilon()*dual_2));
          dual_3 = 0.25*volume*blaze::eval(blaze::trans(dual_3)*blaze::eval(Materials[d].Epsilon()*dual_3));
+         
          
          auto prim_local_MM = blaze::submatrix(ETA,4*linecount,0UL,4UL,4UL);
          prim_local_MM = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};
@@ -1155,6 +1329,25 @@ class Discretization
          prim_local_MM(0,0) += dual_3(0,0); prim_local_MM(0,1) += dual_3(0,1); prim_local_MM(0,2) += dual_3(0,2);
          prim_local_MM(1,0) += dual_3(1,0); prim_local_MM(1,1) += dual_3(1,1); prim_local_MM(1,2) += dual_3(1,2);
          prim_local_MM(2,0) += dual_3(2,0); prim_local_MM(2,1) += dual_3(2,1); prim_local_MM(2,2) += dual_3(2,2);
+         
+         blaze::StaticMatrix<double,4UL,3UL> dual_edges, primal_faces;
+         
+         dual_edges = {  {coeffs[0]*(fb0[0]-vb0[0]),coeffs[0]*(fb0[1]-vb0[1]),coeffs[0]*(fb0[2]-vb0[2])},
+                         {coeffs[1]*(fb1[0]-vb0[0]),coeffs[1]*(fb1[1]-vb0[1]),coeffs[1]*(fb1[2]-vb0[2])},
+                         {coeffs[2]*(fb2[0]-vb0[0]),coeffs[2]*(fb2[1]-vb0[1]),coeffs[2]*(fb2[2]-vb0[2])},
+                         {coeffs[3]*(fb3[0]-vb0[0]),coeffs[3]*(fb3[1]-vb0[1]),coeffs[3]*(fb3[2]-vb0[2])} };
+                         
+         primal_faces = {  {0.5*trig_0[0],0.5*trig_0[1],0.5*trig_0[2]},
+                           {0.5*trig_1[0],0.5*trig_1[1],0.5*trig_1[2]},
+                           {0.5*trig_2[0],0.5*trig_2[1],0.5*trig_2[2]},
+                           {0.5*trig_3[0],0.5*trig_3[1],0.5*trig_3[2]}  };
+   
+         
+         //~ auto pippo = prim_local_MM*dual_edges;
+         
+         //~ std::cout << "consistency check:" << std::endl;
+         //~ std::cout << pippo << std::endl;
+         //~ std::cout << primal_faces << std::endl;
 
          blaze::invert<blaze::asSymmetric>(prim_local_MM);
          
@@ -1185,6 +1378,49 @@ class Discretization
       std::vector<std::vector<uint32_t>> elem_edges(lines);
       std::vector<std::vector<uint32_t>> elem_facets(lines);
       
+      /************************ Read boundary surfaces ************************/
+      linecount = 0;
+      //~ auto num_of_tets=lines;
+      lines = strtot<uint32_t>(endptr, &endptr);
+      std::vector<std::set<uint32_t>> bndnd(pts.size());
+      
+      while (linecount < lines)
+      {
+         
+         // if ( (linecount%50000) == 0 )
+         // {
+            // std::cout << "Reading triangles: " << linecount;
+            // std::cout << "/" << lines << "\r";
+            // std::cout.flush();
+         // }
+         
+         auto t = parser::read_triangle_line<uint32_t>(endptr, &endptr);
+
+         uint32_t       bid( std::get<0>(t) );
+         
+         std::vector<uint32_t> vecsurf(3);
+         vecsurf[0] = std::get<1>(t);
+         vecsurf[1] = std::get<2>(t);
+         vecsurf[2] = std::get<3>(t);
+         std::sort(vecsurf.begin(),vecsurf.end());
+         
+         uint32_t       p0(vecsurf[0]);
+         uint32_t       p1(vecsurf[1]);
+         uint32_t       p2(vecsurf[2]);
+         //~ surface_type   tri( p0, p1, p2 );
+         
+         bndnd[p0].insert(bid);
+         bndnd[p1].insert(bid);
+         bndnd[p2].insert(bid);
+         
+         
+         ++linecount;
+      }
+      
+      mf.close();
+      this->bndnd = std::move(bndnd);
+      
+      /************************ Generate Data Structures ************************/
       struct {
          bool operator()(const std::pair<std::tuple<uint32_t,uint32_t>,uint32_t> t1,
                          const std::pair<std::tuple<uint32_t,uint32_t>,uint32_t> t2)
@@ -1300,8 +1536,6 @@ class Discretization
       
       uint32_t tot_local_dual=0;
       
-      //~ std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-      
       for (uint32_t j=0;j<pts.size();++j)
       {
          blaze::HybridMatrix<double,25UL,25UL> local_M(16,16); //magic number in node-edge incidence
@@ -1345,13 +1579,14 @@ class Discretization
                }
             }
             
-            local_M(i1,i1) += sprim(0,0); local_M(i2,i1) += sprim(1,0); local_M(i3,i1) += sprim(2,0);
-            local_M(i2,i2) += sprim(1,1); local_M(i3,i2) += sprim(2,1); local_M(i3,i3) += sprim(2,2);
+            local_M(i1,i1) += sprim(0,0); local_M(i1,i2) += sprim(0,1); local_M(i1,i2) += sprim(0,2);
+            local_M(i2,i1) += sprim(1,0); local_M(i2,i2) += sprim(1,1); local_M(i2,i3) += sprim(1,2);
+            local_M(i3,i1) += sprim(2,0); local_M(i3,i2) += sprim(2,1); local_M(i3,i3) += sprim(2,2);
          }
          
-         for (uint8_t k=0;k<n_e[j].size();++k)
-            for (uint8_t l=k+1;l<n_e[j].size();++l)
-               local_M(k,l) = local_M(l,k);
+         //~ for (uint8_t k=0;k<n_e[j].size();++k)
+            //~ for (uint8_t l=k+1;l<n_e[j].size();++l)
+               //~ local_M(k,l) = local_M(l,k);
                
          
          //padding
@@ -1360,7 +1595,7 @@ class Discretization
                local_M(k,k) = 1.0;
          
          //~ std::cout << local_M << std::endl;
-      
+         
          //~ std::cout << __FILE__ << ":" << __LINE__ << std::endl;
          
          blaze::invert<blaze::asSymmetric>(local_M);
@@ -1394,6 +1629,8 @@ class Discretization
          this->NU.push_back(dual_M);
       }
 
+      
+      
       BlazeDVec local_F(tot_local_dual);
       local_F = 0;
       this->local_F = std::move(local_F);
@@ -1430,13 +1667,15 @@ class Discretization
    BlazeDVec                                                      local_U, local_F;
    std::vector<BlazeSymSpMat>                                     NU;
    BlazeDMat                                                      ETA;
-   //~ std::vector<Blaze4Mat>                                         ETA;
    std::vector<std::array<uint32_t,2>>                            global_node_offset_pairs;
    std::vector<std::vector<uint32_t>>                             n_e,/*edge_elems, */facet_elems,elem_edges,elem_facets;
-   //~ std::vector<std::vector<std::pair<uint32_t,uint32_t>>>         node_vols_w_pos;
    std::vector<std::tuple<uint32_t,uint32_t,uint32_t>>            facets;
    std::vector<std::tuple<uint32_t,uint32_t>>                     edges;
    std::vector<std::tuple<uint32_t,uint32_t,uint32_t,uint32_t>>   elements;
    std::vector<std::pair<uint32_t,uint8_t>>                       probe_elem;
-   std::vector<uint32_t>                                          /*elem_mat_lab, */dual_index;
+   std::vector<uint32_t>                                          /*elem_mat_lab, */dual_index,probe_index;
+   std::vector<double>                                            abscissa, printed_times;
+   std::vector<std::set<uint32_t>>                                bndnd;
+   std::vector<std::vector<double>>                               eys,exs,ezs,hxs,hys,hzs;
+   
 };

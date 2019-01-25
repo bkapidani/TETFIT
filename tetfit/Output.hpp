@@ -335,7 +335,11 @@ class Output
    // const double& Instant(void) const { return silo_instant; }
    const std::string& Name(void) const { return name; }
    const OutputMode& Mode(void) const { return mode; }
-   const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; };
+   const std::vector<uint32_t> GetRadiators(void) const {return radiating_vol_bnd; }
+   bool  XG(void) const { return (xstop != xstart); }
+   bool  YG(void) const { return (ystop != ystart); }
+   bool  ZG(void) const { return (zstop != zstart); }
+   
    const std::array<double,3UL>& Probe(uint32_t i) const
    { 
       assert(i<probepoints.size());

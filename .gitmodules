@@ -1,0 +1,3 @@
+[submodule "utils/blaze-sparse-init"]
+	path = utils/blaze-sparse-init
+	url = https://github.com/datafl4sh/blaze-sparse-init.git
