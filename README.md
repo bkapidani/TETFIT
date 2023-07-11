@@ -2,7 +2,7 @@
 
 <h1>The TetFIT toolbox</h1>
 <p>TetFIT a simulation toolbox which was developed during my Ph.D. thesis work at the University of Udine, which now has been superseeded by arbitrary polynomial degree versions available in Netgen/NGSolve (see <a href="https://ngsolve.org">[https://ngsolve.org]</a>). The source-code is written in C++ and works under Unix architectures (tested on Debian 9), MacOs and on Windows, compiled in the CygWin Posix compatibility layer or using WSL.
-All the documentation that follows is taken from chapter 7 of my final thesis report available at <a href="https://air.uniud.it/bitstream/11390/1142992/2/thesis_kapidani_pdfA.pdf">[thesis]</a></p>
+All the documentation that follows is taken from chapter 7 of my final thesis report available <a href="https://air.uniud.it/bitstream/11390/1142992/2/thesis_kapidani_pdfA.pdf">here</a>.</p>
 
 <h2>The user interface</h2>
 <p>The executable is called on the terminal with the instruction:</p>
@@ -110,7 +110,8 @@ DEFINE solid 1
 	SET corner { -10,-10,-10} # coordinates of the lower left corner of the box
 	SET size 	{ 20, 20, 20} # dimensions
 END solid 1
-
+</code></pre>
+<pre><code>
 DEFINE solid 2 # overrides solid 1 where they intersect
 	SET material 2
 	SET type sphere
@@ -180,7 +181,7 @@ END output    1
 </code></pre>
 <p>The output primitive defines the type of output we want to obtain. In general <code>probepoint</code> is the most used and works in two flavors: either it defines a three-dimensional structured grid of points on which it interpol
 
-ates and stores the fields at various time-steps (with a user-defined period which is a true time, not a period in number of time-steps), or, if the grid is not <em>switched on</em><sup>[^1^]</sup>, multiple <code>SET probe</code> instructions can be used to measure the fields at arbitrary points. A routine, inspired by <a href="http://theory.cm.utexas.edu/jacob/cpmd2001/node20.html#SECTION00083000000000000000">[Schlager Manual]</a>, to directly compute the Discrete Fourier Transform of the field at a particular point is also available as <code>SET fprobe</code>. An alternative output mode is <code>mode silo</code>, which instead yields the fields (and the mesh) in the widely used open-source <em>Silo</em> format<a href="http://wci.llnl.gov/codes/silo/">[silo]</a>, which can be very useful both for animated field time evolutions and for debugging. Finally, via <code>SET axes</code>, it is always possible to obtain field values in polar (spherical or cylindrical) coordinates, even when it does not make any practical sense.</p>
+ates and stores the fields at various time-steps (with a user-defined period which is a true time, not a period in number of time-steps), or, if the grid is not <em>switched on</em><sup>[^1^]</sup>, multiple <code>SET probe</code> instructions can be used to measure the fields at arbitrary points. A routine, inspired by this <a href="http://theory.cm.utexas.edu/jacob/cpmd2001/node20.html#SECTION00083000000000000000">book</a>, to directly compute the Discrete Fourier Transform of the field at a particular point is also available as <code>SET fprobe</code>. An alternative output mode is <code>mode silo</code>, which instead yields the fields (and the mesh) in the widely used open-source <em>Silo</em> format<a href="http://wci.llnl.gov/codes/silo/">[silo]</a>, which can be very useful both for animated field time evolutions and for debugging. Finally, via <code>SET axes</code>, it is always possible to obtain field values in polar (spherical or cylindrical) coordinates, even when it does not make any practical sense.</p>
 
 <h3>The simulation primitive</h3>
 <pre><code>DEFINE simulation 1
