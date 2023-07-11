@@ -163,7 +163,17 @@ When the mesh is Cartesian orthogonal surface labels from 1 to 6 are reserved fo
 END source 1
 </code></pre>
 <p>The source primitive is a bit heavier on the eyes. Suffices to say that for this particular example, the source we set amounts to forcing a tangential magnetic field</p>
-<p>\(\mathbf{h} \left(x,y,z=0,t\right) \times \hat{\mathbf{z}}  = \left( 1 \text{A/m} \right) \times \text{sin} \left(2\pi (x-0)\times 1/2\right) \times \text{cos} \left(2\pi (y-0)\times  0\right) \times \text{cos} \left(2\pi (z-0)\times  0\right) \times \text{sin} \left(2\pi t\times  2\times 10^8\right) \times \Theta(t-0) \times \hat{\mathbf{x}} = \text{sin} (\pi x)\, \text{sin} (2\pi f t)\,\hat{\mathbf{x}}\)</p>
+
+$$
+\vec{h} \left(x,y,z=0,t\right)  = \left( 1 \text{A/m} \right) \times \text{sin} \left(2\pi (x-0)\times 1/2\right) \times \text{cos} \left(2\pi (y-0)\times  0\right) \times \text{cos} \left(2\pi (z-0)\times  0\right) \times \text{sin} \left(2\pi t\times  2\times 10^8\right) \times \Theta(t-0) \times \hat{\mathbf{x}}
+$$
+
+or simply:
+
+$$
+\vec{h} \left(x,y,z=0,t\right) = \text{sin} (\pi x) \text{sin} (2\pi f t) \hat{\mathbf{x}}
+$$
+
 <p>where \(f= 200\) MHz. An important feature is that the vector direction of each source field must be aligned with one of the Cartesian axes, but sources can be linearly combined on the same target surface, to obtain (the tangent field of) an arbitrarily impinging waveguide mode. It is also interesting to note that the <code>wavevector</code> field combines with the trigonometric functions in the <code>mode</code> field.</p>
 
 <h3>The output primitive</h3>
