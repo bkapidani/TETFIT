@@ -4,10 +4,13 @@
 <p>TetFIT a simulation toolbox which was developed during my Ph.D. thesis work at the University of Udine, which now has been superseeded by arbitrary polynomial degree versions available in Netgen/NGSolve (see <a href="https://ngsolve.org">[https://ngsolve.org]</a>). The source-code is written in C++ and works under Unix architectures (tested on Debian 9), MacOs and on Windows, compiled in the CygWin Posix compatibility layer or using WSL.
 All the documentation that follows is taken from chapter 7 of my final thesis report available <a href="https://air.uniud.it/bitstream/11390/1142992/2/thesis_kapidani_pdfA.pdf">here</a>.</p>
 
+<h2>Installation</h2>
+<p>After cloning the git repository one should use simply <code>cmake</code> and <code>make -j install</code> with the appropriate targets to get the executable compiled.</p>
+
 <h2>The user interface</h2>
 <p>The executable is called on the terminal with the instruction:</p>
 
-<pre><code>.\tetfit simulation.fdtd
+<pre><code>tetfit simulation.fdtd
 </code></pre>
 <p>where <code>simulation.fdtd</code> is an input file written in a scripting language developed by the author. An example of an input file is the following:</p>
 
