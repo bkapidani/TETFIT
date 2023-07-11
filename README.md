@@ -1,8 +1,8 @@
 # TETFIT
 
 <h1>The TetFIT toolbox</h1>
-<p>TetFIT a simulation toolbox which was developed during my thesis work at the University of Udine, which now has been superseeded by arbitrary polynomial degree versions available in Netgen/NGSolve. The source-code is written in C++ and works under Unix architectures (tested on Debian 9), MacOs and on Windows, compiled in the CygWin Posix compatibility layer or using WSL.
-All the documentation that follows is taken from chapter 7 of my <a href="https://air.uniud.it/bitstream/11390/1142992/2/thesis_kapidani_pdfA.pdf">[thesis]</a></p>
+<p>TetFIT a simulation toolbox which was developed during my Ph.D. thesis work at the University of Udine, which now has been superseeded by arbitrary polynomial degree versions available in Netgen/NGSolve (see <a href="https://ngsolve.org">[https://ngsolve.org]</a>). The source-code is written in C++ and works under Unix architectures (tested on Debian 9), MacOs and on Windows, compiled in the CygWin Posix compatibility layer or using WSL.
+All the documentation that follows is taken from chapter 7 of my final thesis report available at <a href="https://air.uniud.it/bitstream/11390/1142992/2/thesis_kapidani_pdfA.pdf">[thesis]</a></p>
 
 <h2>The user interface</h2>
 <p>The executable is called on the terminal with the instruction:</p>
@@ -108,9 +108,7 @@ DEFINE solid 1
 	SET material 1 # the material of the solid
 	SET type box  # alternative: sphere, cylinder
 	SET corner { -10,-10,-10} # coordinates of the lower left corner of the box
-	SET size 	{ 20, 20, 20}
-
- # dimensions
+	SET size 	{ 20, 20, 20} # dimensions
 END solid 1
 
 DEFINE solid 2 # overrides solid 1 where they intersect
@@ -196,7 +194,7 @@ ates and stores the fields at various time-steps (with a user-defined period whi
    SET courant     0.98 # courant factor
 END simulation    1
 </code></pre>
-<p>The simulation primitive is a kind of wrapper for the rest of the script. One script can have multiple simulation definitions, which will run sequentially<sup>[^2^]</sup>. The <code>solver</code> (which can be a conjugate gradient or algebraic multigrid<a href="http://wci.llnl.gov/codes/silo/">[AGMG]</a>) and <code>tolerance</code> fields are ignored if the <code>method</code> field is not set to the FEM (the only implicit approach among the three). The <code>courant</code> property sets a coefficient which multiplies the maximum time-step computed with spectral methods, therefore it should always be \(0 <\) <code>courant</code> \(< 1\) (0.98 was used in most of the results obtained in the thesis).</p>
+<p>The simulation primitive is a kind of wrapper for the rest of the script. One script can have multiple simulation definitions, which will run sequentially<sup>[^2^]</sup>. The <code>solver</code> (which can be a conjugate gradient or algebraic multigrid<a href="http://wci.llnl.gov/codes/silo/">[AGMG]</a>) and <code>tolerance</code> fields are ignored if the <code>method</code> field is not set to the FEM (the only implicit approach among the three). The <code>courant</code> property sets a coefficient which multiplies the maximum time-step computed with spectral methods, therefore it should always be \(0 <\) <code>courant</code> \(< 1\) (0.98 was used in most of the results obtained in the the thesis).</p>
 
 <p>Incidentally, the script we just described was the one used to obtain the outputs shown in Appendix A. Furthermore, for every primitive, the following general property applies:</p>
 
